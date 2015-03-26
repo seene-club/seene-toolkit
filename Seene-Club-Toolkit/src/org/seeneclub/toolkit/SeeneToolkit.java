@@ -6,20 +6,40 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
 
+import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
 	
+	// Settings Dialog
+	File configDir = null;
+    File configFile = null;
+	JDialog settingsDialog = new JDialog();
+    String seeneUser = new String();
+    String seenePass = new String();
+    String localStorage = new String();
+	
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
     JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
-	
+    	
 	// method main - all begins with a thread!
 	public static void main(String[] args) {
 		new Thread(new SeeneToolkit()).start();
@@ -27,6 +47,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 	@Override
 	public void run() {
+		
+		
+		configDir = new File(System.getProperty("user.home") + File.separator + ".synth");
+    	if (configDir.exists() || configDir.mkdirs()) {
+    		configFile = new File(configDir + File.separator + "configuration");
+    	}
 		
 		mainFrame.setSize(1024,768);
 		
@@ -44,7 +70,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         JMenuItem itemSettings = new JMenuItem("Settings");
         itemSettings.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                //showSettingsDialog();
+                showSettingsDialog();
             }
         });
         
@@ -110,5 +136,122 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		// TODO Auto-generated method stub
 		
 	}
+	
+	private void showSettingsDialog() {
+    	settingsDialog.setTitle("Seene-Club Settings");
+    	settingsDialog.setSize(400, 160);
+    	settingsDialog.setModal(true);
+    	
+    	JPanel gridPanel = new JPanel();
+    	gridPanel.setLayout( new java.awt.GridLayout( 5, 2 ) );
+    	
+    	JLabel labelLocalStorage = new JLabel(" Local Storage: ");
+    	JTextField tfLocalStorage = new JTextField(localStorage);
+    	
+    	JLabel labelUsername = new JLabel(" Seene Username: ");
+    	JTextField tfUsername = new JTextField(seeneUser);
+    	
+    	JLabel labelPassphrase = new JLabel(" Seene Password: ");
+    	JPasswordField tfPassphrase = new JPasswordField(10);
+    	if (seenePass.length()>0) tfPassphrase.setText("{unchanged}");
+    	
+    	tfLocalStorage.setEnabled(false);
+  	
+    	JButton buttonOK = new JButton("OK");
+    	buttonOK.addActionListener(new java.awt.event.ActionListener() {
+            @SuppressWarnings("deprecation")
+			public void actionPerformed(java.awt.event.ActionEvent e) {
+            	Boolean usernameOK = false;
+            	Boolean storageOK = false;
+            	
+            	if (tfUsername.getText().length() > 0) usernameOK=true;
+            	if (tfLocalStorage.getText().length() > 0) storageOK=true;
+            	            	
+            	if ((usernameOK) && (storageOK)) {
+            		PrintWriter writer;
+					try {
+						// write configuration file
+						writer = new PrintWriter(configFile);
+						writer.println("storage=" + tfLocalStorage.getText());
+						writer.println("username=" + tfUsername.getText());
+						if (tfPassphrase.getText().length() > 0) {
+							 if (!tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + XOREncryption.xorIt(tfPassphrase.getText()));
+							 if (tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + XOREncryption.xorIt(seenePass));
+						}
+						
+		    			writer.close();
+		    			System.out.println("new configuration file " + configFile.getPath() + " written!");
+		    			
+		    			readConfiguration(configFile);
+		    			settingsDialog.remove(gridPanel);
+		    			settingsDialog.dispose();
+
+					} catch (Exception e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					} //try/catch
+            		
+            	} else {
+            		JOptionPane.showMessageDialog(null, "Your settings are incomplete!");
+            	}
+
+            }
+        });
+    	
+    	JButton buttonCancel = new JButton("cancel");
+    	buttonCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+            	settingsDialog.remove(gridPanel);
+            	settingsDialog.dispose();
+            }
+        });
+   
+     	gridPanel.add(labelLocalStorage);
+    	gridPanel.add(tfLocalStorage);
+    	gridPanel.add(labelUsername);
+    	gridPanel.add(tfUsername);
+    	gridPanel.add(labelPassphrase);
+    	gridPanel.add(tfPassphrase);
+    	gridPanel.add(new JLabel(""));
+    	gridPanel.add(new JLabel(""));
+    	gridPanel.add(buttonOK);
+    	gridPanel.add(buttonCancel);
+    	
+    	settingsDialog.add(gridPanel);
+    	//settingsDialog.pack();
+    	
+    	settingsDialog.setVisible(true);
+    }
+	
+	private void readConfiguration(File cf) {
+    	if(cf.exists() && !cf.isDirectory()) {
+			System.out.println("reading application configuration...");
+			BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader(cf));
+				String line;
+    			while ((line = br.readLine()) != null) {
+    				if (line.substring(0, 10).equalsIgnoreCase("storage=")) {
+    					System.out.println("storage is configured at path: " + line.substring(8));
+    					localStorage = line.substring(10);
+    				}
+    				if (line.substring(0, 9).equalsIgnoreCase("username=")) {
+    					System.out.println("configured username is: " + line.substring(9));
+    					seeneUser = line.substring(9);
+    				}
+    				if (line.substring(0, 11).equalsIgnoreCase("passphrase=")) {
+    					System.out.println("configured passphrase is: " + line.substring(11));
+    					seenePass = line.substring(11);
+    				}
+    			}
+    			br.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		} // if (f.exists()...
+
+    }
 
 }

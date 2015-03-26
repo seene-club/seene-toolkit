@@ -1,0 +1,5 @@
+package org.seeneclub.toolkit;
+
+public class EncryptUtils {
+
+}

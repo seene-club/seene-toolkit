@@ -1,0 +1,196 @@
+package org.seeneclub.toolkit;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.PrintWriter;
+
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+
+public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
+	
+	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
+	
+	// Settings Dialog
+	File configDir = null;
+    File configFile = null;
+	JDialog settingsDialog = new JDialog();
+    String seeneUser = new String();
+    String seenePass = new String();
+    String localStorage = new String();
+	
+	// Task Menu Items
+    JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
+    JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
+    	
+	// method main - all begins with a thread!
+	public static void main(String[] args) {
+		new Thread(new SeeneToolkit()).start();
+	}
+
+	@Override
+	public void run() {
+		
+		
+		configDir = new File(System.getProperty("user.home") + File.separator + ".synth");
+    	if (configDir.exists() || configDir.mkdirs()) {
+    		configFile = new File(configDir + File.separator + "configuration");
+    	}
+		
+		mainFrame.setSize(1024,768);
+		
+		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		mainFrame.addWindowListener(new WindowAdapter() {
+		    public void windowClosing(WindowEvent e) {
+		    	 System.exit(0);
+		    }
+		});
+		
+		// menu bar
+        JMenuBar bar = new JMenuBar();
+        JMenu filemenu = new JMenu("Seene-Club");
+        
+        JMenuItem itemSettings = new JMenuItem("Settings");
+        itemSettings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                //showSettingsDialog();
+            }
+        });
+        
+        JMenuItem itemExit = new JMenuItem("Exit");
+        itemExit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                System.exit(0);
+            }
+        });
+        
+        filemenu.add(itemSettings);
+        filemenu.add(itemExit);
+        
+        JMenu taskmenu = new JMenu("Tasks");
+        
+        taskBackupPublic.addActionListener(this);
+        taskBackupPrivate.addActionListener(this);
+                
+        taskmenu.add(taskBackupPublic);
+        taskmenu.add(taskBackupPrivate);
+        
+        bar.add(filemenu);
+        bar.add(taskmenu);
+        
+        mainFrame.setJMenuBar(bar);
+
+		mainFrame.setLocationByPlatform(true);
+        mainFrame.setVisible(true);
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseClicked(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mousePressed(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseExited(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	private void showSettingsDialog() {
+    	settingsDialog.setTitle("Seene-Club Settings");
+    	settingsDialog.setSize(400, 200);
+    	settingsDialog.setModal(true);
+    	
+    	JPanel gridPanel = new JPanel();
+    	gridPanel.setLayout( new java.awt.GridLayout( 6, 2 ) );
+    	
+    	JLabel labelUsername = new JLabel(" Seene Username: ");
+    	JTextField tfUsername = new JTextField(seeneUser);
+    	
+    	JLabel labelPassphrase = new JLabel(" Seene Password: ");
+    	JPasswordField tfPassphrase = new JPasswordField(10);
+    	if (seenePass.length()>0) tfPassphrase.setText("{unchanged}");
+    	
+    	JLabel labelLocalStorage = new JLabel(" Local Storage: ");
+    	JTextField tfLocalStorage = new JTextField(localStorage);
+    	tfLocalStorage.setEnabled(false);
+  	
+    	JButton buttonOK = new JButton("OK");
+    	buttonOK.addActionListener(new java.awt.event.ActionListener() {
+            @SuppressWarnings("deprecation")
+			public void actionPerformed(java.awt.event.ActionEvent e) {
+            	Boolean usernameOK = false;
+            	Boolean storageOK = false;
+            	
+            	if (tfUsername.getText().length() > 0) usernameOK=true;
+            	if (tfLocalStorage.getText().length() > 0) storageOK=true;
+            	            	
+            	if ((usernameOK) && (storageOK)) {
+            		PrintWriter writer;
+            		PrintWriter shaKeyWriter;
+					try {
+						// write configuration file
+						writer = new PrintWriter(configFile);
+						writer.println("username=" + tfUsername.getText());
+						if (tfPassphrase.getText().length() > 0) {
+							 if (!tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + sha256(tfPassphrase.getText()));
+							 if (tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + sha256(seenePass));
+						}
+						
+		    			writer.close();
+		    			System.out.println("new configuration file " + configFile.getPath() + " written!");
+		    			
+		    			readConfiguration(configFile);
+		    			settingsDialog.remove(gridPanel);
+		    			settingsDialog.dispose();
+
+					} catch (Exception e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					} //try/catch
+            		
+            	} else {
+            		JOptionPane.showMessageDialog(null, "Dialog nicht vollst\u00e4ndig!\nEinstellungen wurden nicht gespeichert!");
+            	}
+
+            }
+        });
+
+}

@@ -1,0 +1,218 @@
+package org.seeneclub.toolkit;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+
+public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
+	
+	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
+	
+	// Settings Dialog
+	JDialog settingsDialog = new JDialog();
+    String seeneUser = new String();
+    String seenePass = new String();
+	
+	// Task Menu Items
+    JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
+    JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
+    	
+	// method main - all begins with a thread!
+	public static void main(String[] args) {
+		new Thread(new SeeneToolkit()).start();
+	}
+
+	@Override
+	public void run() {
+		
+		mainFrame.setSize(1024,768);
+		
+		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		mainFrame.addWindowListener(new WindowAdapter() {
+		    public void windowClosing(WindowEvent e) {
+		    	 System.exit(0);
+		    }
+		});
+		
+		// menu bar
+        JMenuBar bar = new JMenuBar();
+        JMenu filemenu = new JMenu("Seene-Club");
+        
+        JMenuItem itemSettings = new JMenuItem("Settings");
+        itemSettings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                //showSettingsDialog();
+            }
+        });
+        
+        JMenuItem itemExit = new JMenuItem("Exit");
+        itemExit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                System.exit(0);
+            }
+        });
+        
+        filemenu.add(itemSettings);
+        filemenu.add(itemExit);
+        
+        JMenu taskmenu = new JMenu("Tasks");
+        
+        taskBackupPublic.addActionListener(this);
+        taskBackupPrivate.addActionListener(this);
+                
+        taskmenu.add(taskBackupPublic);
+        taskmenu.add(taskBackupPrivate);
+        
+        bar.add(filemenu);
+        bar.add(taskmenu);
+        
+        mainFrame.setJMenuBar(bar);
+
+		mainFrame.setLocationByPlatform(true);
+        mainFrame.setVisible(true);
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseClicked(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mousePressed(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseExited(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	private void showSettingsDialog() {
+    	settingsDialog.setTitle("Einstellungen");
+    	settingsDialog.setSize(400, 200);
+    	settingsDialog.setModal(true);
+    	
+    	JPanel gridPanel = new JPanel();
+    	gridPanel.setLayout( new java.awt.GridLayout( 6, 2 ) );
+    	
+    	JLabel labelUsername = new JLabel(" Benutzername: ");
+    	JTextField tfUsername = new JTextField(username);
+    	
+    	JLabel labelPassphrase = new JLabel(" Kennwort: ");
+    	JPasswordField tfPassphrase = new JPasswordField(10);
+    	if (passphrase.length()>0) tfPassphrase.setText("{unchanged}");
+    	
+    	JLabel labelDynDNS = new JLabel(" Dynamic DNS: ");
+    	JTextField tfDynDns = new JTextField(dynamicDNS);
+    	
+    	JLabel labelRouterPort = new JLabel(" freigegebener Port: ");
+    	JTextField tfRouterPort = new JTextField(routerPort);
+    	
+    	JLabel labelSynthCatalogue = new JLabel(" Synth-Datenverzeichnis: ");
+    	JTextField tfSynthCatalogue = new JTextField(catalogue.getPath());
+    	tfSynthCatalogue.setEnabled(false);
+
+    	// Check if fSHA or USERNAME.id exists. if yes, do not allow modifications
+    	File fSHA = new File(synthConfigDir + File.separator + "sha.key");
+    	File fID = new File(catalogue.getContactsBaseDir() + File.separator + username + ".id");
+    	if ((fSHA.exists()) || (fID.exists())) {
+    		tfUsername.setEnabled(false);
+    		tfDynDns.setEnabled(false);
+    		tfRouterPort.setEnabled(false);
+    	}
+    	
+    	JButton buttonOK = new JButton("OK");
+    	buttonOK.addActionListener(new java.awt.event.ActionListener() {
+            @SuppressWarnings("deprecation")
+			public void actionPerformed(java.awt.event.ActionEvent e) {
+            	Boolean usernameOK = false;
+            	Boolean dynamicDnsOK = false;
+            	Boolean routerPortOK = false;
+            	if (tfUsername.getText().length() > 0) usernameOK=true;
+            	if (tfDynDns.getText().length() > 0) dynamicDnsOK=true;
+            	if (tfRouterPort.getText().length() > 0) routerPortOK=true;
+            	//TODO: improve values check!
+            	
+            	if ((usernameOK) && (dynamicDnsOK) && (routerPortOK)) {
+            		PrintWriter writer;
+            		PrintWriter shaKeyWriter;
+					try {
+						// write configuration file
+						writer = new PrintWriter(synthConfigFile);
+						writer.println("catalogue=" + catalogue.getPath());
+						writer.println("username=" + tfUsername.getText());
+						if (tfPassphrase.getText().length() > 0) {
+							 if (!tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + sha256(tfPassphrase.getText()));
+							 if (tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + sha256(passphrase));
+						}
+						writer.println("dynamicdns=" + tfDynDns.getText());
+						writer.println("routerport=" + tfRouterPort.getText());
+						if (overridePartitionDecryptionCheck) writer.println("overridePartitionDecryptionCheck");
+		    			writer.close();
+		    			System.out.println("new configuration file " + synthConfigFile.getPath() + " written!");
+		    			
+		    			// write obfuscated SHA Key
+		    			String shaComposition = new String(username + "{&}" + tfDynDns.getText() + "{&}" + tfRouterPort.getText());
+		    			SynthCrypt systemAESencryption = new SynthCrypt(myKeys.getSystemAESkey(), "AES");
+		    			shaKeyWriter = new PrintWriter(fSHA.getAbsolutePath());
+						//encrypt the systems info things with the system aes-key
+		    			shaKeyWriter.print(systemAESencryption.encrypt(shaComposition.toString()));
+		    			shaKeyWriter.close();
+		    			
+		    			// write own ID File to Contacts
+		    			createOwnIDFile();
+		    			
+		    			readConfiguration(synthConfigFile);
+		    			settingsDialog.remove(gridPanel);
+		    			settingsDialog.dispose();
+		    			
+		    			// start server now?
+		        		if ((dynamicDNS.length() > 5) && (routerPort.length() > 0) && (!serverStarted)) {
+		        			SynthServe server = new SynthServe(routerPort, maxConnections,username,myKeys,catalogue);
+		        			Thread t = new Thread(server);    		
+		        			t.start();
+		        			serverStarted = true;
+		        		}
+					} catch (Exception e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					} //try/catch
+            		
+            	} else {
+            		JOptionPane.showMessageDialog(null, "Dialog nicht vollst\u00e4ndig!\nEinstellungen wurden nicht gespeichert!");
+            	}
+
+            }
+        });
+
+}
