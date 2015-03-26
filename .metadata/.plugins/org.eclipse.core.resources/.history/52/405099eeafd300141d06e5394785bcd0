@@ -16,10 +16,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
 	
-	// Task Menu Items
-    JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
-    JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
-	
 	// method main - all begins with a thread!
 	public static void main(String[] args) {
 		new Thread(new SeeneToolkit()).start();
@@ -41,14 +37,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         JMenuBar bar = new JMenuBar();
         JMenu filemenu = new JMenu("Seene-Club");
         
-        JMenuItem itemSettings = new JMenuItem("Settings");
+        JMenuItem itemSettings = new JMenuItem("settings");
         itemSettings.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 //showSettingsDialog();
             }
         });
         
-        JMenuItem itemExit = new JMenuItem("Exit");
+        JMenuItem itemExit = new JMenuItem("exit");
         itemExit.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 System.exit(0);
@@ -58,16 +54,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         filemenu.add(itemSettings);
         filemenu.add(itemExit);
         
-        JMenu taskmenu = new JMenu("Tasks");
-        
-        taskBackupPublic.addActionListener(this);
-        taskBackupPrivate.addActionListener(this);
-                
-        taskmenu.add(taskBackupPublic);
-        taskmenu.add(taskBackupPrivate);
-        
         bar.add(filemenu);
-        bar.add(taskmenu);
         
         mainFrame.setJMenuBar(bar);
 
