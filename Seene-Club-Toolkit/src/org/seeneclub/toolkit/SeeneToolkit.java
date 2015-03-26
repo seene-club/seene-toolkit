@@ -39,12 +39,25 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
     JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
-    	
-	// method main - all begins with a thread!
+    
+    // method main - all begins with a thread!
 	public static void main(String[] args) {
-		new Thread(new SeeneToolkit()).start();
+		doTestLogin(); // PAF: move me to some test infrastructure, please
+		//new Thread(new SeeneToolkit()).start();
 	}
 
+    private static void doTestLogin() {
+		try {
+			SeeneAPI.Token token = SeeneAPI.login(
+					System.getProperty("api_id"), 
+					System.getProperty("username"), 
+					System.getProperty("password"));
+			System.out.println(token.api_token);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}	
+    
 	@Override
 	public void run() {
 		
@@ -65,7 +78,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		// menu bar
         JMenuBar bar = new JMenuBar();
-        JMenu filemenu = new JMenu("Seene-Club");
+        JMenu fileMenu = new JMenu("Seene-Club");
         
         JMenuItem itemSettings = new JMenuItem("Settings");
         itemSettings.addActionListener(new java.awt.event.ActionListener() {
@@ -81,19 +94,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             }
         });
         
-        filemenu.add(itemSettings);
-        filemenu.add(itemExit);
+        fileMenu.add(itemSettings);
+        fileMenu.add(itemExit);
         
-        JMenu taskmenu = new JMenu("Tasks");
+        JMenu taskMenu = new JMenu("Tasks");
+        JMenu testMenu = new JMenu("Tests");
         
         taskBackupPublic.addActionListener(this);
         taskBackupPrivate.addActionListener(this);
                 
-        taskmenu.add(taskBackupPublic);
-        taskmenu.add(taskBackupPrivate);
-        
-        bar.add(filemenu);
-        bar.add(taskmenu);
+        taskMenu.add(taskBackupPublic);
+        taskMenu.add(taskBackupPrivate);
+
+        bar.add(fileMenu);
+        bar.add(taskMenu);
+        bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
 

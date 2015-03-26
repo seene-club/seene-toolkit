@@ -26,7 +26,7 @@ public class SeeneObject {
 		captured_at = new Date();
 		filter_code = "none";
 		flash_level = 0;
-		identifier = UUID.randomUUID(); //TODO zettlerm - changed this to compile / refactor
+		identifier = UUID.randomUUID();
 		orientation = 0;
 		shared = 0;
 		storage_version = 3;
