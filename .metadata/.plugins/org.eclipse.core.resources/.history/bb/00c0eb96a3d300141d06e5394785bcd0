@@ -1,0 +1,29 @@
+package org.seeneclub.toolkit;
+
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+
+public class SeeneModel {
+	
+	private int mSeeneVersion = -1;
+	private int mCameraWidth = -1;
+	private int mCameraHeight = -1;
+	private int mDepthWidth = -1;
+	private int mDepthHeight = -1;
+	private File modelFile;
+	
+	public void  loadModelFromFile(File mFile) {
+		try {
+			DataInputStream in = new DataInputStream(new InputStream(new FileInputStream(mFile)));
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	}
+	
+
+}

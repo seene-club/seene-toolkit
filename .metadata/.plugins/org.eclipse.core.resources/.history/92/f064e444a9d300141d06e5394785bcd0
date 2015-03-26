@@ -1,0 +1,12 @@
+package org.seeneclub.toolkit;
+
+import java.awt.Image;
+import java.io.File;
+
+public class SeeneTexture {
+	
+	private Image textureImage;
+	private File textureFile;
+	
+
+}

@@ -1,0 +1,99 @@
+package org.seeneclub.toolkit;
+
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+public class SeeneModel {
+	
+	private int mSeeneVersion = -1;
+	private int mCameraWidth = -1;
+	private int mCameraHeight = -1;
+	private int mDepthWidth = -1;
+	private int mDepthHeight = -1;
+	private File modelFile;
+	
+	public void  loadModelFromFile(File mFile) {
+		try {
+			DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(mFile)));
+			
+			//0 offset
+	        int version = Integer.reverseBytes(in.readInt());
+		    mSeeneVersion = version;
+		    System.out.println("version: " + version); 
+		    
+		    //4 offset should be something like 720
+		    int cameraWidth = Integer.reverseBytes(in.readInt());
+		    mCameraWidth = cameraWidth;
+		    System.out.println("cameraWidth: " + cameraWidth);
+		    
+		    //8 should be something like 720
+		    int cameraHeight = Integer.reverseBytes(in.readInt());
+		    mCameraHeight = cameraHeight;
+		    System.out.println("cameraHeight: " + cameraHeight);
+		    
+		    //at byte 12 should be something like 1252.39842
+		    float cameraFX = getFloatAtCurPos(in);
+		    System.out.println("cameraFX: " + cameraFX);
+		    
+		    //at byte 16 should be something like 1247.39842
+		    float cameraFY = getFloatAtCurPos(in);
+		    System.out.println("cameraFy: " + cameraFY);
+		    
+		    //at byte 20 should be something like 0.023
+		    float cameraK1 = getFloatAtCurPos(in);
+		    System.out.println("cameraK1: " + cameraK1);
+		    
+		    //at byte 20 should be something like .3207...
+		    float cameraK2 = getFloatAtCurPos(in);
+		    System.out.println("cameraK2: " + cameraK2);
+		    
+		    //at byte 28 ~~90
+		    int depthmapwidth = Integer.reverseBytes(in.readInt());
+		    mDepthWidth = depthmapwidth;
+		    System.out.println("depthmapwidth: " + depthmapwidth);
+		    //at byte 32 ~~90
+		    int depthmapheight = Integer.reverseBytes(in.readInt());
+		    mDepthHeight = depthmapheight;
+		    System.out.println("depthmapheight: " + depthmapheight);
+		    
+		    int floatCount = depthmapheight* depthmapwidth;
+		    float fOut[] = new float[floatCount];
+		    float scale = 1;
+		    for(int i = 0; i<fOut.length;i++)
+		    {
+		    	fOut[i] = scale* getFloatAtCurPos(in);
+		    	//System.out.println("[" +i + "]: " + fOut[i]);
+		    }
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	}
+	
+	// reverses the endianess of the data stream so we can 
+	// properly pull a 32 bit float out...  Slow but the only way I 
+	// could figure to do it in Java...
+	private static float getFloatAtCurPos(DataInputStream in) {
+		byte[] bytes = new byte[4];
+		float result = 0;
+		try {
+		    for(int i = bytes.length-1; i >= 0; i--)
+		    	bytes[i] = in.readByte();
+		    
+			result = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN ).getFloat();
+			} catch(Exception e) {			  {
+				System.out.println(e);
+			}
+			return result;
+		}
+	
+
+}
