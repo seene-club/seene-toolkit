@@ -43,8 +43,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     String seeneAPIid = new String();
 	
 	// Task Menu Items
-    JMenuItem taskBackupPublic = new JMenuItem("Backup public Seenes");
-    JMenuItem taskBackupPrivate = new JMenuItem("Backup private Seenes");
+    JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
+    JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
     
     // Tests Menu Items
     JMenuItem testDoLogin = new JMenuItem("Test Login");

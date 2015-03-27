@@ -30,7 +30,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
 	
-	// We need a local storage for the Seenes
+	// We need a Storage for the Seenes
 	SeeneStorage storage = new SeeneStorage();
   	Boolean storageOK = false;
 	
@@ -41,10 +41,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     String seeneUser = new String();
     String seenePass = new String();
     String seeneAPIid = new String();
+    String localStorage = new String();
 	
 	// Task Menu Items
-    JMenuItem taskBackupPublic = new JMenuItem("Backup public Seenes");
-    JMenuItem taskBackupPrivate = new JMenuItem("Backup private Seenes");
+    JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
+    JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
     
     // Tests Menu Items
     JMenuItem testDoLogin = new JMenuItem("Test Login");
@@ -213,7 +214,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	gridPanel.setLayout( new java.awt.GridLayout( 5, 2 ) );
     	
     	JLabel labelLocalStorage = new JLabel(" Local Storage: ");
-    	JTextField tfLocalStorage = new JTextField(storage.getPath());
+    	JTextField tfLocalStorage = new JTextField(localStorage);
     	
     	JLabel labelUsername = new JLabel(" Seene Username: ");
     	JTextField tfUsername = new JTextField(seeneUser);
@@ -294,7 +295,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	settingsDialog.setVisible(true);
     }
 	
-	private boolean readConfiguration(File cf) {
+	private void readConfiguration(File cf) {
     	if(cf.exists() && !cf.isDirectory()) {
 			System.out.println("reading application configuration...");
 			BufferedReader br;
@@ -308,7 +309,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     				}
     				if (line.substring(0, 8).equalsIgnoreCase("storage=")) {
     					System.out.println("configured starage path: " + line.substring(8));
-    					storage.setPath(line.substring(8));
+    					localStorage = line.substring(8);
     					storageOK = storage.initializer();
     				}
     				if (line.substring(0, 9).equalsIgnoreCase("username=")) {
@@ -328,7 +329,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			}
 			
 		} // if (f.exists()...
-    	return storageOK;
+
     }
 
 }
