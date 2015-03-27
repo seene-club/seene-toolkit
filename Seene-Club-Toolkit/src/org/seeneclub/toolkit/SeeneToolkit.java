@@ -8,12 +8,14 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -34,24 +36,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	JDialog settingsDialog = new JDialog();
     String seeneUser = new String();
     String seenePass = new String();
+    String seeneAPIid = new String();
     String localStorage = new String();
 	
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("backup public seenes");
     JMenuItem taskBackupPrivate = new JMenuItem("backup private seenes");
     
+    // Tests Menu Items
+    JMenuItem testDoLogin = new JMenuItem("Test Login");
+    
     // method main - all begins with a thread!
 	public static void main(String[] args) {
-		doTestLogin(); // PAF: move me to some test infrastructure, please
-		//new Thread(new SeeneToolkit()).start();
+		//doTestLogin(); // PAF: move me to some test infrastructure, please
+		new Thread(new SeeneToolkit()).start();
 	}
 
-    private static void doTestLogin() {
+    private void doTestLogin() {
 		try {
-			SeeneAPI.Token token = SeeneAPI.login(
-					System.getProperty("api_id"), 
-					System.getProperty("username"), 
-					System.getProperty("password"));
+			SeeneAPI.Token token = SeeneAPI.login(seeneAPIid,seeneUser,seenePass);
+					
 			System.out.println(token.api_token);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -61,12 +65,40 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	@Override
 	public void run() {
 		
-		
-		configDir = new File(System.getProperty("user.home") + File.separator + ".synth");
+		configDir = new File(System.getProperty("user.home") + File.separator + ".seene-club");
     	if (configDir.exists() || configDir.mkdirs()) {
     		configFile = new File(configDir + File.separator + "configuration");
-    	}
-		
+    		if(!configFile.exists()) {
+    			// Show dialog for directory browsing
+    			JFileChooser chooser = new JFileChooser();
+    			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+    			int fileChooserReturnValue = chooser.showDialog(null,"select directory to store your backuped seenes");
+    	        
+    	        // Check if choosen or canceled
+    	        if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
+    	            System.out.println("user selected path: " + chooser.getSelectedFile().getPath());
+    	            // Write path in configuration file
+    	            PrintWriter writer;
+					try {
+						writer = new PrintWriter(configFile);
+						writer.println("storage=" + chooser.getSelectedFile().getPath());
+		    			writer.close();
+		    			System.out.println("new configuration file " + configFile.getPath() + " written!");
+		    			
+		        		showSettingsDialog();
+		        		
+					} catch (FileNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} //try/catch
+    	        } else {
+    	        	System.out.println("user canceled selection!");
+    	        	System.exit(0);
+    	        } // if ... JFileChooser.APPROVE_OPTION 
+       		} // if(!f.exists())
+   		}
+	
+	
 		mainFrame.setSize(1024,768);
 		
 		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -98,14 +130,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         fileMenu.add(itemExit);
         
         JMenu taskMenu = new JMenu("Tasks");
-        JMenu testMenu = new JMenu("Tests");
         
         taskBackupPublic.addActionListener(this);
         taskBackupPrivate.addActionListener(this);
-                
+        
         taskMenu.add(taskBackupPublic);
         taskMenu.add(taskBackupPrivate);
-
+        
+        JMenu testMenu = new JMenu("Tests");
+        testDoLogin.addActionListener(this);
+        
+        testMenu.add(testDoLogin);
+                
         bar.add(fileMenu);
         bar.add(taskMenu);
         bar.add(testMenu);
@@ -114,11 +150,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
+        
 	}
-
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		// TODO Auto-generated method stub
+	
+	// the action listener for the GUI
+	public void actionPerformed(ActionEvent arg0) {
+		
+		if(arg0.getSource() == this.taskBackupPublic) {
+			System.out.println("Menu -> Task -> backup public seenes selected!");
+			
+		} else if(arg0.getSource() == this.taskBackupPrivate) {
+			System.out.println("Menu -> Task -> backup private seenes selected!");
+			
+		} else if(arg0.getSource() == this.testDoLogin) {
+	    	doTestLogin();
+	    }
 		
 	}
 
@@ -153,6 +199,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	private void showSettingsDialog() {
+		
+		readConfiguration(configFile);
+		
     	settingsDialog.setTitle("Seene-Club Settings");
     	settingsDialog.setSize(400, 160);
     	settingsDialog.setModal(true);
@@ -187,6 +236,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					try {
 						// write configuration file
 						writer = new PrintWriter(configFile);
+						if (seeneAPIid.length() > 0) {
+							writer.println("api_id=" + seeneAPIid);
+						} else {
+							writer.println("api_id=<insert Seene API ID here>");
+						}
 						writer.println("storage=" + tfLocalStorage.getText());
 						writer.println("username=" + tfUsername.getText());
 						if (tfPassphrase.getText().length() > 0) {
@@ -209,7 +263,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             	} else {
             		JOptionPane.showMessageDialog(null, "Your settings are incomplete!");
             	}
-
             }
         });
     	
@@ -246,18 +299,23 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				br = new BufferedReader(new FileReader(cf));
 				String line;
     			while ((line = br.readLine()) != null) {
-    				if (line.substring(0, 10).equalsIgnoreCase("storage=")) {
-    					System.out.println("storage is configured at path: " + line.substring(8));
-    					localStorage = line.substring(10);
+    				if (line.substring(0, 7).equalsIgnoreCase("api_id=")) {
+    					System.out.println("configured api_id is: " + line.substring(7));
+    					seeneAPIid = line.substring(7);
+    				}
+    				if (line.substring(0, 8).equalsIgnoreCase("storage=")) {
+    					System.out.println("configured starage path: " + line.substring(8));
+    					localStorage = line.substring(8);
     				}
     				if (line.substring(0, 9).equalsIgnoreCase("username=")) {
-    					System.out.println("configured username is: " + line.substring(9));
+    					System.out.println("configured username: " + line.substring(9));
     					seeneUser = line.substring(9);
     				}
     				if (line.substring(0, 11).equalsIgnoreCase("passphrase=")) {
-    					System.out.println("configured passphrase is: " + line.substring(11));
-    					seenePass = line.substring(11);
+    					System.out.println("configured passphrase: " + line.substring(11));
+    					seenePass = XOREncryption.xorIt(line.substring(11));
     				}
+    				
     			}
     			br.close();
 			} catch (IOException e) {
@@ -270,3 +328,4 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     }
 
 }
+
