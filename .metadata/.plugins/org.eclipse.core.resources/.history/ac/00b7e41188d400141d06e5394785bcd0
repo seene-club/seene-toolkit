@@ -51,6 +51,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
     // method main - all begins with a thread!
 	public static void main(String[] args) {
+		//doTestLogin(); // PAF: move me to some test infrastructure, please
 		new Thread(new SeeneToolkit()).start();
 	}
 
@@ -63,17 +64,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			e.printStackTrace();
 		}
 	}	
-    
-    // @PAF prepared two methods for the Backup Tasks. They are called by selecting the tasks from the menu.
-    private void doTaskBackupPublicSeenes() {
-    	System.out.println("Public Seenes will go to " + storage.getPublicDir());
-    	
-    }
-    
-    private void doTaskBackupPrivateSeenes() {
-    	System.out.println("Private Seenes will go to " + storage.getPrivateDir());
-    	
-    }
     
 	@Override
 	public void run() {
@@ -107,11 +97,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	        } else {
     	        	System.out.println("user canceled selection!");
     	        	System.exit(0);
-    	        } // if ... JFileChooser.APPROVE_OPTION
-    		} else {
-    			readConfiguration(configFile);
-       		} 
+    	        } // if ... JFileChooser.APPROVE_OPTION 
+       		} // if(!f.exists())
    		}
+	
 	
 		mainFrame.setSize(1024,768);
 		
@@ -171,9 +160,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	public void actionPerformed(ActionEvent arg0) {
 		
 		if(arg0.getSource() == this.taskBackupPublic) {
-			doTaskBackupPublicSeenes();
+			System.out.println("Menu -> Task -> backup public seenes selected!");
+			
 		} else if(arg0.getSource() == this.taskBackupPrivate) {
-			doTaskBackupPrivateSeenes();
+			System.out.println("Menu -> Task -> backup private seenes selected!");
+			
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
 	    }

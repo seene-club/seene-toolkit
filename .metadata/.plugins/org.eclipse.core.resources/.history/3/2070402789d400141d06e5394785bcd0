@@ -64,7 +64,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 	}	
     
-    // @PAF prepared two methods for the Backup Tasks. They are called by selecting the tasks from the menu.
     private void doTaskBackupPublicSeenes() {
     	System.out.println("Public Seenes will go to " + storage.getPublicDir());
     	
@@ -107,11 +106,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	        } else {
     	        	System.out.println("user canceled selection!");
     	        	System.exit(0);
-    	        } // if ... JFileChooser.APPROVE_OPTION
-    		} else {
-    			readConfiguration(configFile);
-       		} 
+    	        } // if ... JFileChooser.APPROVE_OPTION 
+       		} // if(!f.exists())
    		}
+	
 	
 		mainFrame.setSize(1024,768);
 		
