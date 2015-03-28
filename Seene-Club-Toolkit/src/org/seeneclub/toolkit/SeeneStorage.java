@@ -2,6 +2,8 @@ package org.seeneclub.toolkit;
 
 import java.io.File;
 
+import org.seeneclub.domainvalues.LogLevel;
+
 public class SeeneStorage {
 	
 	private String path;
@@ -27,12 +29,12 @@ public class SeeneStorage {
 			if ((publicOK) && (privateOK) && (offlineOK)) {
 				return true;
 			} else {
-				System.out.println("could not create all storage subdirs!");
+				SeeneToolkit.log("could not create all storage subdirs!",LogLevel.fatal);
 			}
 			
 			return false;
 		} else {
-			System.out.println("storage does not exist! Please, check your configuration!");
+			SeeneToolkit.log("storage does not exist! Please, check your configuration!",LogLevel.error);
 			return false;
 		}
 	}
@@ -43,14 +45,14 @@ public class SeeneStorage {
 		boolean success = false;
 			
 		if(fd.exists() && fd.isDirectory()) {
-			System.out.println(fd.getPath() + " exists.");
+			SeeneToolkit.log(fd.getPath() + " exists.",LogLevel.debug);
 			success = true;
 		} else {
 			success = fd.mkdirs();
 			if (success) {
-				System.out.println(fd.getPath() + " created!");
+				SeeneToolkit.log(fd.getPath() + " created!",LogLevel.info);
 			} else {
-				System.out.println("could not create " + fd.getPath());
+				SeeneToolkit.log("could not create " + fd.getPath(),LogLevel.error);
 			}
 		}
 		if (success) return true;	

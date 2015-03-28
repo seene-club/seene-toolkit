@@ -1,0 +1,5 @@
+package org.seeneclub.domainvalues;
+
+public class LogLevel {
+
+}

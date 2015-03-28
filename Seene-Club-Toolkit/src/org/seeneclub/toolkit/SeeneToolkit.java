@@ -1,5 +1,6 @@
 package org.seeneclub.toolkit;
 
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
@@ -24,15 +25,42 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.ScrollPaneConstants;
+
+import org.seeneclub.domainvalues.LogLevel;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
+	
+	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
+													  LogLevel.info +
+													  LogLevel.warn +
+													  LogLevel.error +
+													  LogLevel.fatal;
 	
 	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
 	
 	// We need a local storage for the Seenes
 	SeeneStorage storage = new SeeneStorage();
   	Boolean storageOK = false;
+  	
+  	// GUI-Panels
+	JPanel panelWest = new JPanel();
+	JPanel panelWestNorth = new JPanel();
+	JPanel panelWestSouth = new JPanel();
+	// Seene listview goes to panelWestSouth and that should be scrollable!
+	JScrollPane scrollWestSouth = new JScrollPane (panelWestSouth, 
+            ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+	JPanel panelEastNorth = new JPanel();
+	JPanel panelEastSouth = new JPanel();
+	
+	// Elements for Panel EastSouth (log output)
+    static JTextArea logOutput = new JTextArea();
+    JScrollPane logOutputScrollPane = new JScrollPane(logOutput);
 	
 	// Settings Dialog
 	File configDir = null;
@@ -58,7 +86,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		try {
 			SeeneAPI.Token token = SeeneAPI.login(seeneAPIid,seeneUser,seenePass);
 					
-			System.out.println(token.api_token);
+			log(token.api_token,LogLevel.info);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -66,12 +94,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
     // @PAF prepared two methods for the Backup Tasks. They are called by selecting the tasks from the menu.
     private void doTaskBackupPublicSeenes() {
-    	System.out.println("Public Seenes will go to " + storage.getPublicDir());
+    	log("Public Seenes will go to " + storage.getPublicDir(),LogLevel.info);
     	
     }
     
     private void doTaskBackupPrivateSeenes() {
-    	System.out.println("Private Seenes will go to " + storage.getPrivateDir());
+    	log("Private Seenes will go to " + storage.getPrivateDir(),LogLevel.info);
     	
     }
     
@@ -89,14 +117,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	        
     	        // Check if chosen or canceled
     	        if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
-    	            System.out.println("user selected path: " + chooser.getSelectedFile().getPath());
+    	            log("user selected path: " + chooser.getSelectedFile().getPath(),LogLevel.info);
     	            // Write path in configuration file
     	            PrintWriter writer;
 					try {
 						writer = new PrintWriter(configFile);
 						writer.println("storage=" + chooser.getSelectedFile().getPath());
 		    			writer.close();
-		    			System.out.println("new configuration file " + configFile.getPath() + " written!");
+		    			log("new configuration file " + configFile.getPath() + " written!",LogLevel.info);
 		    			
 		        		showSettingsDialog();
 		        		
@@ -105,7 +133,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						e.printStackTrace();
 					} //try/catch
     	        } else {
-    	        	System.out.println("user canceled selection!");
+    	        	log("user canceled selection!",LogLevel.info);
     	        	System.exit(0);
     	        } // if ... JFileChooser.APPROVE_OPTION
     		} else {
@@ -161,10 +189,50 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
+        
+        //Region Panels and Splits
+        JSplitPane allSplits = createSplitPanels();
+        mainFrame.add(allSplits);
+        
+        logOutput.setLineWrap(true);
+        logOutput.setColumns(60);
+        logOutput.setRows(12);
+        panelEastSouth.add(logOutputScrollPane);
 
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
         
+	}
+	
+	// create all JSplitPanes for the GUI
+	private JSplitPane createSplitPanels() {
+		
+		JSplitPane splitWestNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		splitWestNorthSouth.setTopComponent(panelWestNorth);
+		splitWestNorthSouth.setBottomComponent(panelWestSouth);
+		splitWestNorthSouth.setDividerSize(2);
+		splitWestNorthSouth.setDividerLocation(50);
+		splitWestNorthSouth.setResizeWeight(0.5);
+		
+		Dimension minimumSize = new Dimension(250, 500);
+		splitWestNorthSouth.setMinimumSize(minimumSize);
+		
+		JSplitPane splitEastNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		splitEastNorthSouth.setTopComponent(panelEastNorth);
+		splitEastNorthSouth.setBottomComponent(panelEastSouth);
+		splitEastNorthSouth.setDividerSize(2);
+		splitEastNorthSouth.setDividerLocation(768-250);
+		splitEastNorthSouth.setResizeWeight(0.5);
+		
+		JSplitPane splitWestEast = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+		splitWestEast.setLeftComponent(splitWestNorthSouth);
+		splitWestEast.setRightComponent(splitEastNorthSouth);
+		splitWestEast.setOneTouchExpandable(true);
+		splitWestEast.setDividerSize(2);
+		splitWestEast.setDividerLocation(250);
+		splitWestEast.setResizeWeight(0.5);
+		
+		return splitWestEast;
 	}
 	
 	// the action listener for the GUI
@@ -261,7 +329,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						}
 						
 		    			writer.close();
-		    			System.out.println("new configuration file " + configFile.getPath() + " written!");
+		    			log("new configuration file " + configFile.getPath() + " written!",LogLevel.info);
 		    			
 		    			readConfiguration(configFile);
 		    			settingsDialog.remove(gridPanel);
@@ -305,27 +373,27 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	private boolean readConfiguration(File cf) {
     	if(cf.exists() && !cf.isDirectory()) {
-			System.out.println("reading application configuration...");
+    		log("reading application configuration...",LogLevel.debug);
 			BufferedReader br;
 			try {
 				br = new BufferedReader(new FileReader(cf));
 				String line;
     			while ((line = br.readLine()) != null) {
     				if (line.substring(0, 7).equalsIgnoreCase("api_id=")) {
-    					System.out.println("configured api_id is: " + line.substring(7));
+    					log("configured api_id is: " + line.substring(7),LogLevel.debug);
     					seeneAPIid = line.substring(7);
     				}
     				if (line.substring(0, 8).equalsIgnoreCase("storage=")) {
-    					System.out.println("configured starage path: " + line.substring(8));
+    					log("configured starage path: " + line.substring(8),LogLevel.debug);
     					storage.setPath(line.substring(8));
     					storageOK = storage.initializer();
     				}
     				if (line.substring(0, 9).equalsIgnoreCase("username=")) {
-    					System.out.println("configured username: " + line.substring(9));
+    					log("configured username: " + line.substring(9),LogLevel.debug);
     					seeneUser = line.substring(9);
     				}
     				if (line.substring(0, 11).equalsIgnoreCase("passphrase=")) {
-    					System.out.println("configured passphrase: " + line.substring(11));
+    					log("configured passphrase: " + line.substring(11),LogLevel.debug);
     					seenePass = XOREncryption.xorIt(line.substring(11));
     				}
     				
@@ -339,6 +407,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		} // if (f.exists()...
     	return storageOK;
     }
+	
+	public static void log(String logLine, String LogLevelKey) {
+		if (APPLICATION_LOG_MODE.contains(LogLevelKey)) {
+			logOutput.append(logLine + "\n");
+			logOutput.setCaretPosition(logOutput.getDocument().getLength());
+			System.out.println(logLine);
+			//TODO: writing to logfile
+		}
+	}
 
 }
 
