@@ -410,9 +410,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	public static void log(String logLine, String LogLevelKey) {
 		if (APPLICATION_LOG_MODE.contains(LogLevelKey)) {
-			logOutput.append(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine + "\n");
+			logOutput.append(logLine + "\n");
 			logOutput.setCaretPosition(logOutput.getDocument().getLength());
-			System.out.println(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine);
+			System.out.println(logLine);
 			//TODO: writing to logfile
 		}
 	}
