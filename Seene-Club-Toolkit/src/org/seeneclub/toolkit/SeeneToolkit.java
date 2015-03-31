@@ -51,6 +51,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
 	
+
+	
 	// We need a local storage for the Seenes
 	SeeneStorage storage = new SeeneStorage();
   	Boolean storageOK = false;
@@ -71,12 +73,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JScrollPane logOutputScrollPane = new JScrollPane(logOutput);
 	
 	// Settings Dialog
-	File configDir = null;
-    File configFile = null;
+	static File configDir = null;
+    static File configFile = null;
 	JDialog settingsDialog = new JDialog();
     static String seeneUser = new String();
     static String seenePass = new String();
-    String seeneAPIid = new String();
+    static String seeneAPIid = new String();
 	
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("Backup public Seenes");
@@ -88,6 +90,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     // method main - all begins with a thread!
 	@SuppressWarnings("static-access")
 	public static void main(String[] args) {
+		
+		configDir = new File(System.getProperty("user.home") + File.separator + ".seene-club");
+		if (configDir.exists() || configDir.mkdirs()) {
+			configFile = new File(configDir + File.separator + "configuration");
+		}
 		
 		Boolean commandLineUsed = false;
 		
@@ -155,6 +162,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    				char consolePass[] = c.readPassword(seeneUser + "'s password: ");
 		    				seenePass = new String(consolePass);
 		    			}
+		    			// because we never put the Seene-API-ID in the code, we read from file!
+	    				seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
 		    			if (line.hasOption("output-target")) {
 			    			doTaskBackupPrivateSeenes(new File(line.getOptionValue("output-target")));
 			    		} else {
@@ -203,47 +212,46 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     private static void doTaskBackupPrivateSeenes(File targetDir) {
     	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	log("Credentials: " + seeneUser + ":" + seenePass ,LogLevel.info);	// TODO remove!
+    	log("Seene API ID: " + seeneAPIid ,LogLevel.info);	// TODO remove!
     	
     }
     
 	@Override
 	public void run() {
 		
-		configDir = new File(System.getProperty("user.home") + File.separator + ".seene-club");
-    	if (configDir.exists() || configDir.mkdirs()) {
-    		configFile = new File(configDir + File.separator + "configuration");
-    		if(!configFile.exists()) {
-    			// Show dialog for directory browsing
-    			JFileChooser chooser = new JFileChooser();
-    			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-    			int fileChooserReturnValue = chooser.showDialog(null,"select directory to store your backuped seenes");
-    	        
-    	        // Check if chosen or canceled
-    	        if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
-    	            log("user selected path: " + chooser.getSelectedFile().getPath(),LogLevel.info);
-    	            // Write path in configuration file
-    	            PrintWriter writer;
-					try {
-						writer = new PrintWriter(configFile);
-						writer.println("storage=" + chooser.getSelectedFile().getPath());
-		    			writer.close();
-		    			log("new configuration file " + configFile.getPath() + " written!",LogLevel.info);
-		    			
-		        		showSettingsDialog();
-		        		
-					} catch (FileNotFoundException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} //try/catch
-    	        } else {
-    	        	log("user canceled selection!",LogLevel.info);
-    	        	System.exit(0);
-    	        } // if ... JFileChooser.APPROVE_OPTION
-    		} else {
-    			readConfiguration(configFile);
-       		} 
-   		}
-	
+		// first run. User should select where to store the Seenes.
+		if(!configFile.exists()) {
+			// Show dialog for directory browsing
+			JFileChooser chooser = new JFileChooser();
+			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			int fileChooserReturnValue = chooser.showDialog(null,"select directory to store your backuped seenes");
+	        
+	        // Check if chosen or canceled
+	        if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
+	            log("user selected path: " + chooser.getSelectedFile().getPath(),LogLevel.info);
+	            // Write path in configuration file
+	            PrintWriter writer;
+				try {
+					writer = new PrintWriter(configFile);
+					writer.println("storage=" + chooser.getSelectedFile().getPath());
+	    			writer.close();
+	    			log("new configuration file " + configFile.getPath() + " written!",LogLevel.info);
+	    			
+	        		showSettingsDialog();
+	        		
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} //try/catch
+	        } else {
+	        	log("user canceled selection!",LogLevel.info);
+	        	System.exit(0);
+	        } // if ... JFileChooser.APPROVE_OPTION
+		} else {
+			readConfiguration(configFile);
+   		} 
+
+	    // GUI stuff
 		mainFrame.setSize(1024,768);
 		
 		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -474,6 +482,34 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	settingsDialog.setVisible(true);
     }
 	
+	// returns the value of a certain parameter from the configuration file
+	private static String getParameterFromConfiguration(File cf, String param) {
+		String paramEq = new String(param + "=");
+		if(cf.exists() && !cf.isDirectory()) {
+    		log("looking for " + paramEq + " in " + cf.getAbsolutePath() ,LogLevel.info);
+			BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader(cf));
+				String line;
+    			while ((line = br.readLine()) != null) {
+    				if (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq)) {
+    					log("configured " + paramEq + " is: " + line.substring(paramEq.length()),LogLevel.debug);
+    					br.close();
+    					return line.substring(paramEq.length());
+    				}
+    			}
+    			br.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		} // if (f.exists()...
+    	return null;
+	}
+	
+	
+	// reads the complete configuration file into globals
 	private boolean readConfiguration(File cf) {
     	if(cf.exists() && !cf.isDirectory()) {
     		log("reading application configuration...",LogLevel.debug);
