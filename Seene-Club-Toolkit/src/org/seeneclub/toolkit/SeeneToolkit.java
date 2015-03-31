@@ -1,6 +1,9 @@
 package org.seeneclub.toolkit;
 
+import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
@@ -16,6 +19,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.ParseException;
 
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
@@ -31,7 +37,9 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -43,15 +51,13 @@ import org.seeneclub.domainvalues.LogLevel;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
 	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
-	
-
 	
 	// We need a local storage for the Seenes
 	SeeneStorage storage = new SeeneStorage();
@@ -67,6 +73,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 	JPanel panelEastNorth = new JPanel();
 	JPanel panelEastSouth = new JPanel();
+	
+	// Elements for Panel WestNorth (seene pool selection)
+	JToggleButton btPoolPublicSeenes = new JToggleButton("public");
+	JToggleButton btPoolPrivateSeenes = new JToggleButton("private");
+	JToggleButton btPoolLocalSeenes = new JToggleButton("local");
 	
 	// Elements for Panel EastSouth (log output)
     static JTextArea logOutput = new JTextArea();
@@ -211,8 +222,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
     private static void doTaskBackupPrivateSeenes(File targetDir) {
     	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
-    	log("Credentials: " + seeneUser + ":" + seenePass ,LogLevel.info);	// TODO remove!
-    	log("Seene API ID: " + seeneAPIid ,LogLevel.info);	// TODO remove!
+    	log("Credentials: " + seeneUser + ":" + seenePass ,LogLevel.debug);	// TODO remove!
+    	log("Seene API ID: " + seeneAPIid ,LogLevel.debug);	// TODO remove!
     	
     }
     
@@ -305,10 +316,25 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         JSplitPane allSplits = createSplitPanels();
         mainFrame.add(allSplits);
         
+        // Region West-North: select the seene pool (public/private/local)
+        btPoolPublicSeenes.addActionListener(this);
+        btPoolPrivateSeenes.addActionListener(this);
+        btPoolLocalSeenes.addActionListener(this);
+        ButtonGroup poolButtonGroup = new ButtonGroup();
+        poolButtonGroup.add(btPoolPublicSeenes);
+        poolButtonGroup.add(btPoolPrivateSeenes);
+        poolButtonGroup.add(btPoolLocalSeenes);
+        panelWestNorth.add(btPoolPublicSeenes);
+        panelWestNorth.add(btPoolPrivateSeenes);
+        panelWestNorth.add(btPoolLocalSeenes);
+        
+        // Region East-South: Log output window
         logOutput.setLineWrap(true);
-        logOutput.setColumns(60);
-        logOutput.setRows(12);
-        panelEastSouth.add(logOutputScrollPane);
+        // embed logOutput in BorderLayout
+        panelEastSouth.setLayout(new BorderLayout());
+        panelEastSouth.add(logOutputScrollPane, BorderLayout.CENTER);
+        panelEastSouth.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
+
 
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
@@ -355,9 +381,66 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			doTaskBackupPrivateSeenes(storage.getPublicDir());
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
+	    } else if (arg0.getSource() == this.btPoolPublicSeenes) {
+	    	parsePool(storage.getPublicDir());
+	    } else if (arg0.getSource() == this.btPoolPrivateSeenes) {
+	    	parsePool(storage.getPrivateDir());	    	
+	    } else if (arg0.getSource() == this.btPoolLocalSeenes) {
+	    	parsePool(storage.getOfflineDir());	    	
 	    }
-		
 	}
+	
+	private void parsePool(File baseDir) {
+		File[] files = baseDir.listFiles();
+		if (files != null) {
+			panelWestSouth.removeAll();
+			panelWestSouth.repaint();
+			panelWestSouth.setLayout(new FlowLayout(FlowLayout.LEFT));  
+		    for (int i = 0; i < files.length; i++) {
+		      System.out.print(files[i].getAbsolutePath());
+		      if (files[i].isDirectory()) {
+			       System.out.print(" (folder)\n");
+			       ImageIcon imgDir = assambleFolderIcon(files[i]);
+			       JLabel newLabel = new JLabel();
+			       newLabel = new JLabel (files[i].getName().substring(0, 20), imgDir, JLabel.LEFT);
+			       newLabel.setToolTipText(files[i].getAbsolutePath());
+			       newLabel.setHorizontalTextPosition(JLabel.CENTER);
+			       newLabel.setVerticalTextPosition(JLabel.BOTTOM);
+			       newLabel.setHorizontalAlignment(SwingConstants.LEFT);
+			       newLabel.addMouseListener(this);
+			       panelWestSouth.add(newLabel);
+		      } // directory
+		    } // for
+		    mainFrame.setVisible(true);
+		 } // !=null
+	}
+	
+	private ImageIcon assambleFolderIcon(File file) {
+		File seeneJPG = new File(file.getAbsolutePath() + File.separator + "poster.jpg");
+		//TODO: combine + speedup
+		//IDEA: create a miniature icon during backup!
+		//return iconScaler(new ImageIcon(seeneJPG.getAbsolutePath()),new Dimension(88,88));
+		return iconScaler(new ImageIcon(getClass().getResource("/images/folder.png")),new Dimension(88,88));
+	}
+
+	// get a scaled icon 
+	private ImageIcon iconScaler(ImageIcon imgMime, Dimension sizexy) {
+		int neww=sizexy.width;
+		int newh=sizexy.height;
+		//keep aspect ration resizing
+		if (imgMime.getIconWidth() > imgMime.getIconHeight()) {
+			neww=sizexy.width;
+			newh=imgMime.getIconHeight() * sizexy.height / imgMime.getIconWidth();
+		}
+		if (imgMime.getIconWidth() < imgMime.getIconHeight()) {
+			newh=sizexy.height;
+			neww=imgMime.getIconWidth() * sizexy.width / imgMime.getIconHeight();
+		}
+		Image image = imgMime.getImage(); // transform it		
+		Image resizedImg = image.getScaledInstance(neww, newh, java.awt.Image.SCALE_SMOOTH);   
+	    return new ImageIcon(resizedImg); // transform it back
+	}
+
 
 	@Override
 	public void mouseClicked(MouseEvent e) {
