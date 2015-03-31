@@ -8,11 +8,13 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
+import java.io.Console;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.ParseException;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -31,6 +33,12 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
 import org.seeneclub.domainvalues.LogLevel;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
@@ -66,8 +74,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	File configDir = null;
     File configFile = null;
 	JDialog settingsDialog = new JDialog();
-    String seeneUser = new String();
-    String seenePass = new String();
+    static String seeneUser = new String();
+    static String seenePass = new String();
     String seeneAPIid = new String();
 	
 	// Task Menu Items
@@ -78,8 +86,99 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem testDoLogin = new JMenuItem("Test Login");
     
     // method main - all begins with a thread!
+	@SuppressWarnings("static-access")
 	public static void main(String[] args) {
-		new Thread(new SeeneToolkit()).start();
+		
+		Boolean commandLineUsed = false;
+		
+		// command line parsing (using Apache commons CLI)
+		CommandLineParser parser = new GnuParser();
+		
+		Options options = new Options();
+		
+		Option backupOption = OptionBuilder.withLongOpt("backup")
+										   .withDescription("backup public or private Seenes from Server)")
+										   .hasArg()
+										   .withArgName("VISIBILITY")
+										   .create("b");
+		
+		Option userOption   = OptionBuilder.withLongOpt("username")
+										   .withDescription("Seene Username)")
+				   						   .hasArg()
+				   						   .withArgName("USERNAME")
+				   						   .create("u");
+		
+		Option passOption   = OptionBuilder.withLongOpt("password")
+					 		 			   .withDescription("Seene Password)")
+					 		 			   .hasArg()
+					 					   .withArgName("PASSWORD")
+					 					   .create("p");
+		
+		Option targetOption = OptionBuilder.withLongOpt("output-target")
+				 						   .withDescription("target directory for the backup)")
+				 						   .hasArg()
+				 						   .withArgName("PATH")
+				 						   .create("o");
+		
+		options.addOption(backupOption);
+		options.addOption(userOption);
+		options.addOption(passOption);
+		options.addOption(targetOption);
+		
+		try {
+		    // parse the command line arguments
+		    CommandLine line = parser.parse( options, args );
+
+		    if (line.hasOption("backup")) {
+		    	commandLineUsed = true;
+		    	// handle public backup. No Login is required.
+		    	if (line.getOptionValue("backup").equalsIgnoreCase("public")) {
+		    		if (line.hasOption("output-target")) {
+		    			doTaskBackupPublicSeenes(new File(line.getOptionValue("output-target")));
+		    		} else {
+		    			// do the backup to current working dir, if no output-target is given.
+		    			doTaskBackupPublicSeenes(new File(System.getProperty("user.dir")));
+		    		}
+		    	} // handle private backup. Login IS required. 
+		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
+		    		if (line.hasOption("username")) {
+		    			seeneUser = line.getOptionValue("username");
+		    			if (line.hasOption("password")) {
+		    				seenePass = line.getOptionValue("password");
+		    			} else {
+		    				// no password given? -> fetch password from console.
+		    				Console c = System.console();
+		    				if (c == null) {
+		    			           log("No console.",LogLevel.fatal);
+		    			           System.exit(1);
+		    			    }
+		    				char consolePass[] = c.readPassword(seeneUser + "'s password: ");
+		    				seenePass = new String(consolePass);
+		    			}
+		    			if (line.hasOption("output-target")) {
+			    			doTaskBackupPrivateSeenes(new File(line.getOptionValue("output-target")));
+			    		} else {
+			    			// do the backup to current working dir, if no output-target is given.
+			    			doTaskBackupPrivateSeenes(new File(System.getProperty("user.dir")));
+			    		}
+		    		} else {
+		    			String errorText = new String("for private backup the Seene credentials are required!");
+		    			throw new org.apache.commons.cli.ParseException(errorText);
+		    		}
+		    		
+		    	} else {
+		    		StringBuffer errorText = new StringBuffer(line.getOptionValue("backup"));
+		    		errorText.append(" unknown backup option. Try \"private\" or \"public\"");
+		    		throw new org.apache.commons.cli.ParseException(errorText.toString());
+		    	}
+		    }
+		} catch( org.apache.commons.cli.ParseException exp ) {
+			commandLineUsed = true;
+		    log("parameter exception: " + exp.getMessage() , LogLevel.error);
+		}
+
+		// Start GUI only if NO command line argument is used!
+		if (!commandLineUsed) new Thread(new SeeneToolkit()).start();
 	}
 
     private void doTestLogin() {
@@ -92,14 +191,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 	}	
     
-    // @PAF prepared two methods for the Backup Tasks. They are called by selecting the tasks from the menu.
-    private void doTaskBackupPublicSeenes() {
-    	log("Public Seenes will go to " + storage.getPublicDir(),LogLevel.info);
+    // @PAF I prepared two methods for the Backup Tasks. 
+    // They are called by selecting the tasks from the menu or from command line.
+    // example: java -jar seene-club-toolkit.jar -b public 
+    private static void doTaskBackupPublicSeenes(File targetDir) {
+    	log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
     }
     
-    private void doTaskBackupPrivateSeenes() {
-    	log("Private Seenes will go to " + storage.getPrivateDir(),LogLevel.info);
+    // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
+    private static void doTaskBackupPrivateSeenes(File targetDir) {
+    	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    	log("Credentials: " + seeneUser + ":" + seenePass ,LogLevel.info);	// TODO remove!
     	
     }
     
@@ -239,9 +342,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	public void actionPerformed(ActionEvent arg0) {
 		
 		if(arg0.getSource() == this.taskBackupPublic) {
-			doTaskBackupPublicSeenes();
+			doTaskBackupPublicSeenes(storage.getPublicDir());
 		} else if(arg0.getSource() == this.taskBackupPrivate) {
-			doTaskBackupPrivateSeenes();
+			doTaskBackupPrivateSeenes(storage.getPublicDir());
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
 	    }
