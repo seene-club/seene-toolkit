@@ -100,7 +100,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
     // method main - all begins with a thread!
 	@SuppressWarnings("static-access")
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		
 		configDir = new File(System.getProperty("user.home") + File.separator + ".seene-club");
 		if (configDir.exists() || configDir.mkdirs()) {
@@ -151,6 +151,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    	commandLineUsed = true;
 		    	// handle public backup. No Login is required.
 		    	if (line.getOptionValue("backup").equalsIgnoreCase("public")) {
+		    		if (line.hasOption("username")) {
+		    			seeneUser = line.getOptionValue("username");
+		    		} else {
+		    			String errorText = new String("for public backup the Seene username is required!");
+		    			throw new org.apache.commons.cli.ParseException(errorText);
+		    		}
 		    		if (line.hasOption("output-target")) {
 		    			doTaskBackupPublicSeenes(new File(line.getOptionValue("output-target")));
 		    		} else {
@@ -214,15 +220,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     // @PAF I prepared two methods for the Backup Tasks. 
     // They are called by selecting the tasks from the menu or from command line.
     // example: java -jar seene-club-toolkit.jar -b public 
-    private static void doTaskBackupPublicSeenes(File targetDir) {
+    private static void doTaskBackupPublicSeenes(File targetDir) throws Exception {
     	log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
+		String userId = SeeneAPI.usernameToId(seeneUser);
+    	log("Seene user: " + userId, LogLevel.debug);
     }
     
     // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
     private static void doTaskBackupPrivateSeenes(File targetDir) {
     	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
-    	log("Credentials: " + seeneUser + ":" + seenePass ,LogLevel.debug);	// TODO remove!
+    	log("Credentials: " + seeneUser + ":" + "<seenePass>" ,LogLevel.debug);	// TODO remove!
     	log("Seene API ID: " + seeneAPIid ,LogLevel.debug);	// TODO remove!
     	
     }

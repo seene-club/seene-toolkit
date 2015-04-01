@@ -79,23 +79,26 @@ public class SeeneAPI {
 		conn.setReadTimeout(10000);
 		conn.setConnectTimeout(15000);
 	    conn.setRequestMethod(method);
-	    conn.setRequestProperty("Authorization",
-	    		String.format("Seene api=%s,user=%s",
-	    				token.api_id,
-	    				token.api_token)
-	    		);
+	    if (token != null)
+		    conn.setRequestProperty("Authorization",
+		    		String.format("Seene api=%s,user=%s",
+		    				token.api_id,
+		    				token.api_token)
+		    		);
 	    conn.setRequestProperty("Accept", "application/vnd.seene.co; version=3,application/json");
 
 	    conn.setDoOutput(true);
 	    conn.setDoInput(true);
 
-	    OutputStream os = conn.getOutputStream();
-	    BufferedWriter writer = new BufferedWriter(
+	    if(params != null) {
+		    OutputStream os = conn.getOutputStream();
+	    	BufferedWriter writer = new BufferedWriter(
 	            new OutputStreamWriter(os, "UTF-8"));
-	    writer.write(getQuery(params));
-	    writer.flush();
-	    writer.close();
-	    os.close();
+	    	writer.write(getQuery(params));
+	    	writer.flush();
+	    	writer.close();
+		    os.close();
+		}
 
 	    conn.connect();
 
@@ -104,6 +107,15 @@ public class SeeneAPI {
 	    		new InputStreamReader(conn.getInputStream(), 
 	    				StandardCharsets.UTF_8));
 	}
+	
+	public static String usernameToId(String username) throws Exception {
+		Map map = request(null, 
+				"GET", 
+				new URL("http://seene.co/api/seene/-/users/@" + username), 
+				null);
+		return map.get("id").toString();
+	}
+	
 
 	public class Item {
 		public String access_key_id;
