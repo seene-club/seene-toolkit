@@ -16,6 +16,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import org.json.simple.JSONObject;
@@ -49,7 +51,7 @@ public class SeeneAPI {
 				new URL("https://oecamera.herokuapp.com/api/users/authenticate"), 
 				params);
 		result.api_token = (String) map.get("api_token");
-		//TODO result.apiTokenExpiresAt = json.getString("api_token_expires_at");
+		result.api_token_expires_at = parseISO8601((String)map.get("api_token_expires_at"));
 		return result;
 	}
 	
@@ -76,7 +78,7 @@ public class SeeneAPI {
 	@SuppressWarnings("rawtypes")
 	private static Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		conn.setReadTimeout(10000);
+		conn.setReadTimeout(20000);
 		conn.setConnectTimeout(15000);
 	    conn.setRequestMethod(method);
 	    if (token != null)
@@ -140,5 +142,46 @@ public class SeeneAPI {
 	}
 	
 	*/
+	
+	public static Date parseISO8601(String s) throws ParseException {
+		Calendar calendar = GregorianCalendar.getInstance();
+		s = s.replace("Z", "+00:00");
+		try {
+		    s = s.substring(0, 22) + s.substring(23);  // to get rid of the ":"
+		} catch (IndexOutOfBoundsException e) {
+		    throw new ParseException("Invalid length", 0);
+		}
+		return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").parse(s);
+    }
+
+	@SuppressWarnings("rawtypes")
+	public static List<SeeneObject> getPublicSeenes(String userId, int last) throws Exception {
+		Map map = request(null, 
+				"GET", 
+				new URL(String.format("http://seene.co/api/seene/-/users/%s/scenes?count=%d", userId, last)), 
+				null);
+		
+		List<SeeneObject> result = new ArrayList<SeeneObject>();
+
+		List scenes = (List)map.get("scenes");
+		for (Object o : scenes) {
+			Map j = (Map)o;
+			SeeneObject s = new SeeneObject();
+			s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
+			s.setCaption((String)j.get("caption"));
+			// todo links
+			
+			// TODO coordination with Mathias 
+			SeeneTexture poster = null; //(String)j.get("poster_url") 
+			s.setPoster(poster);
+			
+			SeeneModel model = null; //(String)j.get("model_url") 
+			s.setModel(model);
+			
+			result.add(s);
+		}
+		
+		return result;    	
+	}
 
 }

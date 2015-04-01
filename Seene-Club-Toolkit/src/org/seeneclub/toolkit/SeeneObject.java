@@ -42,7 +42,7 @@ public class SeeneObject {
 	}
 	
 	public String getCaption() {
-		return caption;
+		return caption == null? "": caption;
 	}
 
 	public void setCaption(String caption) {

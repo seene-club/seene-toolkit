@@ -18,6 +18,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.ParseException;
+import java.util.List;
+import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -223,9 +225,22 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     private static void doTaskBackupPublicSeenes(File targetDir) throws Exception {
     	log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
+    	log("Resolving name to id",LogLevel.info);
 		String userId = SeeneAPI.usernameToId(seeneUser);
     	log("Seene user: " + userId, LogLevel.debug);
-    }
+
+    	int last = 500;
+    	log("Getting index of last " + last + " seenes",LogLevel.info);
+		List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
+		
+		for(SeeneObject o : index) {
+	    	log(String.format("%s - %s", o.getCaptured_at(), o.getCaption().replaceAll("\n",  " ")), LogLevel.debug);
+		}
+
+		log("Downloading last "+last+" seenes (not ALL)",LogLevel.info);
+		log("TODO",LogLevel.info); // TODO
+		log("Done",LogLevel.info);
+}
     
     // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
     private static void doTaskBackupPrivateSeenes(File targetDir) {
