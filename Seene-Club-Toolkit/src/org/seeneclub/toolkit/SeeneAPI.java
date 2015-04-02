@@ -6,6 +6,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,7 @@ import org.json.simple.JSONValue;
 
 import com.vdurmont.emoji.EmojiParser;
 
+@SuppressWarnings("rawtypes")
 public class SeeneAPI {
 
 	public static class Token {
@@ -35,7 +37,6 @@ public class SeeneAPI {
 	}
 	
 	/// can be cached until expires; if expires is null, cached forever.
-	@SuppressWarnings("rawtypes")
 	public static Token login(String apiId, String username, String password) throws Exception {
 		Token result = new Token();
 		result.api_id = apiId;
@@ -72,7 +73,6 @@ public class SeeneAPI {
 	    return result.toString();
 	}
 	
-	@SuppressWarnings("rawtypes")
 	private static Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		conn.setReadTimeout(20000);
@@ -107,7 +107,6 @@ public class SeeneAPI {
 	    				StandardCharsets.UTF_8));
 	}
 	
-	@SuppressWarnings("rawtypes")
 	public static String usernameToId(String username) throws Exception {
 		Map map = request(null, 
 				"GET", 
@@ -151,31 +150,46 @@ public class SeeneAPI {
 		}
 		return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").parse(s);
     }
-
-	@SuppressWarnings("rawtypes")
+	
 	public static List<SeeneObject> getPublicSeenes(String userId, int last) throws Exception {
 		Map map = request(null, 
 				"GET", 
 				new URL(String.format("http://seene.co/api/seene/-/users/%s/scenes?count=%d", userId, last)), 
 				null);
 		
+		return createFromResponse(map);    	
+	}
+
+	public static List<SeeneObject> getPrivateSeenes(Token token, String userId, int last) throws Exception {
+		Map map = request(token, 
+				"GET", 
+				new URL(String.format("https://oecamera.herokuapp.com/api/users/%s/scenes?count=%d&only_private=1", userId, last)), 
+				null);
+		
+		return createFromResponse(map);    	
+	}
+
+	private static List<SeeneObject> createFromResponse(Map map)
+			throws ParseException, MalformedURLException {
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
 
 		List scenes = (List)map.get("scenes");
-		for (Object o : scenes) {
-			Map j = (Map)o;
-			SeeneObject s = new SeeneObject();
-			s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
-			s.setCaption(EmojiParser.parseToAliases((String)j.get("caption")));
-			s.setFilter_code((String)j.get("filter_code"));
-			s.setShortCode((String)j.get("short_code"));
-			s.setTextureURL(new URL((String)j.get("poster_url")));
-			s.setModelURL(new URL((String)j.get("model_url")));
-			
-			result.add(s);
-		}
+		for (Object o : scenes)
+			result.add(createFromMap((Map)o));
 		
-		return result;    	
+		return result;
+	}
+
+	private static SeeneObject createFromMap(Map j) throws ParseException,
+			MalformedURLException {
+		SeeneObject s = new SeeneObject();
+		s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
+		s.setCaption(EmojiParser.parseToAliases((String)j.get("caption")));
+		s.setFilter_code((String)j.get("filter_code"));
+		s.setShortCode((String)j.get("short_code"));
+		s.setTextureURL(new URL((String)j.get("poster_url")));
+		s.setModelURL(new URL((String)j.get("model_url")));
+		return s;
 	}
 
 }
