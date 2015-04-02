@@ -56,6 +56,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.seeneclub.domainvalues.LogLevel;
+import org.seeneclub.toolkit.SeeneAPI.Token;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
@@ -276,9 +277,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     // They are called by selecting the tasks from the menu or from command line.
     // example: java -jar seene-club-toolkit.jar -b public -u paf
     private static void doTaskBackupPublicSeenes(File targetDir, Reporter reporter) {
-    	
     	try {
-    		
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
     		reporter.report("Resolving name to id");
@@ -299,10 +298,46 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			//And then, if it's there, we may safely skip the download
 			//TODO that (below)
 			int last = 5;
-			reporter.report("Getting index of last " + last + " seenes");
+			reporter.report("Getting index of last " + last + " public seenes");
 			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
 			
-			reporter.planSteps("Downloading few last seenes (not ALL)", last);
+			reporter.planSteps("Downloading few last public seenes (not ALL)", last);
+			int i = 0;
+			for(SeeneObject o : index) {
+				downloadSeene(o,targetDir);
+				reporter.doneSteps("Downloaded", ++i);
+			}
+
+			log("Done",LogLevel.info);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
+    private static void doTaskBackupPrivateSeenes(File targetDir, Reporter reporter) {
+    	try {
+        	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    	
+    		reporter.report("Resolving name to id");
+    		
+			String userId = SeeneAPI.usernameToId(seeneUser);
+		
+			log("Seene user: " + userId, LogLevel.debug);
+
+			Token token;
+			{
+				// @TODO Mathias, we may cache the token someday
+				reporter.report("Logging in");
+				token = SeeneAPI.login(seeneAPIid, seeneUser, seenePass);
+			}
+					
+			int last = 5;
+			reporter.report("Getting index of last " + last + " private seenes");
+			List<SeeneObject> index = SeeneAPI.getPrivateSeenes(token, userId, last);
+			
+			reporter.planSteps("Downloading few last private seenes (not ALL)", last);
 			int i = 0;
 			for(SeeneObject o : index) {
 				downloadSeene(o,targetDir);
@@ -315,14 +350,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-    }
-    
-    // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
-    private static void doTaskBackupPrivateSeenes(File targetDir, Reporter reporter) {
-    	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
-    	log("Credentials: " + seeneUser + ":" + "<seenePass>" ,LogLevel.debug);	// TODO remove!
-    	log("Seene API ID: " + seeneAPIid ,LogLevel.debug);	// TODO remove!
-    	
     }
     
     // downloads a Seene to a target Directory
@@ -680,7 +707,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				String line;
     			while ((line = br.readLine()) != null) {
     				if (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq)) {
-    					log("configured " + paramEq + " is: " + line.substring(paramEq.length()),LogLevel.debug);
+    					log("configured " + paramEq + " is: " + "<secret, shh!>" /*line.substring(paramEq.length())*/,LogLevel.debug);
     					br.close();
     					return line.substring(paramEq.length());
     				}

@@ -141,6 +141,9 @@ public class SeeneAPI {
 	*/
 	
 	public static Date parseISO8601(String s) throws ParseException {
+		if (s == null)
+			return null;
+		
 		//Calendar calendar = GregorianCalendar.getInstance();
 		s = s.replace("Z", "+00:00");
 		try {
@@ -184,7 +187,9 @@ public class SeeneAPI {
 			MalformedURLException {
 		SeeneObject s = new SeeneObject();
 		s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
-		s.setCaption(EmojiParser.parseToAliases((String)j.get("caption")));
+		String caption = (String)j.get("caption");
+		if(caption != null)
+			s.setCaption(EmojiParser.parseToAliases(caption));
 		s.setFilter_code((String)j.get("filter_code"));
 		s.setShortCode((String)j.get("short_code"));
 		s.setTextureURL(new URL((String)j.get("poster_url")));
