@@ -165,12 +165,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    			String errorText = new String("for public backup the Seene username is required!");
 		    			throw new org.apache.commons.cli.ParseException(errorText);
 		    		}
-		    		if (line.hasOption("output-target")) {
-		    			doTaskBackupPublicSeenes(new File(line.getOptionValue("output-target")));
-		    		} else {
-		    			// do the backup to current working dir, if no output-target is given.
-		    			doTaskBackupPublicSeenes(new File(System.getProperty("user.dir")));
-		    		}
+		    		String targetDir = line.hasOption("output-target")
+		    			? line.getOptionValue("output-target")
+		    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
+	    			doTaskBackupPublicSeenes(
+	    					new File(targetDir),
+		    				new LogReporter());
 		    	} // handle private backup. Login IS required. 
 		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
 		    		if (line.hasOption("username")) {
@@ -225,16 +225,43 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 	}	
     
+    private interface Reporter {
+    	void report(String what);
+
+		void planSteps(String what, int totalSteps);
+
+		void doneSteps(String what, int doneSteps);
+    }
+    
+    private static class LogReporter implements Reporter {
+
+		@Override
+		public void report(String what) {
+    		log(what, LogLevel.info);
+		}
+
+		@Override
+		public void planSteps(String what, int totalSteps) {
+    		log(String.format("%s (planning %d)", what, totalSteps), LogLevel.info);
+		}
+
+		@Override
+		public void doneSteps(String what, int doneSteps) {
+    		log(String.format("%s (%d done)", what, doneSteps), LogLevel.info);
+		}
+    	
+    }
+    
     // @PAF I prepared two methods for the Backup Tasks. 
     // They are called by selecting the tasks from the menu or from command line.
     // example: java -jar seene-club-toolkit.jar -b public -u paf
-    private static void doTaskBackupPublicSeenes(File targetDir) {
+    private static void doTaskBackupPublicSeenes(File targetDir, Reporter reporter) {
     	
     	try {
     		
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
-    		log("Resolving name to id",LogLevel.info);
+    		reporter.report("Resolving name to id");
     		
 			String userId = SeeneAPI.usernameToId(seeneUser);
 		
@@ -243,18 +270,27 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			//@PAF let's start with lesser seenes for testing.
 			//perhaps we can later determine which Seenes are already backup and which are not
 			//so we can optimize the runtime for following backups
+			
+			//@Mathias, agreed
+			//it is very important to complete an aborted download,
+			//so user will not feel "it's OK" when it is not.
+			//One way to do it, is just to download to a drafts/ subfolder
+			//And only when 100% downloaded OK, move it (atomic operation) one level up
+			//And then, if it's there, we may safely skip the download
+			//TODO that (below)
 			int last = 5;
-			log("Getting index of last " + last + " seenes",LogLevel.info);
+			reporter.report("Getting index of last " + last + " seenes");
 			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
 			
-			log("Downloading last " + last + " seenes (not ALL)",LogLevel.info);
-		
+			reporter.planSteps("Downloading few last seenes (not ALL)", last);
+			int i = 0;
 			for(SeeneObject o : index) {
 				downloadSeene(o,targetDir);
+				reporter.doneSteps("Downloaded", ++i);
 			}
 
 			log("Done",LogLevel.info);
-			
+
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
