@@ -188,8 +188,9 @@ public class SeeneAPI {
 		SeeneObject s = new SeeneObject();
 		s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
 		String caption = (String)j.get("caption");
-		if(caption != null)
-			s.setCaption(EmojiParser.parseToAliases(caption));
+		if(caption == null)
+			caption = ""; // playing nice to £clients
+		s.setCaption(EmojiParser.parseToAliases(caption));
 		s.setFilter_code((String)j.get("filter_code"));
 		s.setShortCode((String)j.get("short_code"));
 		s.setTextureURL(new URL((String)j.get("poster_url")));
