@@ -189,12 +189,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    			}
 		    			// because we never put the Seene-API-ID in the code, we read from file!
 	    				seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
-		    			if (line.hasOption("output-target")) {
-			    			doTaskBackupPrivateSeenes(new File(line.getOptionValue("output-target")));
-			    		} else {
-			    			// do the backup to current working dir, if no output-target is given.
-			    			doTaskBackupPrivateSeenes(new File(System.getProperty("user.dir")));
-			    		}
+			    		String targetDir = line.hasOption("output-target")
+				    			? line.getOptionValue("output-target")
+				    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
+				    	doTaskBackupPrivateSeenes(
+		    					new File(targetDir),
+			    				new LogReporter());
 		    		} else {
 		    			String errorText = new String("for private backup the Seene credentials are required!");
 		    			throw new org.apache.commons.cli.ParseException(errorText);
@@ -234,6 +234,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     }
     
     private static class LogReporter implements Reporter {
+
+		@Override
+		public void report(String what) {
+    		log(what, LogLevel.info);
+		}
+
+		@Override
+		public void planSteps(String what, int totalSteps) {
+    		log(String.format("%s (planning %d)", what, totalSteps), LogLevel.info);
+		}
+
+		@Override
+		public void doneSteps(String what, int doneSteps) {
+    		log(String.format("%s (%d done)", what, doneSteps), LogLevel.info);
+		}
+    	
+    }
+
+    // TODO @Mathias, here's just clone, please hack it to be something useful?
+    private static class GUIReporter implements Reporter {
 
 		@Override
 		public void report(String what) {
@@ -298,7 +318,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     }
     
     // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
-    private static void doTaskBackupPrivateSeenes(File targetDir) {
+    private static void doTaskBackupPrivateSeenes(File targetDir, Reporter reporter) {
     	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	log("Credentials: " + seeneUser + ":" + "<seenePass>" ,LogLevel.debug);	// TODO remove!
     	log("Seene API ID: " + seeneAPIid ,LogLevel.debug);	// TODO remove!
@@ -484,9 +504,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	public void actionPerformed(ActionEvent arg0) {
 		
 		if(arg0.getSource() == this.taskBackupPublic) {
-			doTaskBackupPublicSeenes(storage.getPublicDir());
+			doTaskBackupPublicSeenes(storage.getPublicDir(), 
+					new GUIReporter());
 		} else if(arg0.getSource() == this.taskBackupPrivate) {
-			doTaskBackupPrivateSeenes(storage.getPublicDir());
+			doTaskBackupPrivateSeenes(storage.getPrivateDir(),
+					new GUIReporter());
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
 	    } else if (arg0.getSource() == this.btPoolPublicSeenes) {
