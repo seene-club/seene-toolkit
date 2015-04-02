@@ -1,28 +1,25 @@
 package org.seeneclub.toolkit;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
-import org.json.simple.parser.JSONParser;
+
+import com.vdurmont.emoji.EmojiParser;
 
 public class SeeneAPI {
 
@@ -110,6 +107,7 @@ public class SeeneAPI {
 	    				StandardCharsets.UTF_8));
 	}
 	
+	@SuppressWarnings("rawtypes")
 	public static String usernameToId(String username) throws Exception {
 		Map map = request(null, 
 				"GET", 
@@ -144,7 +142,7 @@ public class SeeneAPI {
 	*/
 	
 	public static Date parseISO8601(String s) throws ParseException {
-		Calendar calendar = GregorianCalendar.getInstance();
+		//Calendar calendar = GregorianCalendar.getInstance();
 		s = s.replace("Z", "+00:00");
 		try {
 		    s = s.substring(0, 22) + s.substring(23);  // to get rid of the ":"
@@ -168,15 +166,11 @@ public class SeeneAPI {
 			Map j = (Map)o;
 			SeeneObject s = new SeeneObject();
 			s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
-			s.setCaption((String)j.get("caption"));
-			// todo links
-			
-			// TODO coordination with Mathias 
-			SeeneTexture poster = null; //(String)j.get("poster_url") 
-			s.setPoster(poster);
-			
-			SeeneModel model = null; //(String)j.get("model_url") 
-			s.setModel(model);
+			s.setCaption(EmojiParser.parseToAliases((String)j.get("caption")));
+			s.setFilter_code((String)j.get("filter_code"));
+			s.setShortCode((String)j.get("short_code"));
+			s.setTextureURL(new URL((String)j.get("poster_url")));
+			s.setModelURL(new URL((String)j.get("model_url")));
 			
 			result.add(s);
 		}

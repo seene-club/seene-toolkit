@@ -1,8 +1,11 @@
 package org.seeneclub.toolkit;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -10,6 +13,9 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
@@ -17,10 +23,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.List;
-import java.util.Map;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
@@ -221,26 +227,39 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
     // @PAF I prepared two methods for the Backup Tasks. 
     // They are called by selecting the tasks from the menu or from command line.
-    // example: java -jar seene-club-toolkit.jar -b public 
-    private static void doTaskBackupPublicSeenes(File targetDir) throws Exception {
-    	log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    // example: java -jar seene-club-toolkit.jar -b public -u paf
+    private static void doTaskBackupPublicSeenes(File targetDir) {
     	
-    	log("Resolving name to id",LogLevel.info);
-		String userId = SeeneAPI.usernameToId(seeneUser);
-    	log("Seene user: " + userId, LogLevel.debug);
-
-    	int last = 500;
-    	log("Getting index of last " + last + " seenes",LogLevel.info);
-		List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
+    	try {
+    		
+    		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    	
+    		log("Resolving name to id",LogLevel.info);
+    		
+			String userId = SeeneAPI.usernameToId(seeneUser);
 		
-		for(SeeneObject o : index) {
-	    	log(String.format("%s - %s", o.getCaptured_at(), o.getCaption().replaceAll("\n",  " ")), LogLevel.debug);
-		}
+			log("Seene user: " + userId, LogLevel.debug);
 
-		log("Downloading last "+last+" seenes (not ALL)",LogLevel.info);
-		log("TODO",LogLevel.info); // TODO
-		log("Done",LogLevel.info);
-}
+			//@PAF let's start with lesser seenes for testing.
+			//perhaps we can later determine which Seenes are already backup and which are not
+			//so we can optimize the runtime for following backups
+			int last = 5;
+			log("Getting index of last " + last + " seenes",LogLevel.info);
+			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
+			
+			log("Downloading last " + last + " seenes (not ALL)",LogLevel.info);
+		
+			for(SeeneObject o : index) {
+				downloadSeene(o,targetDir);
+			}
+
+			log("Done",LogLevel.info);
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
     
     // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
     private static void doTaskBackupPrivateSeenes(File targetDir) {
@@ -250,6 +269,33 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	
     }
     
+    // downloads a Seene to a target Directory
+    private static boolean downloadSeene(SeeneObject sO, File sF) {
+    	Boolean successTexture = false;
+    	Boolean successModel = false;
+    	SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" );
+    	
+    	String folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sO.getCaption().replaceAll("\n",  " "));
+    	File seeneFolder = new File(sF.getAbsolutePath() + File.separator + folderName);
+    	
+    	if (!seeneFolder.exists()) {
+    		seeneFolder.mkdirs();
+    		successTexture = Helper.downloadFile(sO.getPosterURL(), seeneFolder);
+    		successModel = Helper.downloadFile(sO.getModelURL(), seeneFolder);
+    	} else {
+    		log(seeneFolder.getAbsolutePath() + " already exists!", LogLevel.info);
+    	}
+    	
+    	if ((successModel) && (successTexture)) {
+    		log("Seene: " + seeneFolder.getAbsolutePath() + " downloaded", LogLevel.info);
+    		Helper.createFolderIcon(seeneFolder);
+    		return true;
+    	}
+    	return false;
+    }
+    
+    
+
 	@Override
 	public void run() {
 		
@@ -351,6 +397,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         panelWestNorth.add(btPoolPrivateSeenes);
         panelWestNorth.add(btPoolLocalSeenes);
         
+        // Region West-South: displays the seenes in a pool
+        panelWestSouth.setBackground(Color.white);
+        
         // Region East-South: Log output window
         logOutput.setLineWrap(true);
         // embed logOutput in BorderLayout
@@ -369,9 +418,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		JSplitPane splitWestNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 		splitWestNorthSouth.setTopComponent(panelWestNorth);
-		splitWestNorthSouth.setBottomComponent(panelWestSouth);
+		splitWestNorthSouth.setBottomComponent(scrollWestSouth);
 		splitWestNorthSouth.setDividerSize(2);
-		splitWestNorthSouth.setDividerLocation(50);
+		splitWestNorthSouth.setDividerLocation(35);
 		splitWestNorthSouth.setResizeWeight(0.5);
 		
 		Dimension minimumSize = new Dimension(250, 500);
@@ -418,12 +467,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		if (files != null) {
 			panelWestSouth.removeAll();
 			panelWestSouth.repaint();
-			panelWestSouth.setLayout(new FlowLayout(FlowLayout.LEFT));  
+			panelWestSouth.setLayout(new WrapLayout());  
 		    for (int i = 0; i < files.length; i++) {
 		      System.out.print(files[i].getAbsolutePath());
 		      if (files[i].isDirectory()) {
 			       System.out.print(" (folder)\n");
-			       ImageIcon imgDir = assambleFolderIcon(files[i]);
+			       ImageIcon imgDir = new ImageIcon(files[i].getAbsolutePath() + File.separator + "folder.png");
 			       JLabel newLabel = new JLabel();
 			       newLabel = new JLabel (files[i].getName().substring(0, 20), imgDir, JLabel.LEFT);
 			       newLabel.setToolTipText(files[i].getAbsolutePath());
@@ -438,32 +487,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		 } // !=null
 	}
 	
-	private ImageIcon assambleFolderIcon(File file) {
-		File seeneJPG = new File(file.getAbsolutePath() + File.separator + "poster.jpg");
-		//TODO: combine + speedup
-		//IDEA: create a miniature icon during backup!
-		//return iconScaler(new ImageIcon(seeneJPG.getAbsolutePath()),new Dimension(88,88));
-		return iconScaler(new ImageIcon(getClass().getResource("/images/folder.png")),new Dimension(88,88));
-	}
-
-	// get a scaled icon 
-	private ImageIcon iconScaler(ImageIcon imgMime, Dimension sizexy) {
-		int neww=sizexy.width;
-		int newh=sizexy.height;
-		//keep aspect ration resizing
-		if (imgMime.getIconWidth() > imgMime.getIconHeight()) {
-			neww=sizexy.width;
-			newh=imgMime.getIconHeight() * sizexy.height / imgMime.getIconWidth();
-		}
-		if (imgMime.getIconWidth() < imgMime.getIconHeight()) {
-			newh=sizexy.height;
-			neww=imgMime.getIconWidth() * sizexy.width / imgMime.getIconHeight();
-		}
-		Image image = imgMime.getImage(); // transform it		
-		Image resizedImg = image.getScaledInstance(neww, newh, java.awt.Image.SCALE_SMOOTH);   
-	    return new ImageIcon(resizedImg); // transform it back
-	}
-
 
 	@Override
 	public void mouseClicked(MouseEvent e) {

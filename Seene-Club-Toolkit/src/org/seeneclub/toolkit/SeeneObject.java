@@ -1,13 +1,16 @@
 package org.seeneclub.toolkit;
 
 import java.io.File;
+import java.net.URL;
 import java.util.Date;
 import java.util.UUID;
 
 public class SeeneObject {
+	
 	/// header
 	private String caption;
 	private Date captured_at;
+	private String short_code;
 	private String filter_code;
 	private int flash_level;
 	private UUID identifier;
@@ -30,102 +33,101 @@ public class SeeneObject {
 		orientation = 0;
 		shared = 0;
 		storage_version = 3;
+		poster = new SeeneTexture();
+		model = new SeeneModel();
 	}
 	
 	// Getter and Setter
-	public File getModelFile() {
-		return model.getModelFile();
-	}
-	
-	public void setModelFile(File modelFile) {
-		model.setModelFile(modelFile);
-	}
-	
+
 	public String getCaption() {
 		return caption == null? "": caption;
 	}
-
 	public void setCaption(String caption) {
 		this.caption = caption;
 	}
-
 	public Date getCaptured_at() {
 		return captured_at;
 	}
-
 	public void setCaptured_at(Date captured_at) {
 		this.captured_at = captured_at;
 	}
-
 	public String getFilter_code() {
 		return filter_code;
 	}
-
 	public void setFilter_code(String filter_code) {
 		this.filter_code = filter_code;
 	}
-
 	public int getFlash_level() {
 		return flash_level;
 	}
-
 	public void setFlash_level(int flash_level) {
 		this.flash_level = flash_level;
 	}
-
 	public UUID getIdentifier() {
 		return identifier;
 	}
-
 	public void setIdentifier(UUID identifier) {
 		this.identifier = identifier;
 	}
-
 	public int getOrientation() {
 		return orientation;
 	}
-
 	public void setOrientation(int orientation) {
 		this.orientation = orientation;
 	}
-
 	public int getShared() {
 		return shared;
 	}
-
 	public void setShared(int shared) {
 		this.shared = shared;
 	}
-
 	public int getStorage_version() {
 		return storage_version;
 	}
-
 	public void setStorage_version(int storage_version) {
 		this.storage_version = storage_version;
 	}
-
 	public SeeneModel getModel() {
 		return model;
 	}
-
 	public void setModel(SeeneModel model) {
 		this.model = model;
 	}
-
+	public File getModelFile() {
+		return model.getModelFile();
+	}
+	public void setModelFile(File textureFile) {
+		model.setModelFile(textureFile);
+	}
+	public URL getModelURL() {
+		return model.getModelURL();
+	}
+	public void setModelURL(URL modelURL) {
+		model.setModelURL(modelURL);
+	}
 	public SeeneTexture getPoster() {
 		return poster;
 	}
-
 	public void setPoster(SeeneTexture poster) {
 		this.poster = poster;
 	}
-
 	public File getPosterFile() {
 		return poster.getTextureFile();
 	}
 	public void setTextureFile(File textureFile) {
 		poster.setTextureFile(textureFile);
+	}
+	public URL getPosterURL() {
+		return poster.getTextureURL();
+	}
+	public void setTextureURL(URL textureURL) {
+		poster.setTextureURL(textureURL);
+	}
+	public String getShortCode() {
+		return short_code;
+	}
+	public void setShortCode(String short_code) {
+		this.short_code = short_code;
 	}
 
 }

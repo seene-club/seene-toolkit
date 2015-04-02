@@ -9,5 +9,6 @@
 			<attribute name="javadoc_location" value="jar:platform:/resource/Seene-Club-Toolkit/lib/commons-cli-1.2-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="lib/java-json.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,10 +1,12 @@
 package org.seeneclub.toolkit;
 
+import java.awt.Image;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -20,6 +22,18 @@ public class SeeneModel {
 	private int mDepthWidth = -1;
 	private int mDepthHeight = -1;
 	private File modelFile;
+	private URL modelURL;
+	
+	// Constructors
+	public SeeneModel() {
+		// TODO Auto-generated constructor stub
+	}
+	SeeneModel(File sFile) {
+	     this.modelFile = sFile;
+	}
+	SeeneModel(URL sURL) {
+	     this.modelURL = sURL;
+	}
 	
 	
 	public void getModelDataFromFile() {
@@ -85,7 +99,7 @@ public class SeeneModel {
 	
 	
 	// This method was taken from https://github.com/BenVanCitters/SeeneLib---Processing-Library
-	// reverses the endianess of the data stream so we can 
+	// reverses the endianness of the data stream so we can 
 	// properly pull a 32 bit float out...  Slow but the only way I 
 	// could figure to do it in Java...
 	private static float getFloatAtCurPos(DataInputStream in)
@@ -111,6 +125,14 @@ public class SeeneModel {
 
 	public void setModelFile(File modelFile) {
 		this.modelFile = modelFile;
+	}
+
+	public URL getModelURL() {
+		return modelURL;
+	}
+
+	public void setModelURL(URL modelURL) {
+		this.modelURL = modelURL;
 	}
 	
 }
