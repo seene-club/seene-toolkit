@@ -24,6 +24,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -549,11 +550,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	private void parsePool(File baseDir) {
 		File[] files = baseDir.listFiles();
+		Arrays.sort(files);
 		if (files != null) {
 			panelWestSouth.removeAll();
 			panelWestSouth.repaint();
 			panelWestSouth.setLayout(new WrapLayout());  
-		    for (int i = 0; i < files.length; i++) {
+		    for (int i = files.length - 1; i > -1; i--) {
 		      System.out.print(files[i].getAbsolutePath());
 		      if (files[i].isDirectory()) {
 			       System.out.print(" (folder)\n");
