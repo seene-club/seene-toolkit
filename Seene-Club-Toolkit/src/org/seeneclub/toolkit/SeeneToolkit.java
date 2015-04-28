@@ -3,19 +3,12 @@ package org.seeneclub.toolkit;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
-import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
@@ -24,10 +17,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
@@ -42,6 +35,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
@@ -67,7 +61,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
+	static Boolean commandLineUsed = false;
+	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
 	
 	// We need a local storage for the Seenes
 	SeeneStorage storage = new SeeneStorage();
@@ -82,15 +77,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 	JPanel panelEastNorth = new JPanel();
-	JPanel panelEastSouth = new JPanel();
+	static JPanel panelProgressbar = new JPanel();
+	JPanel panelLogOutput = new JPanel();
+	
 	
 	// Elements for Panel WestNorth (seene pool selection)
 	JToggleButton btPoolPublicSeenes = new JToggleButton("public");
 	JToggleButton btPoolPrivateSeenes = new JToggleButton("private");
 	JToggleButton btPoolLocalSeenes = new JToggleButton("local");
 	
-	// Elements for Panel EastSouth (log output)
+	// Elements for Region EastSouth (progressbar and log output)
     static JTextArea logOutput = new JTextArea();
+    static JProgressBar progressbar = new JProgressBar();
     JScrollPane logOutputScrollPane = new JScrollPane(logOutput);
 	
 	// Settings Dialog
@@ -117,7 +115,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			configFile = new File(configDir + File.separator + "configuration");
 		}
 		
-		Boolean commandLineUsed = false;
+		
 		
 		// command line parsing (using Apache commons CLI)
 		CommandLineParser parser = new GnuParser();
@@ -170,9 +168,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    		String targetDir = line.hasOption("output-target")
 		    			? line.getOptionValue("output-target")
 		    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-	    			doTaskBackupPublicSeenes(
-	    					new File(targetDir),
-		    				new LogReporter());
+		    			doTaskBackupPublicSeenes(new File(targetDir));
 		    	} // handle private backup. Login IS required. 
 		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
 		    		if (line.hasOption("username")) {
@@ -194,9 +190,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			    		String targetDir = line.hasOption("output-target")
 				    			? line.getOptionValue("output-target")
 				    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-				    	doTaskBackupPrivateSeenes(
-		    					new File(targetDir),
-			    				new LogReporter());
+				    			doTaskBackupPrivateSeenes(new File(targetDir));
 		    		} else {
 		    			String errorText = new String("for private backup the Seene credentials are required!");
 		    			throw new org.apache.commons.cli.ParseException(errorText);
@@ -227,159 +221,144 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 	}	
     
-    private interface Reporter {
-    	void report(String what);
-
-		void planSteps(String what, int totalSteps);
-
-		void doneSteps(String what, int doneSteps);
+    public static Thread getThreadByName(String threadName) {
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            if (t.getName().equals(threadName)) return t;
+        }
+        return null;
     }
     
-    private static class LogReporter implements Reporter {
-
-		@Override
-		public void report(String what) {
-    		log(what, LogLevel.info);
-		}
-
-		@Override
-		public void planSteps(String what, int totalSteps) {
-    		log(String.format("%s (planning %d)", what, totalSteps), LogLevel.info);
-		}
-
-		@Override
-		public void doneSteps(String what, int doneSteps) {
-    		log(String.format("%s (%d done)", what, doneSteps), LogLevel.info);
-		}
-    	
-    }
-
-    // TODO @Mathias, here's just clone, please hack it to be something useful?
-    private static class GUIReporter implements Reporter {
-
-		@Override
-		public void report(String what) {
-    		log(what, LogLevel.info);
-		}
-
-		@Override
-		public void planSteps(String what, int totalSteps) {
-    		log(String.format("%s (planning %d)", what, totalSteps), LogLevel.info);
-		}
-
-		@Override
-		public void doneSteps(String what, int doneSteps) {
-    		log(String.format("%s (%d done)", what, doneSteps), LogLevel.info);
-		}
-    	
-    }
     
-    // @PAF I prepared two methods for the Backup Tasks. 
-    // They are called by selecting the tasks from the menu or from command line.
+    
+    
     // example: java -jar seene-club-toolkit.jar -b public -u paf
-    private static void doTaskBackupPublicSeenes(File targetDir, Reporter reporter) {
+    private static void doTaskBackupPublicSeenes(File targetDir) {
     	try {
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
-    		reporter.report("Resolving name to id");
-    		
+    		log("Resolving name to id", LogLevel.info);
 			String userId = SeeneAPI.usernameToId(seeneUser);
-		
 			log("Seene user: " + userId, LogLevel.debug);
 
-			//@PAF let's start with lesser seenes for testing.
-			//perhaps we can later determine which Seenes are already backup and which are not
-			//so we can optimize the runtime for following backups
-			
-			//@Mathias, agreed
-			//it is very important to complete an aborted download,
-			//so user will not feel "it's OK" when it is not.
-			//One way to do it, is just to download to a drafts/ subfolder
-			//And only when 100% downloaded OK, move it (atomic operation) one level up
-			//And then, if it's there, we may safely skip the download
-			//TODO that (below)
-			int last = 5;
-			reporter.report("Getting index of last " + last + " public seenes");
+			int last = 25;
+			log("Getting index of last " + last + " public seenes", LogLevel.info);
 			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
+			log("You have at least " + index.size() + " public seenes", LogLevel.info);
 			
-			reporter.planSteps("Downloading few last public seenes (not ALL)", last);
-			int i = 0;
-			for(SeeneObject o : index) {
-				downloadSeene(o,targetDir);
-				reporter.doneSteps("Downloaded", ++i);
-			}
-
-			log("Done",LogLevel.info);
+			downloadInThreads(index, targetDir, 4);
+			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
     
+    
     // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
-    private static void doTaskBackupPrivateSeenes(File targetDir, Reporter reporter) {
+    private static void doTaskBackupPrivateSeenes(File targetDir) {
     	try {
         	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
-    		reporter.report("Resolving name to id");
-    		
+        	log("Resolving name to id", LogLevel.info);
 			String userId = SeeneAPI.usernameToId(seeneUser);
-		
 			log("Seene user: " + userId, LogLevel.debug);
 
 			Token token;
 			{
 				// @TODO Mathias, we may cache the token someday
-				reporter.report("Logging in");
+				log("Logging in",LogLevel.info);
 				token = SeeneAPI.login(seeneAPIid, seeneUser, seenePass);
 			}
 					
-			int last = 5;
-			reporter.report("Getting index of last " + last + " private seenes");
+			int last = 25;
+			log("Getting index of last " + last + " private seenes",LogLevel.info);
 			List<SeeneObject> index = SeeneAPI.getPrivateSeenes(token, userId, last);
+			log("You have at least " + index.size() + " private seenes", LogLevel.info);
 			
-			reporter.planSteps("Downloading few last private seenes (not ALL)", last);
-			int i = 0;
-			for(SeeneObject o : index) {
-				downloadSeene(o,targetDir);
-				reporter.doneSteps("Downloaded", ++i);
-			}
-
-			log("Done",LogLevel.info);
-
+			downloadInThreads(index, targetDir, 4);
+			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
     
-    // downloads a Seene to a target Directory
-    private static boolean downloadSeene(SeeneObject sO, File sF) {
-    	Boolean successTexture = false;
-    	Boolean successModel = false;
-    	SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" );
-    	
-    	String folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sO.getCaption().replaceAll("\n",  " "));
-    	File seeneFolder = new File(sF.getAbsolutePath() + File.separator + folderName);
-    	
-    	if (!seeneFolder.exists()) {
-    		seeneFolder.mkdirs();
-    		successTexture = Helper.downloadFile(sO.getPosterURL(), seeneFolder);
-    		successModel = Helper.downloadFile(sO.getModelURL(), seeneFolder);
-    	} else {
-    		log(seeneFolder.getAbsolutePath() + " already exists!", LogLevel.info);
-    	}
-    	
-    	if ((successModel) && (successTexture)) {
-    		log("Seene: " + seeneFolder.getAbsolutePath() + " downloaded", LogLevel.info);
-    		Helper.createFolderIcon(seeneFolder);
-    		return true;
-    	}
-    	return false;
+    
+    // Downloading with more than one thread is faster for most internet connections
+    private static void downloadInThreads(List<SeeneObject> seenesToDownload, File targetDir, int number_of_threads) {
+    	try {
+	    	List<SeeneObject> toDownloadIndex = new ArrayList<SeeneObject>();
+			
+			// First we check which Seenes are already in the target-directory
+			for(SeeneObject sO : seenesToDownload) {
+				String folderName = SeeneStorage.generateSeeneFolderName(sO);
+				File seeneFolder = new File(targetDir.getAbsolutePath() + File.separator + folderName);
+				if (!seeneFolder.exists()) {
+					toDownloadIndex.add(sO);
+				}
+			}
+			
+			if (toDownloadIndex.size()==0) {
+				log("All of them are already backupped. NOTHING TO DO!", LogLevel.info);
+			} else {
+			
+				if (!commandLineUsed) {
+					progressbar.setValue(0);
+					progressbar.setMaximum(toDownloadIndex.size());
+				}
+				
+				log(toDownloadIndex.size() + " of them are not backupped.", LogLevel.info);
+			
+				List<Thread> threads = new ArrayList<Thread>();
+				
+				int tc = 0; // thread count
+			
+				for(SeeneObject o : toDownloadIndex) {
+					//downloadSeene(o,targetDir);
+					SeeneDownloader sd = new SeeneDownloader(o, targetDir);
+					SeeneDownloadCompleteListener l = new SeeneDownloadCompleteListener() {
+						
+						@Override
+						public void notifyOfThreadComplete(SeeneDownloader seeneDownloader) {
+							//log("DOWNLOAD COMPLETE: " + seeneDownloader.getSeeneObject().getCaption(),LogLevel.info);
+							//Thread t = getThreadByName(seeneDownloader.getSeeneObject().getShortCode());
+							if (!commandLineUsed) {
+								progressbar.setValue(progressbar.getValue()+1);
+							}
+						}
+					};
+					
+					sd.addListener(l);
+	
+					Thread t = new Thread(sd);
+					t.setName(sd.getSeeneObject().getShortCode());
+					t.start();
+					log("FETCHING Seene " + o.getShortCode() + " " + o.getCaption(),LogLevel.info);
+					threads.add(t);
+					tc++;
+					// start up to "number_of_threads" DL Threads at once
+					if (tc == number_of_threads) {
+						for (Thread tj : threads) {
+							tj.join();
+						}
+						tc = 0;
+						threads.clear();
+					}
+				}
+				// finally join all unjoined threads
+				for (Thread t : threads) {
+					t.join();
+				}
+	
+				log("ALL DOWNLOADS COMPLETE!",LogLevel.info);
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
     }
     
     
-
 	@Override
 	public void run() {
 		
@@ -487,10 +466,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         // Region East-South: Log output window
         logOutput.setLineWrap(true);
         // embed logOutput in BorderLayout
-        panelEastSouth.setLayout(new BorderLayout());
-        panelEastSouth.add(logOutputScrollPane, BorderLayout.CENTER);
-        panelEastSouth.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
-
+        panelProgressbar.setLayout(new BorderLayout());
+        progressbar.setMinimum(0);
+        progressbar.setMaximum(100);
+        progressbar.setValue(0);
+        progressbar.setStringPainted(true);
+        panelProgressbar.add(progressbar,BorderLayout.CENTER);
+        
+        panelLogOutput.setLayout(new BorderLayout());
+        panelLogOutput.add(logOutputScrollPane, BorderLayout.CENTER);
+        panelLogOutput.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
 
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
@@ -510,9 +495,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		Dimension minimumSize = new Dimension(250, 500);
 		splitWestNorthSouth.setMinimumSize(minimumSize);
 		
+		JSplitPane splitEastSouthPanel = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		splitEastSouthPanel.setTopComponent(panelLogOutput);
+		splitEastSouthPanel.setBottomComponent(panelProgressbar);
+		splitEastSouthPanel.setDividerSize(0);
+		splitEastSouthPanel.setDividerLocation(170);
+		splitEastSouthPanel.setResizeWeight(0.5);
+		
 		JSplitPane splitEastNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 		splitEastNorthSouth.setTopComponent(panelEastNorth);
-		splitEastNorthSouth.setBottomComponent(panelEastSouth);
+		splitEastNorthSouth.setBottomComponent(splitEastSouthPanel);
 		splitEastNorthSouth.setDividerSize(2);
 		splitEastNorthSouth.setDividerLocation(768-250);
 		splitEastNorthSouth.setResizeWeight(0.5);
@@ -532,11 +524,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	public void actionPerformed(ActionEvent arg0) {
 		
 		if(arg0.getSource() == this.taskBackupPublic) {
-			doTaskBackupPublicSeenes(storage.getPublicDir(), 
-					new GUIReporter());
+			Thread dlThread = new Thread() {
+				public void run() {
+					doTaskBackupPublicSeenes(storage.getPublicDir());		
+				}
+			};
+			dlThread.start();
 		} else if(arg0.getSource() == this.taskBackupPrivate) {
-			doTaskBackupPrivateSeenes(storage.getPrivateDir(),
-					new GUIReporter());
+			Thread dlThread = new Thread() {
+				public void run() {
+					doTaskBackupPrivateSeenes(storage.getPrivateDir());		
+				}
+			};
+			dlThread.start();
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
 	    } else if (arg0.getSource() == this.btPoolPublicSeenes) {
@@ -561,13 +561,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			       System.out.print(" (folder)\n");
 			       ImageIcon imgDir = new ImageIcon(files[i].getAbsolutePath() + File.separator + "folder.png");
 			       JLabel newLabel = new JLabel();
-			       newLabel = new JLabel (files[i].getName().substring(0, 20), imgDir, JLabel.LEFT);
-			       newLabel.setToolTipText(files[i].getAbsolutePath());
-			       newLabel.setHorizontalTextPosition(JLabel.CENTER);
-			       newLabel.setVerticalTextPosition(JLabel.BOTTOM);
-			       newLabel.setHorizontalAlignment(SwingConstants.LEFT);
-			       newLabel.addMouseListener(this);
-			       panelWestSouth.add(newLabel);
+			       if (files[i].getName().length() >= 20) {
+			    	   newLabel = new JLabel (files[i].getName().substring(0, 20), imgDir, JLabel.LEFT);
+				       newLabel.setToolTipText(files[i].getAbsolutePath());
+				       newLabel.setHorizontalTextPosition(JLabel.CENTER);
+				       newLabel.setVerticalTextPosition(JLabel.BOTTOM);
+				       newLabel.setHorizontalAlignment(SwingConstants.LEFT);
+				       newLabel.addMouseListener(this);
+				       panelWestSouth.add(newLabel);
+			       }
 		      } // directory
 		    } // for
 		    mainFrame.setVisible(true);
@@ -765,12 +767,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	public static void log(String logLine, String LogLevelKey) {
 		if (APPLICATION_LOG_MODE.contains(LogLevelKey)) {
-			logOutput.append(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine + "\n");
-			logOutput.setCaretPosition(logOutput.getDocument().getLength());
+			if (!commandLineUsed) {
+				logOutput.append(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine + "\n");
+				logOutput.setCaretPosition(logOutput.getDocument().getLength());
+			}
 			System.out.println(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine);
 			//TODO: writing to logfile
 		}
 	}
+
+
 
 }
 

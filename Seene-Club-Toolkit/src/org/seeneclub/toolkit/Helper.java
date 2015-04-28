@@ -66,6 +66,7 @@ public class Helper {
     	
     }
 	
+		
     // downloads a File to a target Directory
     public static boolean downloadFile(URL fU, File sFolder) {
     	File dF = new File(sFolder.getAbsolutePath() + File.separator + getDownloadFileName(fU));

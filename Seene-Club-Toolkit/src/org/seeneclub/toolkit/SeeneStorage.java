@@ -1,6 +1,7 @@
 package org.seeneclub.toolkit;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 
 import org.seeneclub.domainvalues.LogLevel;
 
@@ -57,6 +58,11 @@ public class SeeneStorage {
 		}
 		if (success) return true;	
 		return false;
+	}
+	
+	public static String generateSeeneFolderName(SeeneObject sO) {
+		SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" );
+		return new String(sdf.format(sO.getCaptured_at()) + " " + sO.getCaption().replaceAll("\n",  " ").replaceAll("/", "."));
 	}
 	
 
