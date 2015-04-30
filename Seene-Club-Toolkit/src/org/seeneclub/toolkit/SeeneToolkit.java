@@ -734,7 +734,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	// reads the complete configuration file into globals
 	private boolean readConfiguration(File cf) {
     	if(cf.exists() && !cf.isDirectory()) {
-    		log("reading application configuration...",LogLevel.debug);
+    		log("reading application configuration: " + cf.getAbsolutePath(),LogLevel.debug);
 			BufferedReader br;
 			try {
 				br = new BufferedReader(new FileReader(cf));

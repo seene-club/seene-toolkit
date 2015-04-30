@@ -62,7 +62,15 @@ public class SeeneStorage {
 	
 	public static String generateSeeneFolderName(SeeneObject sO) {
 		SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" );
-		return new String(sdf.format(sO.getCaptured_at()) + " " + sO.getCaption().replaceAll("\n",  " ").replaceAll("/", "."));
+		String folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sO.getCaption().replaceAll("\n",  " ").replaceAll("/", ".")).trim();
+		// Windows is different
+		if ((System.getProperty("os.name").length()>=7) && (System.getProperty("os.name").substring(0, 7).equals("Windows"))) {
+			return folderName.replaceAll(":", ";")
+					         .replaceAll("\"", "'")
+					         .replaceAll("\\?", "");
+							 // to be continued?
+		}	
+		return folderName;
 	}
 	
 
