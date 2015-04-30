@@ -38,6 +38,15 @@ public class SeeneAPI {
 	
 	/// can be cached until expires; if expires is null, cached forever.
 	public static Token login(String apiId, String username, String password) throws Exception {
+		
+		if (apiId.length() == 0) {
+			throw new Exception("Missing API-ID!");
+		}
+		
+		if (apiId.equals("<insert Seene API ID here>")) {
+			throw new Exception("API-ID not configured!");
+		}
+		
 		Token result = new Token();
 		result.api_id = apiId;
 

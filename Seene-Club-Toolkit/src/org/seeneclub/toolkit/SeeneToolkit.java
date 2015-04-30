@@ -217,7 +217,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					
 			log(token.api_token,LogLevel.info);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log(e.getMessage(),LogLevel.error);
+			
 		}
 	}	
     
@@ -278,8 +279,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			downloadInThreads(index, targetDir, 4);
 			
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			StringBuffer inform = new StringBuffer("The following error occured:\n");
+			inform.append(e.getMessage());
+			inform.append("\n\nPlease check your Seene credentials configuration and your internet connection!");
+            log(e.getMessage(),LogLevel.error);
+            JOptionPane.showMessageDialog(null,  inform.toString(), "Backup Error", JOptionPane.ERROR_MESSAGE);
 		}
     }
     
