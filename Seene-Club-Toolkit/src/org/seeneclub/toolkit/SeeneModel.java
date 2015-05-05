@@ -1,6 +1,5 @@
 package org.seeneclub.toolkit;
 
-import java.awt.Image;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
@@ -9,6 +8,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SeeneModel {
 	
@@ -21,6 +22,7 @@ public class SeeneModel {
 	private float mCameraK2;
 	private int mDepthWidth = -1;
 	private int mDepthHeight = -1;
+	private List<Float> mFloats = new ArrayList<Float>();
 	private File modelFile;
 	private URL modelURL;
 	
@@ -37,12 +39,11 @@ public class SeeneModel {
 	
 	
 	public void getModelDataFromFile() {
-		getModelDataFromFile(modelFile);
+		mFloats = getModelDataFromFile(modelFile);
 	}
 	
-	// This method was taken from https://github.com/BenVanCitters/SeeneLib---Processing-Library
-	//TODO RETURN modeldata
-	private void  getModelDataFromFile(File mFile) {
+	// Origin of this method is https://github.com/BenVanCitters/SeeneLib---Processing-Library
+	private List<Float> getModelDataFromFile(File mFile) {
 		try {
 			DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(mFile)));
 			
@@ -82,19 +83,20 @@ public class SeeneModel {
 		    System.out.println("depthmapheight: " + mDepthHeight);
 		    
 		    int floatCount = mDepthWidth * mDepthHeight;
-		    float fOut[] = new float[floatCount];
+		    mFloats.clear();
 		    float scale = 1;
-		    for(int i = 0; i<fOut.length;i++)
+		    for(int i = 0; i<floatCount;i++)
 		    {
-		    	fOut[i] = scale* getFloatAtCurPos(in);
-		    	//System.out.println("[" +i + "]: " + fOut[i]);
-		    	//TODO put model in structured object
+		    	mFloats.add(scale* getFloatAtCurPos(in));
+		    	System.out.println("[" + i + "]: " + mFloats.get(i));
 		    }
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} 
+		}
+		
+		return mFloats; 
 	}
 	
 	

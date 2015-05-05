@@ -37,6 +37,16 @@ public class SeeneObject {
 		model = new SeeneModel();
 	}
 	
+	// constructor for a seene stored at local filesystem
+	public SeeneObject(File seeneFolder) {
+		if(seeneFolder.exists()) {
+	    	  if (seeneFolder.isDirectory()) {
+	    		  setModel(new SeeneModel(new File(seeneFolder.getAbsolutePath() + File.separator + "scene.oemodel")));
+	    		  setPoster(new SeeneTexture(new File(seeneFolder.getAbsolutePath() + File.separator + "poster.jpg")));
+	    	  }
+		}
+	}
+	
 	// Getter and Setter
 
 	public String getCaption() {
@@ -96,8 +106,8 @@ public class SeeneObject {
 	public File getModelFile() {
 		return model.getModelFile();
 	}
-	public void setModelFile(File textureFile) {
-		model.setModelFile(textureFile);
+	public void setModelFile(File modelFile) {
+		model.setModelFile(modelFile);
 	}
 	public URL getModelURL() {
 		return model.getModelURL();

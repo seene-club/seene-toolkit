@@ -2,6 +2,8 @@ package org.seeneclub.toolkit;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -565,8 +567,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			       System.out.print(" (folder)\n");
 			       ImageIcon imgDir = new ImageIcon(files[i].getAbsolutePath() + File.separator + "folder.png");
 			       JLabel newLabel = new JLabel();
-			       if (files[i].getName().length() >= 20) {
-			    	   newLabel = new JLabel (files[i].getName().substring(0, 20), imgDir, JLabel.LEFT);
+			       if (files[i].getName().length() >= 19) {
+			    	   newLabel = new JLabel (files[i].getName().substring(0, 19), imgDir, JLabel.LEFT);
 				       newLabel.setToolTipText(files[i].getAbsolutePath());
 				       newLabel.setHorizontalTextPosition(JLabel.CENTER);
 				       newLabel.setVerticalTextPosition(JLabel.BOTTOM);
@@ -582,10 +584,51 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 
 	@Override
-	public void mouseClicked(MouseEvent e) {
-		// TODO Auto-generated method stub
+	public void mouseClicked(MouseEvent mevent) {
+		// *** single click handling ***
+		if (mevent.getClickCount() == 1) {
+			// clear markup state of all file labels
+			clearFileLabels(panelWestSouth);
+			// read element which received the event
+			JLabel labelReference=(JLabel)mevent.getSource();
+			labelReference.setOpaque(true);
+			labelReference.setBackground(Color.decode("0xDDDDEE"));
+		}
+		// *** double click handling ***		
+		if (mevent.getClickCount() == 2) {
+			JLabel labelReference=(JLabel)mevent.getSource();
+			String seeneFilePath=labelReference.getToolTipText();
+			if (seeneFilePath != null) { 
+			      File seeneFolder = new File(seeneFilePath);
+			      if(seeneFolder.exists()) {
+			    	  if (seeneFolder.isDirectory()) {
+			    		  openSeene(seeneFolder);
+			    	  } // isDirectory
+			      } // exists
+			} // not null
+		} // double click
 		
 	}
+	
+	private void openSeene(File seeneFolder) {
+		
+		SeeneObject s = new SeeneObject(seeneFolder);
+		s.getModel().getModelDataFromFile();
+		
+	}
+
+	// unmark file labels. called when other file gets selected  
+	private void clearFileLabels(Container container) {
+	    for (Component c : container.getComponents()) {
+	        if (c instanceof JLabel) {
+	           ((JLabel)c).setBackground(Color.white);
+	        } else
+	        if (c instanceof Container) {
+	        	clearFileLabels((Container)c);
+	        }
+	    }
+	}
+	
 
 	@Override
 	public void mousePressed(MouseEvent e) {
