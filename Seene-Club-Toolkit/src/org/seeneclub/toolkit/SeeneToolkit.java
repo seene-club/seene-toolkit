@@ -63,7 +63,7 @@ import org.seeneclub.toolkit.SeeneAPI.Token;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
@@ -485,7 +485,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         toolbar.add(tbSaveLocal);
         tbSaveLocal.setEnabled(false);
         
-        panelEastNorth.add(toolbar);
+        //panelEastNorth.add(toolbar);
         
 		panelEastNorth.add(modelDisplay);
         
@@ -634,6 +634,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	private void openSeene(File seeneFolder) {
 		SeeneObject s = new SeeneObject(seeneFolder);
 		// load the model-data from file system
+		log("Loading Seene Model: " +  s.getModelFile().getAbsolutePath(),LogLevel.info);
 		s.getModel().getModelDataFromFile();
 		log("Model width: " +  s.getModel().getDepthWidth(),LogLevel.info);
 		log("Model height: " +  s.getModel().getDepthHeight() ,LogLevel.info);
@@ -649,9 +650,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	class ModelGraphics extends Canvas {
 		
 		public SeeneModel model; 
+		public int pointSize=2;
 		
+
 		public ModelGraphics(){
-	        setSize(240, 240);	// TODO: variable!
+	        setSize(240*getPointSize(), 240*getPointSize());	
 	        setBackground(Color.white);
 	    }
 
@@ -670,6 +673,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        float max = model.getMaxFloat();
 		        int w = model.getDepthWidth();
 		        int h = model.getDepthHeight();
+		        int p = getPointSize();
 		        
 		        for (int x=1;x<=w;x++) {
 		        	for (int y=1;y<=h;y++) {
@@ -677,12 +681,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        		//System.out.println("x: " + x + " - y: " + y + " - f:" +f);
 		        		Color newColor = new Color(f/max,f/max,f/max);
 		        		g.setColor(newColor);
-		        		g.drawLine(w-x, y, w-x, y);
+		        		g.fillRect((w*p) - (x*p)-1, (y*p)-1, p, p);
+		        		
 		        		c++;
 		        	}
 		        }
 	    	}
 	        
+	    }
+	    
+	    private void repaintGraphics() {
+	    	if (model!=null) {
+				Graphics g = getGraphics();
+				setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
+				this.paint(g);
+			}
 	    }
 	    
 	    public SeeneModel getModel() {
@@ -691,7 +704,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 		public void setModel(SeeneModel model) {
 			this.model = model;
-			this.paint(getGraphics());
+			repaintGraphics();
+			
+		}
+		
+		public int getPointSize() {
+			return pointSize;
+		}
+
+		public void setPointSize(int pointSize) {
+			this.pointSize = pointSize;
+			repaintGraphics();
 		}
 	}
 

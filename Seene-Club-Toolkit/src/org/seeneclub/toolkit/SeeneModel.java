@@ -11,6 +11,8 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.seeneclub.domainvalues.LogLevel;
+
 public class SeeneModel {
 	
 	private int mSeeneVersion = -1;
@@ -50,38 +52,38 @@ public class SeeneModel {
 			
 			//0 offset
 			mSeeneVersion = Integer.reverseBytes(in.readInt());
-		    System.out.println("version: " + mSeeneVersion); 
+		    SeeneToolkit.log("version: " + mSeeneVersion,LogLevel.debug); 
 		    
 		    //4 offset should be something like 720
 		    mCameraWidth = Integer.reverseBytes(in.readInt());
-		    System.out.println("cameraWidth: " + mCameraWidth);
+		    SeeneToolkit.log("cameraWidth: " + mCameraWidth,LogLevel.debug);
 		    
 		    //8 should be something like 720
 		    mCameraHeight = Integer.reverseBytes(in.readInt());
-		    System.out.println("cameraHeight: " + mCameraHeight);
+		    SeeneToolkit.log("cameraHeight: " + mCameraHeight,LogLevel.debug);
 		    
 		    //at byte 12 should be something like 1252.39842
 		    mCameraFX = getFloatAtCurPos(in);
-		    System.out.println("cameraFX: " + mCameraFX);
+		    SeeneToolkit.log("cameraFX: " + mCameraFX,LogLevel.debug);
 		    
 		    //at byte 16 should be something like 1247.39842
 		    mCameraFY = getFloatAtCurPos(in);
-		    System.out.println("cameraFy: " + mCameraFY);
+		    SeeneToolkit.log("cameraFy: " + mCameraFY,LogLevel.debug);
 		    
 		    //at byte 20 should be something like 0.023
 		    mCameraK1 = getFloatAtCurPos(in);
-		    System.out.println("cameraK1: " + mCameraK1);
+		    SeeneToolkit.log("cameraK1: " + mCameraK1,LogLevel.debug);
 		    
 		    //at byte 20 should be something like .3207...
 		    mCameraK2 = getFloatAtCurPos(in);
-		    System.out.println("cameraK2: " + mCameraK2);
+		    SeeneToolkit.log("cameraK2: " + mCameraK2,LogLevel.debug);
 		    
 		    //at byte 28 ~~90
 		    mDepthWidth = Integer.reverseBytes(in.readInt());
-		    System.out.println("depthmapwidth: " + mDepthWidth);
+		    SeeneToolkit.log("depthmapwidth: " + mDepthWidth,LogLevel.debug);
 		    //at byte 32 ~~90
 		    mDepthHeight = Integer.reverseBytes(in.readInt());
-		    System.out.println("depthmapheight: " + mDepthHeight);
+		    SeeneToolkit.log("depthmapheight: " + mDepthHeight,LogLevel.debug);
 		    
 		    int floatCount = mDepthWidth * mDepthHeight;
 		    mFloats.clear();
