@@ -1,10 +1,14 @@
 package org.seeneclub.toolkit;
 
 import java.awt.BorderLayout;
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
@@ -22,6 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -43,6 +48,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.JToolBar;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 
@@ -92,6 +98,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     static JTextArea logOutput = new JTextArea();
     static JProgressBar progressbar = new JProgressBar();
     JScrollPane logOutputScrollPane = new JScrollPane(logOutput);
+    
+    // Elements for Region EastNorth (Seene Display)
+    JToolBar toolbar = new JToolBar();
+    JButton tbSaveLocal = new JButton("save local");
+    ModelGraphics modelDisplay = new ModelGraphics();
 	
 	// Settings Dialog
 	static File configDir = null;
@@ -212,7 +223,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		// Start GUI only if NO command line argument is used!
 		if (!commandLineUsed) new Thread(new SeeneToolkit()).start();
 	}
-
+	
+	
     private void doTestLogin() {
 		try {
 			SeeneAPI.Token token = SeeneAPI.login(seeneAPIid,seeneUser,seenePass);
@@ -469,6 +481,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         // Region West-South: displays the seenes in a pool
         panelWestSouth.setBackground(Color.white);
         
+        // Region East-North: Seene display
+        toolbar.add(tbSaveLocal);
+        tbSaveLocal.setEnabled(false);
+        
+        panelEastNorth.add(toolbar);
+        
+		panelEastNorth.add(modelDisplay);
+        
+                
         // Region East-South: Log output window
         logOutput.setLineWrap(true);
         // embed logOutput in BorderLayout
@@ -611,10 +632,67 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	private void openSeene(File seeneFolder) {
-		
 		SeeneObject s = new SeeneObject(seeneFolder);
+		// load the model-data from file system
 		s.getModel().getModelDataFromFile();
+		log("Model width: " +  s.getModel().getDepthWidth(),LogLevel.info);
+		log("Model height: " +  s.getModel().getDepthHeight() ,LogLevel.info);
 		
+		modelDisplay.setModel(s.getModel());
+		
+		//mainFrame.setVisible(true);
+		
+	}
+	
+	
+	@SuppressWarnings("serial")
+	class ModelGraphics extends Canvas {
+		
+		public SeeneModel model; 
+		
+		public ModelGraphics(){
+	        setSize(240, 240);	// TODO: variable!
+	        setBackground(Color.white);
+	    }
+
+		public ModelGraphics(SeeneModel seeneModel){
+			setModel(seeneModel);
+	        setSize(model.getDepthWidth(), model.getDepthHeight()); 
+	        setBackground(Color.white);
+	    }
+
+	    public void paint(Graphics g){
+	        
+	    	if (model!=null) {
+	        
+		        int c=0;
+		        float f;
+		        float max = model.getMaxFloat();
+		        int w = model.getDepthWidth();
+		        int h = model.getDepthHeight();
+		        
+		        for (int x=1;x<=w;x++) {
+		        	for (int y=1;y<=h;y++) {
+		        		f = model.getFloats().get(c);
+		        		//System.out.println("x: " + x + " - y: " + y + " - f:" +f);
+		        		Color newColor = new Color(f/max,f/max,f/max);
+		        		g.setColor(newColor);
+		        		g.drawLine(w-x, y, w-x, y);
+		        		c++;
+		        	}
+		        }
+	    	}
+	        
+	    }
+	    
+	    public SeeneModel getModel() {
+			return model;
+		}
+
+		public void setModel(SeeneModel model) {
+			this.model = model;
+			this.paint(getGraphics());
+		}
 	}
 
 	// unmark file labels. called when other file gets selected  

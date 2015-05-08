@@ -23,6 +23,7 @@ public class SeeneModel {
 	private int mDepthWidth = -1;
 	private int mDepthHeight = -1;
 	private List<Float> mFloats = new ArrayList<Float>();
+	private float maxFloat = -1;
 	private File modelFile;
 	private URL modelURL;
 	
@@ -85,10 +86,13 @@ public class SeeneModel {
 		    int floatCount = mDepthWidth * mDepthHeight;
 		    mFloats.clear();
 		    float scale = 1;
+		    float f;
 		    for(int i = 0; i<floatCount;i++)
 		    {
-		    	mFloats.add(scale* getFloatAtCurPos(in));
-		    	System.out.println("[" + i + "]: " + mFloats.get(i));
+		    	f = getFloatAtCurPos(in) * scale;
+		    	if (f > maxFloat) maxFloat = f;
+		    	mFloats.add(f);
+		    	//System.out.println("[" + i + "]: " + mFloats.get(i));
 		    }
 			
 		} catch (IOException e) {
@@ -100,6 +104,7 @@ public class SeeneModel {
 	}
 	
 	
+
 	// This method was taken from https://github.com/BenVanCitters/SeeneLib---Processing-Library
 	// reverses the endianness of the data stream so we can 
 	// properly pull a 32 bit float out...  Slow but the only way I 
@@ -136,5 +141,70 @@ public class SeeneModel {
 	public void setModelURL(URL modelURL) {
 		this.modelURL = modelURL;
 	}
-	
+	public int getSeeneVersion() {
+		return mSeeneVersion;
+	}
+	public void setSeeneVersion(int mSeeneVersion) {
+		this.mSeeneVersion = mSeeneVersion;
+	}
+	public int getCameraWidth() {
+		return mCameraWidth;
+	}
+	public void setCameraWidth(int mCameraWidth) {
+		this.mCameraWidth = mCameraWidth;
+	}
+	public int getCameraHeight() {
+		return mCameraHeight;
+	}
+	public void setCameraHeight(int mCameraHeight) {
+		this.mCameraHeight = mCameraHeight;
+	}
+	public float getCameraFX() {
+		return mCameraFX;
+	}
+	public void setCameraFX(float mCameraFX) {
+		this.mCameraFX = mCameraFX;
+	}
+	public float getCameraFY() {
+		return mCameraFY;
+	}
+	public void setCameraFY(float mCameraFY) {
+		this.mCameraFY = mCameraFY;
+	}
+	public float getCameraK1() {
+		return mCameraK1;
+	}
+	public void setCameraK1(float mCameraK1) {
+		this.mCameraK1 = mCameraK1;
+	}
+	public float getCameraK2() {
+		return mCameraK2;
+	}
+	public void setCameraK2(float mCameraK2) {
+		this.mCameraK2 = mCameraK2;
+	}
+	public int getDepthWidth() {
+		return mDepthWidth;
+	}
+	public void setDepthWidth(int mDepthWidth) {
+		this.mDepthWidth = mDepthWidth;
+	}
+	public int getDepthHeight() {
+		return mDepthHeight;
+	}
+	public void setDepthHeight(int mDepthHeight) {
+		this.mDepthHeight = mDepthHeight;
+	}
+	public List<Float> getFloats() {
+		return mFloats;
+	}
+	public void setFloats(List<Float> mFloats) {
+		this.mFloats = mFloats;
+	}
+	public float getMaxFloat() {
+		return maxFloat;
+	}
+	public void setMaxFloat(float maxFloat) {
+		this.maxFloat = maxFloat;
+	}
 }
