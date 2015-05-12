@@ -635,7 +635,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		SeeneObject s = new SeeneObject(seeneFolder);
 		// load the model-data from file system
 		log("Loading Seene Model: " +  s.getModelFile().getAbsolutePath(),LogLevel.info);
-		s.getModel().getModelDataFromFile();
+		s.getModel().loadModelDataFromFile();
 		log("Model width: " +  s.getModel().getDepthWidth(),LogLevel.info);
 		log("Model height: " +  s.getModel().getDepthHeight() ,LogLevel.info);
 		

@@ -1,9 +1,13 @@
 package org.seeneclub.toolkit;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -40,13 +44,39 @@ public class SeeneModel {
 	     this.modelURL = sURL;
 	}
 	
-	
-	public void getModelDataFromFile() {
-		mFloats = getModelDataFromFile(modelFile);
+	private void saveModelDateToFile(File sFile) {
+		try {
+			DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(sFile)));
+			
+			out.writeInt(Integer.reverseBytes(mSeeneVersion));
+			out.writeInt(Integer.reverseBytes(mCameraWidth));
+			out.writeInt(Integer.reverseBytes(mCameraHeight));
+			putFloatAtCurPos(out, mCameraFX);
+			putFloatAtCurPos(out, mCameraFY);
+			putFloatAtCurPos(out, mCameraK1);
+			putFloatAtCurPos(out, mCameraK2);
+			out.writeInt(Integer.reverseBytes(mDepthWidth));
+			out.writeInt(Integer.reverseBytes(mDepthHeight));
+			for (int i=0;i<mFloats.size();i++) {
+				putFloatAtCurPos(out, mFloats.get(i));
+			}
+			
+			out.close();
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 	
+	public void loadModelDataFromFile() {
+		mFloats = loadModelDataFromFile(modelFile);
+	}
+	
+	
 	// Origin of this method is https://github.com/BenVanCitters/SeeneLib---Processing-Library
-	private List<Float> getModelDataFromFile(File mFile) {
+	private List<Float> loadModelDataFromFile(File mFile) {
 		try {
 			DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(mFile)));
 			
@@ -97,14 +127,34 @@ public class SeeneModel {
 		    	//System.out.println("[" + i + "]: " + mFloats.get(i));
 		    }
 			
+		    in.close();
+		    
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
+		
 		return mFloats; 
 	}
 	
+	// Writing floats as BIG ENDIAN bytes.
+	private static void putFloatAtCurPos(DataOutputStream out,float f) {
+		try {
+			ByteBuffer bBuff = ByteBuffer.allocate(4);
+			bBuff.putFloat(f);
+			bBuff.position(0);
+			byte[] bytes = new byte[4];
+			bBuff.get(bytes);
+			for(int i = bytes.length-1; i >= 0; i--)
+				out.writeByte(bytes[i]);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		 
+	}
 	
 
 	// This method was taken from https://github.com/BenVanCitters/SeeneLib---Processing-Library
@@ -119,7 +169,7 @@ public class SeeneModel {
 		    for(int i = bytes.length-1; i >= 0; i--)
 		      bytes[i] = in.readByte();
 		      
-		    result = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN ).getFloat();
+		      result = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN ).getFloat();
 		  } catch(Exception e) {
 			  System.out.println(e);
 		  }
