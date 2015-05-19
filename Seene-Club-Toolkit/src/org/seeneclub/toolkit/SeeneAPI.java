@@ -1,24 +1,39 @@
 package org.seeneclub.toolkit;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 import org.json.simple.JSONValue;
+import org.seeneclub.domainvalues.LogLevel;
 
 import com.vdurmont.emoji.EmojiParser;
 
@@ -39,14 +54,13 @@ public class SeeneAPI {
 	/// can be cached until expires; if expires is null, cached forever.
 	public static Token login(String apiId, String username, String password) throws Exception {
 		
-		if (apiId.length() == 0) {
-			throw new Exception("Missing API-ID!");
+		if ((apiId.length() == 0) || (apiId.equals("<insert Seene API ID here>"))) {
+			apiId = getSeeneAPIidFromRemoteServer(username, password);
+			//SeeneToolkit.log(apiId,LogLevel.debug);
 		}
 		
-		if (apiId.equals("<insert Seene API ID here>")) {
-			throw new Exception("API-ID not configured!");
-		}
-		
+		if (apiId.length() != 40) throw new Exception("API-ID format exception!");
+
 		Token result = new Token();
 		result.api_id = apiId;
 
@@ -60,6 +74,65 @@ public class SeeneAPI {
 		result.api_token = (String) map.get("api_token");
 		result.api_token_expires_at = parseISO8601((String)map.get("api_token_expires_at"));
 		return result;
+	}
+	
+	// Retrieves the API-ID from a WebService. API-ID is only returned for experienced users with valid credentials
+	private static String getSeeneAPIidFromRemoteServer(String username, String password) throws IOException, NoSuchAlgorithmException, KeyManagementException {
+		URL url = new URL("https://54.243.113.182/actions/sapi");
+        Map<String,Object> params = new LinkedHashMap<>();
+        params.put("username", username);
+        params.put("password", password);
+        
+        StringBuilder postData = new StringBuilder();
+        for (Map.Entry<String,Object> param : params.entrySet()) {
+            if (postData.length() != 0) postData.append('&');
+            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+            postData.append('=');
+            postData.append(URLEncoder.encode(String.valueOf(param.getValue()), "UTF-8"));
+        }
+        byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+        
+        TrustManager[] trustMyCert = new TrustManager[] {
+       	   new X509TrustManager() {
+       	      public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+       	        return null;
+       	      }
+
+       	      public void checkClientTrusted(X509Certificate[] certs, String authType) {  }
+
+       	      public void checkServerTrusted(X509Certificate[] certs, String authType) {  }
+
+      	   }
+      	};
+
+      	SSLContext sc = SSLContext.getInstance("SSL");
+      	sc.init(null, trustMyCert, new java.security.SecureRandom());
+      	HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+
+       	// Create host name verifier that trusts IP 54.243.113.182
+      	HostnameVerifier myHostValid = new HostnameVerifier() {
+      	    public boolean verify(String hostname, SSLSession session) {
+      	    	if (hostname.equals("54.243.113.182"))
+                   return true;
+                return false;
+    	    }
+   		};
+
+       	HttpsURLConnection.setDefaultHostnameVerifier(myHostValid);
+        
+        HttpsURLConnection conn = (HttpsURLConnection)url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+        conn.setDoOutput(true);
+        conn.getOutputStream().write(postDataBytes);
+
+        Reader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+        StringBuilder result = new StringBuilder();
+        for ( int c = in.read(); c != -1; c = in.read() )
+        	result.append((char)c);
+        
+        return result.toString();
 	}
 	
 	private static String getQuery(Map<String,String> params) throws UnsupportedEncodingException
