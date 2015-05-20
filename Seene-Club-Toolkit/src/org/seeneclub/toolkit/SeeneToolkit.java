@@ -59,7 +59,7 @@ import org.seeneclub.toolkit.SeeneAPI.Token;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
@@ -660,6 +660,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    }
 
 	    public void paint(Graphics g){
+	    	
+	    	
 	        
 	    	if (model!=null) {
 	        
@@ -669,17 +671,34 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        int w = model.getDepthWidth();
 		        int h = model.getDepthHeight();
 		        int p = getPointSize();
+		        int b = w * h; // just for testing
+		        //int b = 10000;
+		        int sx = 0;
+		        int sy = 0;
 		        
-		        for (int x=1;x<=w;x++) {
-		        	for (int y=1;y<=h;y++) {
+		        for (int x=0;x<w;x++) {
+		        	for (int y=0;y<h;y++) {
 		        		f = model.getFloats().get(c);
-		        		//System.out.println("x: " + x + " - y: " + y + " - f:" +f);
+		        		
 		        		Color newColor = new Color(f/max,f/max,f/max);
 		        		g.setColor(newColor);
-		        		g.fillRect((w*p) - (x*p)-1, (y*p)-1, p, p);
+		        		// pixels from line 0 and line 1 belong to the bottom!?
+		        		if ((y==0) || (y==1)) {
+		        			sx = (w*p) - (x*p) - p  ;
+		        			sy = (y*p) + ((h*p) - (2 * p)) ;
+		        		} else {
+		        			sx = (w*p) - (x*p) - p  ;
+		        			sy = ((y-2) *p);
+		        		}
+		        		
+		        		g.fillRect(sx, sy , p, p);
+		        		
+		        		//System.out.println("c: " + c + " - sx: " + sx + " - sy: " + sy + " - x: " + x + " - y: " + y + " - f:" +f);
 		        		
 		        		c++;
+		        		if (c>=b) break;
 		        	}
+		        	if (c>=b) break;
 		        }
 	    	}
 	        
