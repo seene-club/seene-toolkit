@@ -9,6 +9,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
@@ -646,11 +647,23 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		public SeeneModel model; 
 		public int pointSize=2;
+		public boolean inverted=true;
 		
-
 		public ModelGraphics(){
-	        setSize(240*getPointSize(), 240*getPointSize());	
+			setSize(240*getPointSize(), 240*getPointSize());	
 	        setBackground(Color.white);
+	        addMouseListener(new MouseAdapter(){
+				public void mousePressed(MouseEvent e){
+					int w = model.getDepthWidth();
+					float max = model.getMaxFloat();
+					int mx = w - e.getX() / pointSize - 1;
+					int my = e.getY() / pointSize;
+					int n = mx * w + my;
+					float f = model.getFloats().get(n);
+					float cf = floatGreyScale(f, max);
+					System.out.println(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf);
+				}
+			});
 	    }
 
 		public ModelGraphics(SeeneModel seeneModel){
@@ -658,11 +671,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        setSize(model.getDepthWidth(), model.getDepthHeight()); 
 	        setBackground(Color.white);
 	    }
-
+		
 	    public void paint(Graphics g){
-	    	
-	    	
-	        
+
 	    	if (model!=null) {
 	        
 		        int c=0;
@@ -671,38 +682,31 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        int w = model.getDepthWidth();
 		        int h = model.getDepthHeight();
 		        int p = getPointSize();
-		        int b = w * h; // just for testing
-		        //int b = 10000;
-		        int sx = 0;
-		        int sy = 0;
+		        float cf;
 		        
 		        for (int x=0;x<w;x++) {
 		        	for (int y=0;y<h;y++) {
 		        		f = model.getFloats().get(c);
-		        		
-		        		Color newColor = new Color(f/max,f/max,f/max);
+
+		        		cf = floatGreyScale(f, max);
+		        		Color newColor = new Color(cf,cf,cf);
 		        		g.setColor(newColor);
-		        		// pixels from line 0 and line 1 belong to the bottom!?
-		        		if ((y==0) || (y==1)) {
-		        			sx = (w*p) - (x*p) - p  ;
-		        			sy = (y*p) + ((h*p) - (2 * p)) ;
-		        		} else {
-		        			sx = (w*p) - (x*p) - p  ;
-		        			sy = ((y-2) *p);
-		        		}
 		        		
-		        		g.fillRect(sx, sy , p, p);
+		        		g.fillRect((w-x-1)*p, y*p , p, p);
 		        		
-		        		//System.out.println("c: " + c + " - sx: " + sx + " - sy: " + sy + " - x: " + x + " - y: " + y + " - f:" +f);
+		        		//System.out.println("c: " + c + " - x: " + x + " - y: " + y + " - f:" + f + " - color: " + cf);
 		        		
 		        		c++;
-		        		if (c>=b) break;
-		        	}
-		        	if (c>=b) break;
-		        }
-	    	}
-	        
+		        	} // for y
+		        } //  for x
+	    	} // if (model!=null)
 	    }
+	    
+	    private float floatGreyScale(float value, float maximum) {
+	    	if (inverted) return value/maximum;
+	    	return 1 - value/maximum;
+	    }
+	    
 	    
 	    private void repaintGraphics() {
 	    	if (model!=null) {

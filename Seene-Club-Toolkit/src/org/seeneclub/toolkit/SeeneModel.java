@@ -28,6 +28,8 @@ public class SeeneModel {
 	private float mCameraK2;
 	private int mDepthWidth = -1;
 	private int mDepthHeight = -1;
+	private float mMinDepth;
+	private float mMaxDepth;
 	private List<Float> mFloats = new ArrayList<Float>();
 	private float maxFloat = -1;
 	private File modelFile;
@@ -57,6 +59,8 @@ public class SeeneModel {
 			putFloatAtCurPos(out, mCameraK2);
 			out.writeInt(Integer.reverseBytes(mDepthWidth));
 			out.writeInt(Integer.reverseBytes(mDepthHeight));
+			putFloatAtCurPos(out, mMinDepth);
+			putFloatAtCurPos(out, mMaxDepth);
 			for (int i=0;i<mFloats.size();i++) {
 				putFloatAtCurPos(out, mFloats.get(i));
 			}
@@ -114,6 +118,12 @@ public class SeeneModel {
 		    //at byte 32 ~~90
 		    mDepthHeight = Integer.reverseBytes(in.readInt());
 		    SeeneToolkit.log("depthmapheight: " + mDepthHeight,LogLevel.debug);
+
+		    mMinDepth = getFloatAtCurPos(in);
+		    SeeneToolkit.log("mindepth: " + mMinDepth,LogLevel.debug);
+		    
+		    mMaxDepth = getFloatAtCurPos(in);
+		    SeeneToolkit.log("maxdepth: " + mMaxDepth,LogLevel.debug);
 		    
 		    int floatCount = mDepthWidth * mDepthHeight;
 		    mFloats.clear();
@@ -128,6 +138,8 @@ public class SeeneModel {
 		    }
 			
 		    in.close();
+		    
+		    SeeneToolkit.log("maximum float: " + maxFloat,LogLevel.debug);
 		    
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -258,5 +270,17 @@ public class SeeneModel {
 	}
 	public void setMaxFloat(float maxFloat) {
 		this.maxFloat = maxFloat;
+	}
+	public float getMinDepth() {
+		return mMinDepth;
+	}
+	public void setMinDepth(float mMinDepth) {
+		this.mMinDepth = mMinDepth;
+	}
+	public float getMaxDepth() {
+		return mMaxDepth;
+	}
+	public void setMaxDepth(float mMaxDepth) {
+		this.mMaxDepth = mMaxDepth;
 	}
 }

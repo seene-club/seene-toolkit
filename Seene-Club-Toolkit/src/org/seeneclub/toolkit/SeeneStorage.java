@@ -67,7 +67,8 @@ public class SeeneStorage {
 		if ((System.getProperty("os.name").length()>=7) && (System.getProperty("os.name").substring(0, 7).equals("Windows"))) {
 			return folderName.replaceAll(":", ";")
 					         .replaceAll("\"", "'")
-					         .replaceAll("\\?", "");
+					         .replaceAll("\\?", "")
+					         .replaceAll("\\.", "_");
 							 // to be continued?
 		}	
 		return folderName;
