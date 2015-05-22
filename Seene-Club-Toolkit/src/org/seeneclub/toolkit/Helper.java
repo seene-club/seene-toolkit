@@ -16,14 +16,15 @@ import javax.swing.ImageIcon;
 
 public class Helper {
 	
-	public static void createFolderIcon(File sFolder) {
-    	File jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + "poster.jpg");		// Seene Poster
-    	ImageIcon standardFolderIcon = new ImageIcon(SeeneToolkit.class.getResource("/images/folder.png")); // template Folder
-    	File combinedFile = new File(sFolder.getAbsolutePath() + File.separator + "folder.png");    // Combined File
+	public static void createFolderIcon(File sFolder, URL avatarURL) {
+		try {
+			File jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + "poster.jpg");		// Seene Poster
+			ImageIcon standardFolderIcon = new ImageIcon(SeeneToolkit.class.getResource("/images/folder.png")); // template Folder
+			File combinedFile = new File(sFolder.getAbsolutePath() + File.separator + "folder.png");    // Combined File
+			BufferedImage avatar = null;
+			if (avatarURL != null) avatar = ImageIO.read(avatarURL);
     	
-    	try {
 	    	BufferedImage overlayOriginialSize = ImageIO.read(jpgPoster);
-	    	
 			
 			if (overlayOriginialSize != null) {
 				// transfer icon -> image -> buffered image
@@ -48,13 +49,24 @@ public class Helper {
 			    tGr.rotate(Math.toRadians(90), new_width/2, new_height/2);
 			    tGr.drawImage(overlayOriginialSize, 0, 0, new_height, new_width, null);
 			    tGr.dispose();
-	    
+			    
+			    BufferedImage avatarResized = null;
+			    
+			    if (avatarURL != null) {
+			    	avatarResized = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+			    
+			    	Graphics2D aGr = avatarResized.createGraphics();
+			    	aGr.drawImage(avatar, 0, 0, 32, 32, null);
+			    	aGr.dispose();
+			    }
+			    
 				BufferedImage combined = new BufferedImage(standardFolderBuffered.getWidth(), standardFolderBuffered.getHeight(), BufferedImage.TYPE_INT_ARGB);
 		
-				// paint both images, preserving the alpha channels
+				// paint all images, preserving the alpha channels
 				Graphics g = combined.getGraphics();
 				g.drawImage(standardFolderBuffered, 0, 0, null);
 				g.drawImage(overlayResized, offsetX, offsetY, null);
+				if (avatarURL != null) g.drawImage(avatarResized, 0, standardFolderBuffered.getHeight()-32, null);
 			
 				ImageIO.write(combined, "PNG", combinedFile);
 			}

@@ -16,11 +16,13 @@ public class SeeneDownloader extends Thread {
 	
 	private SeeneObject seeneObject;
 	private File targetDir;
+	private String username;
 	
 
-	SeeneDownloader(SeeneObject seeneObject, File targetDir) {
+	SeeneDownloader(SeeneObject seeneObject, File targetDir, String username) {
 		this.seeneObject = seeneObject;
 		this.targetDir = targetDir;
+		this.username = username;
 	}
 	
 	private final Set<SeeneDownloadCompleteListener> listeners = new CopyOnWriteArraySet<SeeneDownloadCompleteListener>();
@@ -45,7 +47,7 @@ public class SeeneDownloader extends Thread {
 			Boolean successTexture = false;
 			Boolean successModel = false;
 			
-			String folderName = SeeneStorage.generateSeeneFolderName(seeneObject);
+			String folderName = SeeneStorage.generateSeeneFolderName(seeneObject, username);
 			File seeneFolder = new File(targetDir.getAbsolutePath() + File.separator + folderName);
 			File seeneTempFolder = new File(targetDir.getAbsolutePath() + File.separator + ".temp" + File.separator + folderName);
     	
@@ -61,7 +63,11 @@ public class SeeneDownloader extends Thread {
 				try {
 					Files.move(seeneTempFolder.toPath(), seeneFolder.toPath(), StandardCopyOption.ATOMIC_MOVE);
 					org.seeneclub.toolkit.SeeneToolkit.log("DOWNLOAD COMPLETE: " + seeneFolder.getAbsolutePath(), LogLevel.info);
-					Helper.createFolderIcon(seeneFolder);
+					if (seeneObject.getUserinfo().equalsIgnoreCase(username)) {
+						Helper.createFolderIcon(seeneFolder, null);
+					} else {
+						Helper.createFolderIcon(seeneFolder, seeneObject.getAvatarURL());
+					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

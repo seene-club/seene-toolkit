@@ -11,6 +11,7 @@ public class SeeneStorage {
 	private File storageBaseDir;
 	private File publicDir;
 	private File privateDir;
+	private File othersDir;
 	private File offlineDir;
 	
 	// check and initialize the storage
@@ -23,11 +24,14 @@ public class SeeneStorage {
 				
 			privateDir = new File(this.path + File.separator + "private backup");
 			boolean privateOK = createSubCatalogueDir(privateDir);
+			
+			othersDir = new File(this.path + File.separator + "others backup");
+			boolean othersOK = createSubCatalogueDir(othersDir);
 				
 			offlineDir = new File(this.path + File.separator + "local seenes");
 			boolean offlineOK = createSubCatalogueDir(offlineDir);
 			
-			if ((publicOK) && (privateOK) && (offlineOK)) {
+			if ((publicOK) && (privateOK) && (othersOK) && (offlineOK)) {
 				return true;
 			} else {
 				SeeneToolkit.log("could not create all storage subdirs!",LogLevel.fatal);
@@ -39,7 +43,8 @@ public class SeeneStorage {
 			return false;
 		}
 	}
-	
+
+
 	// method to create a directory 
 	private Boolean createSubCatalogueDir(File fd) {
 			
@@ -60,9 +65,19 @@ public class SeeneStorage {
 		return false;
 	}
 	
-	public static String generateSeeneFolderName(SeeneObject sO) {
-		SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" );
-		String folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sO.getCaption().replaceAll("\n",  " ").replaceAll("/", ".")).trim();
+	public static String generateSeeneFolderName(SeeneObject sO,String username) {
+		SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd HH\u02d0mm\u02d0ss" ); // Using triangular colon because of Windows File System
+		
+		String folderName;
+		String sCaption = sO.getCaption().replaceAll("\n",  " ").replaceAll("/", ".");
+		if (sCaption.length()>80) sCaption = sCaption.substring(0, 80); 
+				
+		if (sO.getUserinfo().equalsIgnoreCase(username)) {
+			folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
+		} else {
+			folderName = new String(sO.getUserinfo() + " " + sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
+		}
+		
 		// Windows is different
 		if ((System.getProperty("os.name").length()>=7) && (System.getProperty("os.name").substring(0, 7).equals("Windows"))) {
 			return folderName.replaceAll(":", ";")
@@ -98,6 +113,12 @@ public class SeeneStorage {
 	}
 	public void setPrivateDir(File privateDir) {
 		this.privateDir = privateDir;
+	}
+	public File getOthersDir() {
+		return othersDir;
+	}
+	public void setOthersDir(File othersDir) {
+		this.othersDir = othersDir;
 	}
 	public File getOfflineDir() {
 		return offlineDir;

@@ -67,16 +67,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI :::...");
+	static String programVersion = "0.1b"; 
+	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
 	SeeneStorage storage = new SeeneStorage();
   	Boolean storageOK = false;
   	
   	// GUI-Panels
-	JPanel panelWest = new JPanel();
-	JPanel panelWestNorth = new JPanel();
-	JPanel panelWestSouth = new JPanel();
+	//JPanel panelWest = new JPanel();		//Navigation Panel
+	JPanel panelWestNorth = new JPanel();	//Seene Pool Selection 
+	JPanel panelWestSouth = new JPanel();	//Seene Folders View
 	// Seene listview goes to panelWestSouth and that should be scrollable!
 	JScrollPane scrollWestSouth = new JScrollPane (panelWestSouth, 
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -89,6 +90,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	// Elements for Panel WestNorth (seene pool selection)
 	JToggleButton btPoolPublicSeenes = new JToggleButton("public");
 	JToggleButton btPoolPrivateSeenes = new JToggleButton("private");
+	JToggleButton btPoolOtherSeenes = new JToggleButton("other");
 	JToggleButton btPoolLocalSeenes = new JToggleButton("local");
 	
 	// Elements for Region EastSouth (progressbar and log output)
@@ -110,8 +112,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     static String seeneAPIid = new String();
 	
 	// Task Menu Items
-    JMenuItem taskBackupPublic = new JMenuItem("Backup public Seenes");
-    JMenuItem taskBackupPrivate = new JMenuItem("Backup private Seenes");
+    JMenuItem taskBackupPublic = new JMenuItem("retrieve my public seenes");
+    JMenuItem taskBackupPrivate = new JMenuItem("retrieve my private seenes");
+    JMenuItem taskBackupOther = new JMenuItem("retrieve someone else's seenes");
+    JMenuItem taskBackupByURL = new JMenuItem("retrieve public seene by URL");
     
     // Tests Menu Items
     JMenuItem testDoLogin = new JMenuItem("Test Login");
@@ -239,8 +243,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         return null;
     }
     
-    
-    
+ 
     
     // example: java -jar seene-club-toolkit.jar -b public -u paf
     private static void doTaskBackupPublicSeenes(File targetDir) {
@@ -255,6 +258,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			log("Getting index of last " + last + " public seenes", LogLevel.info);
 			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
 			log("You have at least " + index.size() + " public seenes", LogLevel.info);
+			
+			downloadInThreads(index, targetDir, 4);
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    private static void doTaskBackupOtherSeenes(File targetDir, String username, int count) {
+    	try {
+    		log("Others Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    	
+    		log("Resolving name to id", LogLevel.info);
+			String userId = SeeneAPI.usernameToId(username);
+			log("Seene user: " + userId, LogLevel.debug);
+
+			log("Getting index of " + username + "'s last " + count + " public seenes", LogLevel.info);
+			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, count);
+			log(username + " has at least " + index.size() + " public seenes", LogLevel.info);
 			
 			downloadInThreads(index, targetDir, 4);
 			
@@ -305,7 +328,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			
 			// First we check which Seenes are already in the target-directory
 			for(SeeneObject sO : seenesToDownload) {
-				String folderName = SeeneStorage.generateSeeneFolderName(sO);
+				String folderName = SeeneStorage.generateSeeneFolderName(sO,seeneUser);
 				File seeneFolder = new File(targetDir.getAbsolutePath() + File.separator + folderName);
 				if (!seeneFolder.exists()) {
 					toDownloadIndex.add(sO);
@@ -329,7 +352,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			
 				for(SeeneObject o : toDownloadIndex) {
 					//downloadSeene(o,targetDir);
-					SeeneDownloader sd = new SeeneDownloader(o, targetDir);
+					SeeneDownloader sd = new SeeneDownloader(o, targetDir, seeneUser);
 					SeeneDownloadCompleteListener l = new SeeneDownloadCompleteListener() {
 						
 						@Override
@@ -443,9 +466,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         
         taskBackupPublic.addActionListener(this);
         taskBackupPrivate.addActionListener(this);
+        taskBackupOther.addActionListener(this);
         
         taskMenu.add(taskBackupPublic);
         taskMenu.add(taskBackupPrivate);
+        taskMenu.add(taskBackupOther);
         
         JMenu testMenu = new JMenu("Tests");
         testDoLogin.addActionListener(this);
@@ -454,7 +479,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
                 
         bar.add(fileMenu);
         bar.add(taskMenu);
-        bar.add(testMenu);
+        //bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
         
@@ -465,13 +490,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         // Region West-North: select the seene pool (public/private/local)
         btPoolPublicSeenes.addActionListener(this);
         btPoolPrivateSeenes.addActionListener(this);
+        btPoolOtherSeenes.addActionListener(this);
         btPoolLocalSeenes.addActionListener(this);
         ButtonGroup poolButtonGroup = new ButtonGroup();
         poolButtonGroup.add(btPoolPublicSeenes);
         poolButtonGroup.add(btPoolPrivateSeenes);
+        poolButtonGroup.add(btPoolOtherSeenes);
         poolButtonGroup.add(btPoolLocalSeenes);
         panelWestNorth.add(btPoolPublicSeenes);
         panelWestNorth.add(btPoolPrivateSeenes);
+        panelWestNorth.add(btPoolOtherSeenes);
         panelWestNorth.add(btPoolLocalSeenes);
         
         // Region West-South: displays the seenes in a pool
@@ -508,6 +536,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	// create all JSplitPanes for the GUI
 	private JSplitPane createSplitPanels() {
 		
+		// Split the Pool Selection and the Seene Folders View
 		JSplitPane splitWestNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 		splitWestNorthSouth.setTopComponent(panelWestNorth);
 		splitWestNorthSouth.setBottomComponent(scrollWestSouth);
@@ -532,12 +561,13 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitEastNorthSouth.setDividerLocation(768-250);
 		splitEastNorthSouth.setResizeWeight(0.5);
 		
+		// Split Navigation Area and Display Area
 		JSplitPane splitWestEast = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 		splitWestEast.setLeftComponent(splitWestNorthSouth);
 		splitWestEast.setRightComponent(splitEastNorthSouth);
 		splitWestEast.setOneTouchExpandable(true);
 		splitWestEast.setDividerSize(2);
-		splitWestEast.setDividerLocation(250);
+		splitWestEast.setDividerLocation(300);
 		splitWestEast.setResizeWeight(0.5);
 		
 		return splitWestEast;
@@ -560,12 +590,33 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				}
 			};
 			dlThread.start();
+		} else if(arg0.getSource() == this.taskBackupOther) {
+			String uid = (String)JOptionPane.showInputDialog(mainFrame, "Whose public seenes do you want to retrieve?",
+                    "Retrieving someone else's seenes", JOptionPane.PLAIN_MESSAGE, null, null, null);
+			if ((uid != null) && (uid.length() > 0)) {
+				try {
+					int cnt = Integer.parseInt((String)JOptionPane.showInputDialog(mainFrame, "How many of " + uid + "'s last\nseenes do you want to retrieve?",
+							"Enter the number of seenes", JOptionPane.PLAIN_MESSAGE, null, null, null));
+					if (cnt > 0) {
+						Thread dlThread = new Thread() {
+							public void run() {
+								doTaskBackupOtherSeenes(storage.getOthersDir(),uid,cnt);		
+							}
+						};
+						dlThread.start();
+					}
+				} catch (Exception ex) {
+					JOptionPane.showMessageDialog(null,  "Invalid number entered. Aborting!", "Backup Error", JOptionPane.ERROR_MESSAGE);
+				}
+			}
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
 	    } else if (arg0.getSource() == this.btPoolPublicSeenes) {
 	    	parsePool(storage.getPublicDir());
 	    } else if (arg0.getSource() == this.btPoolPrivateSeenes) {
 	    	parsePool(storage.getPrivateDir());	    	
+	    } else if (arg0.getSource() == this.btPoolOtherSeenes) {
+	    	parsePool(storage.getOthersDir());	
 	    } else if (arg0.getSource() == this.btPoolLocalSeenes) {
 	    	parsePool(storage.getOfflineDir());	    	
 	    }
@@ -579,9 +630,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			panelWestSouth.repaint();
 			panelWestSouth.setLayout(new WrapLayout());  
 		    for (int i = files.length - 1; i > -1; i--) {
-		      System.out.print(files[i].getAbsolutePath());
+		      log(files[i].getAbsolutePath(),LogLevel.debug);
 		      if (files[i].isDirectory()) {
-			       System.out.print(" (folder)\n");
 			       ImageIcon imgDir = new ImageIcon(files[i].getAbsolutePath() + File.separator + "folder.png");
 			       JLabel newLabel = new JLabel();
 			       if (files[i].getName().length() >= 19) {
@@ -654,14 +704,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        setBackground(Color.white);
 	        addMouseListener(new MouseAdapter(){
 				public void mousePressed(MouseEvent e){
-					int w = model.getDepthWidth();
-					float max = model.getMaxFloat();
-					int mx = w - e.getX() / pointSize - 1;
-					int my = e.getY() / pointSize;
-					int n = mx * w + my;
-					float f = model.getFloats().get(n);
-					float cf = floatGreyScale(f, max);
-					System.out.println(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf);
+					if (model!=null) {
+						int w = model.getDepthWidth();
+						float max = model.getMaxFloat();
+						int mx = w - e.getX() / pointSize - 1;
+						int my = e.getY() / pointSize;
+						int n = mx * w + my;
+						float f = model.getFloats().get(n);
+						float cf = floatGreyScale(f, max);
+						System.out.println(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf);
+					}
 				}
 			});
 	    }

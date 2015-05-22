@@ -17,7 +17,10 @@ public class SeeneObject {
 	private int orientation;
 	private int shared;
 	private int storage_version;
+	private String userinfo;
+	private URL avatarURL;
 	
+
 	/// scene.oemodel
 	private SeeneModel model;
 	
@@ -138,6 +141,18 @@ public class SeeneObject {
 	}
 	public void setShortCode(String short_code) {
 		this.short_code = short_code;
+	}
+	public String getUserinfo() {
+		return userinfo;
+	}
+	public void setUserinfo(String userinfo) {
+		this.userinfo = userinfo;
+	}
+	public URL getAvatarURL() {
+		return avatarURL;
+	}
+	public void setAvatarURL(URL avatarURL) {
+		this.avatarURL = avatarURL;
 	}
 
 }

@@ -277,6 +277,9 @@ public class SeeneAPI {
 		s.setShortCode((String)j.get("short_code"));
 		s.setTextureURL(new URL((String)j.get("poster_url")));
 		s.setModelURL(new URL((String)j.get("model_url")));
+		Map u = (Map)j.get("user");
+		s.setUserinfo((String)u.get("username"));
+		s.setAvatarURL(new URL((String)u.get("avatar_url")));
 		return s;
 	}
 
