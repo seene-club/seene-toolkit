@@ -48,6 +48,8 @@ import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -136,25 +138,31 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		Options options = new Options();
 		
 		Option backupOption = OptionBuilder.withLongOpt("backup")
-										   .withDescription("backup public or private Seenes from Server)")
+										   .withDescription("backup public or private Seenes from Server")
 										   .hasArg()
 										   .withArgName("VISIBILITY")
 										   .create("b");
 		
+		Option countOption = OptionBuilder.withLongOpt("count")
+				   						  .withDescription("number of seenes to retrieve")
+				   						  .hasArg()
+				   						  .withArgName("COUNT")
+				   						  .create("c");
+		
 		Option userOption   = OptionBuilder.withLongOpt("username")
-										   .withDescription("Seene Username)")
+										   .withDescription("Seene Username")
 				   						   .hasArg()
 				   						   .withArgName("USERNAME")
 				   						   .create("u");
 		
 		Option passOption   = OptionBuilder.withLongOpt("password")
-					 		 			   .withDescription("Seene Password)")
+					 		 			   .withDescription("Seene Password")
 					 		 			   .hasArg()
 					 					   .withArgName("PASSWORD")
 					 					   .create("p");
 		
 		Option targetOption = OptionBuilder.withLongOpt("output-target")
-				 						   .withDescription("target directory for the backup)")
+				 						   .withDescription("target directory for the backup")
 				 						   .hasArg()
 				 						   .withArgName("PATH")
 				 						   .create("o");
@@ -170,6 +178,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 		    if (line.hasOption("backup")) {
 		    	commandLineUsed = true;
+		    	int count;
 		    	// handle public backup. No Login is required.
 		    	if (line.getOptionValue("backup").equalsIgnoreCase("public")) {
 		    		if (line.hasOption("username")) {
@@ -178,10 +187,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    			String errorText = new String("for public backup the Seene username is required!");
 		    			throw new org.apache.commons.cli.ParseException(errorText);
 		    		}
+		    		
+		    		if (line.hasOption("count")) {
+			    		count = Integer.parseInt(line.getOptionValue("count"));
+			    	} else {
+			    		count = 10;
+			    		log("retrieving the " + count + " last public seenes.",LogLevel.info);
+			    		log("if you want to download more use the --count option!",LogLevel.info);
+			    	}
+		    		
 		    		String targetDir = line.hasOption("output-target")
 		    			? line.getOptionValue("output-target")
 		    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-		    			doTaskBackupPublicSeenes(new File(targetDir));
+		    		doTaskBackupPublicSeenes(new File(targetDir),count);
 		    	} // handle private backup. Login IS required. 
 		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
 		    		if (line.hasOption("username")) {
@@ -200,10 +218,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    			}
 		    			// because we never put the Seene-API-ID in the code, we read from file!
 	    				seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
+	    				
+	    				if (line.hasOption("count")) {
+				    		count = Integer.parseInt(line.getOptionValue("count"));
+				    	} else {
+				    		count = 10;
+				    		log("retrieving the " + count + " last private seenes.",LogLevel.info);
+				    		log("if you want to download more use the --count option!",LogLevel.info);
+				    	}
+	    				
 			    		String targetDir = line.hasOption("output-target")
 				    			? line.getOptionValue("output-target")
 				    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-				    			doTaskBackupPrivateSeenes(new File(targetDir));
+				    			doTaskBackupPrivateSeenes(new File(targetDir),count);
 		    		} else {
 		    			String errorText = new String("for private backup the Seene credentials are required!");
 		    			throw new org.apache.commons.cli.ParseException(errorText);
@@ -245,8 +272,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
  
     
-    // example: java -jar seene-club-toolkit.jar -b public -u paf
-    private static void doTaskBackupPublicSeenes(File targetDir) {
+    // example: java -jar seene-club-toolkit.jar -b public -c 100 -u paf
+    private static void doTaskBackupPublicSeenes(File targetDir, int last) {
     	try {
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
@@ -254,7 +281,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			String userId = SeeneAPI.usernameToId(seeneUser);
 			log("Seene user: " + userId, LogLevel.debug);
 
-			int last = 25;
 			log("Getting index of last " + last + " public seenes", LogLevel.info);
 			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
 			log("You have at least " + index.size() + " public seenes", LogLevel.info);
@@ -288,8 +314,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     }
     
     
-    // example: java -jar seene-club-toolkit.jar -b private -u paf -o /home/paf/myPrivateSeenes
-    private static void doTaskBackupPrivateSeenes(File targetDir) {
+    // example: java -jar seene-club-toolkit.jar -b private -c 500 -u paf -o /home/paf/myPrivateSeenes
+    private static void doTaskBackupPrivateSeenes(File targetDir, int last) {
     	try {
         	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     	
@@ -304,7 +330,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				token = SeeneAPI.login(seeneAPIid, seeneUser, seenePass);
 			}
 					
-			int last = 25;
 			log("Getting index of last " + last + " private seenes",LogLevel.info);
 			List<SeeneObject> index = SeeneAPI.getPrivateSeenes(token, userId, last);
 			log("You have at least " + index.size() + " private seenes", LogLevel.info);
@@ -433,6 +458,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 	    // GUI stuff
 		mainFrame.setSize(1024,768);
+		
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (ClassNotFoundException | InstantiationException
+				| IllegalAccessException | UnsupportedLookAndFeelException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		
 		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		mainFrame.addWindowListener(new WindowAdapter() {
@@ -577,19 +610,35 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	public void actionPerformed(ActionEvent arg0) {
 		
 		if(arg0.getSource() == this.taskBackupPublic) {
-			Thread dlThread = new Thread() {
-				public void run() {
-					doTaskBackupPublicSeenes(storage.getPublicDir());		
+			try {
+				int cnt = Integer.parseInt((String)JOptionPane.showInputDialog(mainFrame, "How many of your last public\nseenes do you want to retrieve?",
+						"Enter the number of seenes", JOptionPane.PLAIN_MESSAGE, null, null, null));
+				if (cnt > 0) {
+					Thread dlThread = new Thread() {
+						public void run() {
+							doTaskBackupPublicSeenes(storage.getPublicDir(),cnt);		
+						}
+					};
+					dlThread.start();
 				}
-			};
-			dlThread.start();
+			} catch (Exception ex) {
+				JOptionPane.showMessageDialog(null,  "Invalid number entered. Aborting!", "Backup Error", JOptionPane.ERROR_MESSAGE);
+			}
 		} else if(arg0.getSource() == this.taskBackupPrivate) {
-			Thread dlThread = new Thread() {
-				public void run() {
-					doTaskBackupPrivateSeenes(storage.getPrivateDir());		
+			try {
+				int cnt = Integer.parseInt((String)JOptionPane.showInputDialog(mainFrame, "How many of your last private\nseenes do you want to retrieve?",
+						"Enter the number of seenes", JOptionPane.PLAIN_MESSAGE, null, null, null));
+				if (cnt > 0) {
+					Thread dlThread = new Thread() {
+						public void run() {
+							doTaskBackupPrivateSeenes(storage.getPrivateDir(),cnt);		
+						}
+					};
+					dlThread.start();
 				}
-			};
-			dlThread.start();
+			} catch (Exception ex) {
+				JOptionPane.showMessageDialog(null,  "Invalid number entered. Aborting!", "Backup Error", JOptionPane.ERROR_MESSAGE);
+			}
 		} else if(arg0.getSource() == this.taskBackupOther) {
 			String uid = (String)JOptionPane.showInputDialog(mainFrame, "Whose public seenes do you want to retrieve?",
                     "Retrieving someone else's seenes", JOptionPane.PLAIN_MESSAGE, null, null, null);
