@@ -253,6 +253,22 @@ public class SeeneAPI {
 		
 		return createFromResponse(map);    	
 	}
+	
+	public static List<SeeneObject> getPublicSeeneByURL(String surl) throws Exception {
+		 
+		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
+		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
+		
+		Map map = request(null, 
+				"GET", 
+				new URL(String.format("http://seene.co/api/seene/-/scenes/%s", shortkey)), 
+				null);
+		
+		List<SeeneObject> result = new ArrayList<SeeneObject>();
+		result.add(createFromMap(map));
+		
+		return result;
+	}
 
 	private static List<SeeneObject> createFromResponse(Map map)
 			throws ParseException, MalformedURLException {

@@ -168,6 +168,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				 						   .create("o");
 		
 		options.addOption(backupOption);
+		options.addOption(countOption);
 		options.addOption(userOption);
 		options.addOption(passOption);
 		options.addOption(targetOption);
@@ -306,6 +307,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			log(username + " has at least " + index.size() + " public seenes", LogLevel.info);
 			
 			downloadInThreads(index, targetDir, 4);
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    private static void doTaskBackupByURL(File targetDir, String surl) {
+    	try {
+    		log("Seene will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    		
+    		List<SeeneObject> index = SeeneAPI.getPublicSeeneByURL(surl);
+    		downloadInThreads(index, targetDir, 1);
 			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -500,10 +514,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         taskBackupPublic.addActionListener(this);
         taskBackupPrivate.addActionListener(this);
         taskBackupOther.addActionListener(this);
+        taskBackupByURL.addActionListener(this);
         
         taskMenu.add(taskBackupPublic);
         taskMenu.add(taskBackupPrivate);
         taskMenu.add(taskBackupOther);
+        taskMenu.add(taskBackupByURL);
         
         JMenu testMenu = new JMenu("Tests");
         testDoLogin.addActionListener(this);
@@ -657,6 +673,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				} catch (Exception ex) {
 					JOptionPane.showMessageDialog(null,  "Invalid number entered. Aborting!", "Backup Error", JOptionPane.ERROR_MESSAGE);
 				}
+			}
+		} else if(arg0.getSource() == this.taskBackupByURL) {
+			String surl = (String)JOptionPane.showInputDialog(mainFrame, "Enter the URL of the seene to download:\n(example: http://seene.co/s/GX3bug)",
+                    "Retrieving a seene by URL", JOptionPane.PLAIN_MESSAGE, null, null, "http://seene.co/s/");
+			if ((surl != null) && (surl.length() > 0)) {
+				Thread dlThread = new Thread() {
+					public void run() {
+						doTaskBackupByURL(storage.getOthersDir(),surl);		
+					}
+				};
+				dlThread.start();
 			}
 		} else if(arg0.getSource() == this.testDoLogin) {
 	    	doTestLogin();
