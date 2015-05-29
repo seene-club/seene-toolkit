@@ -13,6 +13,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.seeneclub.domainvalues.LogLevel;
@@ -32,12 +33,15 @@ public class SeeneModel {
 	private float mMaxDepth;
 	private List<Float> mFloats = new ArrayList<Float>();
 	private float maxFloat = -1;
+	private float minFloat = 1000;
 	private File modelFile;
 	private URL modelURL;
 	
 	// Constructors
 	public SeeneModel() {
-		// TODO Auto-generated constructor stub
+		setDepthWidth(240);
+		setDepthHeight(240);
+		mFloats = new ArrayList<Float>(Collections.nCopies(getDepthWidth()*getDepthHeight(), 0.4f));
 	}
 	SeeneModel(File sFile) {
 	     this.modelFile = sFile;
@@ -46,7 +50,7 @@ public class SeeneModel {
 	     this.modelURL = sURL;
 	}
 	
-	private void saveModelDateToFile(File sFile) {
+	public void saveModelDateToFile(File sFile) {
 		try {
 			DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(sFile)));
 			
@@ -133,19 +137,20 @@ public class SeeneModel {
 		    {
 		    	f = getFloatAtCurPos(in) * scale;
 		    	if (f > maxFloat) maxFloat = f;
+		    	if (f < minFloat) minFloat = f;
 		    	mFloats.add(f);
 		    	//System.out.println("[" + i + "]: " + mFloats.get(i));
 		    }
 			
 		    in.close();
 		    
+		    SeeneToolkit.log("minimum float: " + minFloat,LogLevel.debug);
 		    SeeneToolkit.log("maximum float: " + maxFloat,LogLevel.debug);
 		    
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
 		
 		return mFloats; 
 	}
@@ -270,6 +275,12 @@ public class SeeneModel {
 	}
 	public void setMaxFloat(float maxFloat) {
 		this.maxFloat = maxFloat;
+	}
+	public float getMinFloat() {
+		return minFloat;
+	}
+	public void setMinFloat(float minFloat) {
+		this.minFloat = minFloat;
 	}
 	public float getMinDepth() {
 		return mMinDepth;

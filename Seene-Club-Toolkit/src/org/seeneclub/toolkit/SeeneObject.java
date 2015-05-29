@@ -19,7 +19,7 @@ public class SeeneObject {
 	private int storage_version;
 	private String userinfo;
 	private URL avatarURL;
-	
+	private String localname;
 
 	/// scene.oemodel
 	private SeeneModel model;
@@ -28,7 +28,7 @@ public class SeeneObject {
 	private SeeneTexture poster;
 
 	SeeneObject() {
-		caption = "#synthetic (Uploaded by https://github.com/seene-club/seene-toolkit by @sclub)";
+		caption = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
 		captured_at = new Date();
 		filter_code = "none";
 		flash_level = 0;
@@ -153,6 +153,12 @@ public class SeeneObject {
 	}
 	public void setAvatarURL(URL avatarURL) {
 		this.avatarURL = avatarURL;
+	}
+	public String getLocalname() {
+		return localname;
+	}
+	public void setLocalname(String localname) {
+		this.localname = localname;
 	}
 
 }

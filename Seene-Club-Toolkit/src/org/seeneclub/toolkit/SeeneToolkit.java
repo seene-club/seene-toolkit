@@ -7,6 +7,8 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -14,6 +16,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
@@ -39,6 +42,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -48,6 +52,8 @@ import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
@@ -84,10 +90,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	JScrollPane scrollWestSouth = new JScrollPane (panelWestSouth, 
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-	JPanel panelEastNorth = new JPanel();
+	JPanel mainViewPanel = new JPanel();
 	static JPanel panelProgressbar = new JPanel();
 	JPanel panelLogOutput = new JPanel();
-	
 	
 	// Elements for Panel WestNorth (seene pool selection)
 	JToggleButton btPoolPublicSeenes = new JToggleButton("public");
@@ -95,14 +100,20 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	JToggleButton btPoolOtherSeenes = new JToggleButton("other");
 	JToggleButton btPoolLocalSeenes = new JToggleButton("local");
 	
+	// Elements for Panel WestSouth (seenes in a pool list)
+	JPopupMenu rClickPopup = new JPopupMenu("Menu");
+		
 	// Elements for Region EastSouth (progressbar and log output)
     static JTextArea logOutput = new JTextArea();
     static JProgressBar progressbar = new JProgressBar();
     JScrollPane logOutputScrollPane = new JScrollPane(logOutput);
     
     // Elements for Region EastNorth (Seene Display)
-    JToolBar toolbar = new JToolBar();
+    JPanel mainToolbarPanel = new JPanel();
+    JToolBar toolbar = new JToolBar(BorderLayout.PAGE_START);
     JButton tbSaveLocal = new JButton("save local");
+    JButton tbShowModel = new JButton("show model");
+    JButton tbShowPoster = new JButton("show poster");
     ModelGraphics modelDisplay = new ModelGraphics();
 	
 	// Settings Dialog
@@ -121,6 +132,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
     // Tests Menu Items
     JMenuItem testDoLogin = new JMenuItem("Test Login");
+    
+    // Seene Object we are currently working on
+    SeeneObject currentSeene = null;
+    JLabel currentSelection = null;
     
     // method main - all begins with a thread!
 	@SuppressWarnings("static-access")
@@ -473,6 +488,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    // GUI stuff
 		mainFrame.setSize(1024,768);
 		
+		// disabling lightweight rendering for PopUps and Tooltips (otherwise they are behind the canvas)
+		JPopupMenu.setDefaultLightWeightPopupEnabled(false);
+		ToolTipManager.sharedInstance().setLightWeightPopupEnabled(false);
+		
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (ClassNotFoundException | InstantiationException
@@ -554,13 +573,158 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         // Region West-South: displays the seenes in a pool
         panelWestSouth.setBackground(Color.white);
         
-        // Region East-North: Seene display
+        JMenu twoXtwoSubmenu = new JMenu("add to 2x2 grid");
+        JMenuItem twXtwUpperLeft = new JMenuItem("place upper left");
+        JMenuItem twXtwUpperRight = new JMenuItem("place upper right");
+        JMenuItem twXtwBottomLeft = new JMenuItem("place bottom left");
+        JMenuItem twXtwBottomRight = new JMenuItem("place bottom right");
+        
+        JMenu threeXthreeSubmenu = new JMenu("add to 3x3 grid");
+        JMenuItem tXtUpperLeft = new JMenuItem("place upper left");
+        JMenuItem tXtUpperCenter = new JMenuItem("place upper center");
+        JMenuItem tXtUpperRight = new JMenuItem("place upper right");
+        JMenuItem tXtMiddleLeft = new JMenuItem("place middle left");
+        JMenuItem tXtMiddleCenter = new JMenuItem("place middle center");
+        JMenuItem tXtMiddleRight = new JMenuItem("place middle right");
+        JMenuItem tXtBottomLeft = new JMenuItem("place bottom left");
+        JMenuItem tXtBottomCenter = new JMenuItem("place bottom center");
+        JMenuItem tXtBottomRight = new JMenuItem("place bottom right");
+        
+        ActionListener popupListener = new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+              if(event.getSource() == twXtwUpperLeft) {
+             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,3);
+             	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == twXtwUpperRight) {
+             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,1);
+             	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == twXtwBottomLeft) {
+             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,4);
+             	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == twXtwBottomRight) {
+             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,2);
+             	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtUpperLeft) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,7);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtUpperCenter) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,4);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtUpperRight) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,1);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtMiddleLeft) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,8);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtMiddleCenter) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,5);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtMiddleRight) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,2);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtBottomLeft) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,9);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtBottomCenter) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,6);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+              if(event.getSource() == tXtBottomRight) {
+            	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,3);
+            	  modelDisplay.setSeeneObject(currentSeene);
+              }
+            }
+          };
+          
+        twXtwUpperLeft.addActionListener(popupListener);
+        twXtwUpperRight.addActionListener(popupListener);
+        twXtwBottomLeft.addActionListener(popupListener);
+        twXtwBottomRight.addActionListener(popupListener);
+        
+        tXtUpperLeft.addActionListener(popupListener);
+        tXtUpperCenter.addActionListener(popupListener);
+        tXtUpperRight.addActionListener(popupListener);
+        tXtMiddleLeft.addActionListener(popupListener);
+        tXtMiddleCenter.addActionListener(popupListener);
+        tXtMiddleRight.addActionListener(popupListener);
+        tXtBottomLeft.addActionListener(popupListener);
+        tXtBottomCenter.addActionListener(popupListener);
+        tXtBottomRight.addActionListener(popupListener);
+        
+        twoXtwoSubmenu.add(twXtwUpperLeft);
+        twoXtwoSubmenu.add(twXtwUpperRight);
+        twoXtwoSubmenu.add(twXtwBottomLeft);
+        twoXtwoSubmenu.add(twXtwBottomRight);
+        
+        threeXthreeSubmenu.add(tXtUpperLeft);
+        threeXthreeSubmenu.add(tXtUpperCenter);
+        threeXthreeSubmenu.add(tXtUpperRight);
+        threeXthreeSubmenu.add(tXtMiddleLeft);
+        threeXthreeSubmenu.add(tXtMiddleCenter);
+        threeXthreeSubmenu.add(tXtMiddleRight);
+        threeXthreeSubmenu.add(tXtBottomLeft);
+        threeXthreeSubmenu.add(tXtBottomCenter);
+        threeXthreeSubmenu.add(tXtBottomRight);
+        
+        rClickPopup.add(twoXtwoSubmenu);
+        rClickPopup.add(threeXthreeSubmenu);
+        
+        // Region East-North: Seene display & Toolbar
+        ActionListener toolbarListener = new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+              if(event.getSource() == tbSaveLocal) {
+            	  String localname = (String)JOptionPane.showInputDialog(mainFrame, "Give your Seene a name:",
+                          "Saving as local Seene", JOptionPane.PLAIN_MESSAGE, null, null, currentSeene.getLocalname());
+      			
+            	  if ((localname != null) && (localname.length() > 0)) {
+            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
+            		  savePath.mkdirs();
+            		  File testModelFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
+            		  File testPosterFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+            		  currentSeene.setLocalname(localname);
+            		  currentSeene.getModel().saveModelDateToFile(testModelFile);
+            		  currentSeene.getPoster().saveTextureToFile(testPosterFile);
+            		  Helper.createFolderIcon(savePath, null);
+            		  parsePool(storage.getOfflineDir());
+            		  btPoolLocalSeenes.getModel().setSelected(true);
+            	  } else {
+            		  JOptionPane.showMessageDialog(null,  "Aborted. Seene not saved!", "Seene not saved.", JOptionPane.ERROR_MESSAGE);
+            	  }
+              }
+              if(event.getSource() == tbShowModel) {
+            	  modelDisplay.repaintModelOnly();
+              }
+              if(event.getSource() == tbShowPoster) {
+            	  modelDisplay.repaintPosterOnly();
+              }
+            }
+        };
+        
+        tbSaveLocal.addActionListener(toolbarListener);
+        tbShowModel.addActionListener(toolbarListener);
+        tbShowPoster.addActionListener(toolbarListener);
+        
         toolbar.add(tbSaveLocal);
-        tbSaveLocal.setEnabled(false);
+        toolbar.add(tbShowModel);
+        toolbar.add(tbShowPoster);
         
-        //panelEastNorth.add(toolbar);
+        mainToolbarPanel.setLayout(new BorderLayout());
+        mainToolbarPanel.add(toolbar,BorderLayout.PAGE_START);
         
-		panelEastNorth.add(modelDisplay);
+        currentSeene = new SeeneObject();
+        
+		mainViewPanel.add(modelDisplay);
         
                 
         // Region East-South: Log output window
@@ -582,6 +746,110 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         
 	}
 	
+	public SeeneObject inlaySeene(SeeneObject sO, String inlayPath, int divisor, int position) {
+		File inlayFile = new File(inlayPath);
+		SeeneObject inlayObject = new SeeneObject(inlayFile);
+		
+		// load the inlay model data and the poster image from file system
+		log("Loading Inlay Model: " +  inlayObject.getModelFile().getAbsolutePath(),LogLevel.info);
+		inlayObject.getModel().loadModelDataFromFile();
+		SeeneModel inlayModel = inlayObject.getModel();
+		log("Inlay Model width: " +  inlayModel.getDepthWidth(),LogLevel.info);
+		log("Inlay Model height: " +  inlayModel.getDepthHeight() ,LogLevel.info);
+		
+		log("Loading Inlay Poster: " +  inlayObject.getPosterFile().getAbsolutePath(),LogLevel.info);
+		inlayObject.getPoster().loadTextureFromFile();
+		SeeneTexture inlayPoster = inlayObject.getPoster();
+		
+		sO.setModel(inlaySeeneModel(sO.getModel(), inlayModel, divisor, position));
+	    sO.setPoster(inlaySeenePoster(sO.getPoster(), inlayPoster, divisor, position));
+		return sO;
+	}
+	
+	private SeeneTexture inlaySeenePoster(SeeneTexture originPoster, SeeneTexture inlayPoster, int divisor, int position) {
+		
+		Image originImage = originPoster.getTextureImage();
+		Image inlayImage = inlayPoster.getTextureImage();
+		
+		int ow = originImage.getWidth(null);
+		int oh = originImage.getHeight(null);
+		int new_iw = ow / divisor;
+		int new_ih = oh / divisor;
+		
+		int new_ix = (position - 1) % divisor * new_iw;
+		int new_iy = (int) Math.floor((position - 1) / divisor) * new_ih;
+		
+		BufferedImage originBuffered = new BufferedImage(ow, oh, BufferedImage.TYPE_INT_ARGB); 
+
+	    Graphics2D tGr = originBuffered.createGraphics();
+	    tGr.drawImage(originImage, 0, 0, ow, oh, null);
+	    tGr.drawImage(inlayImage, new_ix, new_iy, new_iw, new_ih, null);
+	    tGr.dispose();
+	    
+	    originPoster.setTextureImage(originBuffered);
+
+		return originPoster;
+	}
+
+
+	private SeeneModel inlaySeeneModel(SeeneModel originModel, SeeneModel inlayModel, int divisor, int position) {
+	
+		int ow = originModel.getDepthWidth();
+		int oh = originModel.getDepthHeight();
+		int iw = inlayModel.getDepthWidth();
+		int ih = inlayModel.getDepthHeight();
+		
+		int boundary = ow / divisor;
+		float ev = (float) iw / boundary;
+		float inlay_limit = (iw * ih) / ev;
+		int partial_size = (ow * oh) / (divisor * divisor);
+		
+		// calculate insert position
+		int w_pos = (int)(((position - 1)  % divisor) * boundary + (float)Math.floor((position - 1) / divisor) * divisor * partial_size);
+		float r_pos = 0;
+		int z = 0;
+				
+		float f;
+		for (int i=0;i<inlay_limit;i++) {
+			// copy floats
+			f = inlayModel.getFloats().get(Math.round(r_pos));
+			originModel.getFloats().set(w_pos,f);
+			
+			// adjust read and write positions after reading
+			r_pos += ev;
+			w_pos++;
+			
+			// adjust read and write positions beyond boundaries
+			if ((w_pos>boundary-1) && (w_pos%boundary==0))  {
+				z++;
+				if (z%ev!=0) {
+					i=i+iw;
+					r_pos=r_pos+(iw*ev);
+				}
+				w_pos = w_pos + (ow - boundary);
+			}
+		}
+		
+		return findModelExtema(originModel);
+	}
+	
+	public SeeneModel findModelExtema(SeeneModel mO) {
+		float max = mO.getMaxFloat();
+		float min = mO.getMinFloat();
+		int floatCount = mO.getDepthWidth() * mO.getDepthHeight();
+		float f;
+		for(int i = 0; i<floatCount;i++) {
+			f = mO.getFloats().get(i);
+			if (f > max) max = f;
+			if (f < min) min = f;
+		}
+		log("new extrema: min: " + min + " - max: " + max,LogLevel.debug);
+		mO.setMinFloat(min);
+		mO.setMaxFloat(max);
+		return mO;
+	}
+
+
 	// create all JSplitPanes for the GUI
 	private JSplitPane createSplitPanels() {
 		
@@ -603,8 +871,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitEastSouthPanel.setDividerLocation(170);
 		splitEastSouthPanel.setResizeWeight(0.5);
 		
+		JSplitPane splitMainViewPanel = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		splitMainViewPanel.setTopComponent(mainToolbarPanel);
+		splitMainViewPanel.setBottomComponent(mainViewPanel);
+		splitMainViewPanel.setDividerSize(2);
+		splitMainViewPanel.setDividerLocation(35);
+		splitMainViewPanel.setResizeWeight(0.5);
+		
 		JSplitPane splitEastNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-		splitEastNorthSouth.setTopComponent(panelEastNorth);
+		splitEastNorthSouth.setTopComponent(splitMainViewPanel);
 		splitEastNorthSouth.setBottomComponent(splitEastSouthPanel);
 		splitEastNorthSouth.setDividerSize(2);
 		splitEastNorthSouth.setDividerLocation(768-250);
@@ -632,7 +907,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				if (cnt > 0) {
 					Thread dlThread = new Thread() {
 						public void run() {
-							doTaskBackupPublicSeenes(storage.getPublicDir(),cnt);		
+							doTaskBackupPublicSeenes(storage.getPublicDir(),cnt);	
+							parsePool(storage.getPublicDir());
+		            		btPoolPublicSeenes.getModel().setSelected(true);
 						}
 					};
 					dlThread.start();
@@ -647,7 +924,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				if (cnt > 0) {
 					Thread dlThread = new Thread() {
 						public void run() {
-							doTaskBackupPrivateSeenes(storage.getPrivateDir(),cnt);		
+							doTaskBackupPrivateSeenes(storage.getPrivateDir(),cnt);
+							parsePool(storage.getPrivateDir());
+		            		btPoolPrivateSeenes.getModel().setSelected(true);
 						}
 					};
 					dlThread.start();
@@ -665,7 +944,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					if (cnt > 0) {
 						Thread dlThread = new Thread() {
 							public void run() {
-								doTaskBackupOtherSeenes(storage.getOthersDir(),uid,cnt);		
+								doTaskBackupOtherSeenes(storage.getOthersDir(),uid,cnt);
+								parsePool(storage.getOthersDir());
+			            		btPoolOtherSeenes.getModel().setSelected(true);
 							}
 						};
 						dlThread.start();
@@ -707,18 +988,22 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			panelWestSouth.setLayout(new WrapLayout());  
 		    for (int i = files.length - 1; i > -1; i--) {
 		      log(files[i].getAbsolutePath(),LogLevel.debug);
-		      if (files[i].isDirectory()) {
+		      if ((files[i].isDirectory()) && (!files[i].getName().startsWith("."))) {
 			       ImageIcon imgDir = new ImageIcon(files[i].getAbsolutePath() + File.separator + "folder.png");
-			       JLabel newLabel = new JLabel();
+			       String labelname;
 			       if (files[i].getName().length() >= 19) {
-			    	   newLabel = new JLabel (files[i].getName().substring(0, 19), imgDir, JLabel.LEFT);
-				       newLabel.setToolTipText(files[i].getAbsolutePath());
-				       newLabel.setHorizontalTextPosition(JLabel.CENTER);
-				       newLabel.setVerticalTextPosition(JLabel.BOTTOM);
-				       newLabel.setHorizontalAlignment(SwingConstants.LEFT);
-				       newLabel.addMouseListener(this);
-				       panelWestSouth.add(newLabel);
+			    	   labelname = files[i].getName().substring(0, 19);
+			       } else {
+			           labelname = files[i].getName();
 			       }
+		    	   JLabel newLabel = new JLabel (labelname, imgDir, JLabel.LEFT);
+			       newLabel.setToolTipText(files[i].getAbsolutePath());
+			       newLabel.setHorizontalTextPosition(JLabel.CENTER);
+			       newLabel.setVerticalTextPosition(JLabel.BOTTOM);
+			       newLabel.setHorizontalAlignment(SwingConstants.LEFT);
+			       newLabel.addMouseListener(this);
+			       panelWestSouth.add(newLabel);
+
 		      } // directory
 		    } // for
 		    mainFrame.setVisible(true);
@@ -730,6 +1015,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	public void mouseClicked(MouseEvent mevent) {
 		// *** single click handling ***
 		if (mevent.getClickCount() == 1) {
+			currentSelection=(JLabel)mevent.getSource();
+			if(SwingUtilities.isRightMouseButton(mevent)){
+		        rClickPopup.show((Component)mevent.getSource(), mevent.getX(), mevent.getY());
+		    }
 			// clear markup state of all file labels
 			clearFileLabels(panelWestSouth);
 			// read element which received the event
@@ -754,14 +1043,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	private void openSeene(File seeneFolder) {
-		SeeneObject s = new SeeneObject(seeneFolder);
+		currentSeene = new SeeneObject(seeneFolder);
 		// load the model-data from file system
-		log("Loading Seene Model: " +  s.getModelFile().getAbsolutePath(),LogLevel.info);
-		s.getModel().loadModelDataFromFile();
-		log("Model width: " +  s.getModel().getDepthWidth(),LogLevel.info);
-		log("Model height: " +  s.getModel().getDepthHeight() ,LogLevel.info);
+		log("Loading Seene Model: " +  currentSeene.getModelFile().getAbsolutePath(),LogLevel.info);
+		currentSeene.getModel().loadModelDataFromFile();
+		currentSeene.getPoster().loadTextureFromFile();
+		log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
+		log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
 		
-		modelDisplay.setModel(s.getModel());
+		modelDisplay.setModel(currentSeene.getModel());
+		modelDisplay.setPoster(currentSeene.getPoster());
 		
 		//mainFrame.setVisible(true);
 		
@@ -771,12 +1062,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	@SuppressWarnings("serial")
 	class ModelGraphics extends Canvas {
 		
+		public SeeneObject seeneObject;
 		public SeeneModel model; 
+		public SeeneTexture poster;
+
+		public int canvasSize=240;
 		public int pointSize=2;
 		public boolean inverted=true;
 		
 		public ModelGraphics(){
-			setSize(240*getPointSize(), 240*getPointSize());	
+			setSize(canvasSize*getPointSize(), canvasSize*getPointSize());	
 	        setBackground(Color.white);
 	        addMouseListener(new MouseAdapter(){
 				public void mousePressed(MouseEvent e){
@@ -788,22 +1083,45 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						int n = mx * w + my;
 						float f = model.getFloats().get(n);
 						float cf = floatGreyScale(f, max);
-						System.out.println(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf);
+						log(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf,LogLevel.debug);
 					}
 				}
 			});
 	    }
 
+		/*
 		public ModelGraphics(SeeneModel seeneModel){
 			setModel(seeneModel);
 	        setSize(model.getDepthWidth(), model.getDepthHeight()); 
 	        setBackground(Color.white);
-	    }
+	    } */
 		
 	    public void paint(Graphics g){
 
+	    	paintModel(g,model);
+	    	paintPoster(g, poster);
+	    	
+	    }
+	    
+	    private void paintPoster(Graphics g, SeeneTexture poster) {
+	    	if (poster!=null) {
+	    		Image texture = poster.getTextureImage();
+	    		int new_width = canvasSize*getPointSize();
+	    		int new_height = canvasSize*getPointSize();
+	    		BufferedImage textureTransformed = new BufferedImage(new_width, new_height, BufferedImage.TYPE_INT_ARGB); 
+
+			    Graphics2D tGr = textureTransformed.createGraphics();
+			    tGr.rotate(Math.toRadians(90), new_width/2, new_height/2);
+			    tGr.drawImage(texture, 0, 0, new_height, new_width, null);
+			    tGr.dispose();
+			    
+	    		g.drawImage(textureTransformed, 0, 0, null);
+	    	}
+	    }
+	    
+	    private void paintModel(Graphics g,SeeneModel model) {
 	    	if (model!=null) {
-	        
+		        
 		        int c=0;
 		        float f;
 		        float max = model.getMaxFloat();
@@ -835,32 +1153,65 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	return 1 - value/maximum;
 	    }
 	    
-	    
 	    private void repaintGraphics() {
-	    	if (model!=null) {
+	    	if ((model!=null) && (poster!=null)) {
 				Graphics g = getGraphics();
 				setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
 				this.paint(g);
 			}
 	    }
 	    
+	    public void repaintModelOnly() {
+	    	if (model!=null) {
+				Graphics g = getGraphics();
+				setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
+				this.paintModel(g, model);
+			}
+	    }
+	    
+	    public void repaintPosterOnly() {
+	    	if (poster!=null) {
+				Graphics g = getGraphics();
+				this.paintPoster(g, poster);
+			}
+	    }
+	    
+	    // Getter and Setter
+	    public SeeneObject getSeeneObject() {
+			return seeneObject;
+		}
+		public void setSeeneObject(SeeneObject seeneObject) {
+			this.seeneObject = seeneObject;
+			this.model = seeneObject.getModel();
+			this.poster = seeneObject.getPoster();
+			repaintGraphics();
+		}
 	    public SeeneModel getModel() {
 			return model;
 		}
-
 		public void setModel(SeeneModel model) {
 			this.model = model;
-			repaintGraphics();
-			
+			repaintModelOnly();
 		}
-		
 		public int getPointSize() {
 			return pointSize;
 		}
-
 		public void setPointSize(int pointSize) {
 			this.pointSize = pointSize;
 			repaintGraphics();
+		}
+		public SeeneTexture getPoster() {
+			return poster;
+		}
+		public void setPoster(SeeneTexture poster) {
+			this.poster = poster;
+			repaintModelOnly();
+		}
+		public boolean isInverted() {
+			return inverted;
+		}
+		public void setInverted(boolean inverted) {
+			this.inverted = inverted;
 		}
 	}
 
