@@ -2,7 +2,10 @@ package org.seeneclub.toolkit;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -23,7 +26,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -32,6 +37,13 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPatch;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
 import org.json.simple.JSONValue;
 import org.seeneclub.domainvalues.LogLevel;
 
@@ -197,30 +209,6 @@ public class SeeneAPI {
 		return map.get("id").toString();
 	}
 	
-
-	public class Item {
-		public String access_key_id;
-		public String bucket_name;
-		public String model_dir;
-		public String poster_dir;
-		public String session_token;
-		public String secret_access_key;
-	}
-	/*
-	/// Only scene.(header fields) are used at this stage
-	public Item createItem(Token token, SeeneObject obj) {
-		Item result = new Item(); 
-		//  TODO
-		return result;
-	}
-	
-	/// after files are uploaded to S3
-	/// Only scene.identifier is used
-	public void finalizeItem(Token token, SeeneObject obj) {
-		// TODO
-	}
-	
-	*/
 	
 	public static Date parseISO8601(String s) throws ParseException {
 		if (s == null)
@@ -252,6 +240,133 @@ public class SeeneAPI {
 				null);
 		
 		return createFromResponse(map);    	
+	}
+	
+	
+	@SuppressWarnings("deprecation")
+	public static void uploadSeene(File uploadsLocalDir, SeeneObject sO, String username, Token token) throws MalformedURLException, Exception {
+		Map<String,String> params = new HashMap<String,String>();
+		
+		params.put("caption", sO.getCaption());
+		params.put("captured_at", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(sO.getCaptured_at()));
+		params.put("filter_code", sO.getFilter_code());
+		params.put("flash_level", Integer.toString(sO.getFlash_level()));
+		params.put("identifier", "");
+		params.put("orientation", Integer.toString(sO.getOrientation()));
+		params.put("shared", Integer.toString(sO.getShared()));
+		params.put("storage_version", Integer.toString(sO.getStorage_version()));
+		
+		SeeneToolkit.log("Preparing upload on Seene servers...",LogLevel.info);
+		
+		// PREPARING UPLOAD (CREATING ENTRY)
+		Map metamap = request(token, "POST", new URL("https://oecamera.herokuapp.com/api/scenes"), params);
+		
+		Map awsmeta = (Map)metamap.get("meta");
+		Map scenemeta = (Map)metamap.get("scene");
+		
+		SeeneAWS awsMeta = new SeeneAWS();
+		
+		awsMeta.setAccess_key_id((String)awsmeta.get("access_key_id"));
+		awsMeta.setBucket_name((String)awsmeta.get("bucket_name"));
+		awsMeta.setModel_dir((String)awsmeta.get("model_dir"));
+		awsMeta.setPoster_dir((String)awsmeta.get("poster_dir"));
+		awsMeta.setSession_token((String)awsmeta.get("session_token"));
+		awsMeta.setSecret_access_key((String)awsmeta.get("secret_access_key"));
+		sO.setAWSmeta(awsMeta);
+		sO.setIdentifier(UUID.fromString((String)scenemeta.get("identifier")));
+		sO.setShortCode((String)scenemeta.get("short_code"));
+		sO.setUserinfo(username);
+		
+		SeeneToolkit.log("Starting file upload for new Seene " + sO.getShortCode(),LogLevel.info);
+		
+		String folderName = SeeneStorage.generateSeeneFolderName(sO, username);
+		
+		File savePath = new File(uploadsLocalDir.getAbsolutePath() + File.separator + folderName);
+		savePath.mkdirs();
+		
+		File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
+		File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+		sO.getModel().saveModelDateToFile(mFile);
+		sO.getPoster().saveTextureToFile(pFile);
+		Helper.createFolderIcon(savePath, null);
+		
+		// UPLOADING THE FILES
+		awsFileUpload(awsMeta.getModel_dir(),mFile,"application/octet-stream",awsMeta);
+		awsFileUpload(awsMeta.getPoster_dir(),pFile,"image/jpeg",awsMeta);
+		
+		// FINALIZING
+		URL patchURL = new URL("https://oecamera.herokuapp.com/api/scenes/" + sO.getIdentifier());
+		
+		SeeneToolkit.log("Finalizing new Seene " + sO.getShortCode(),LogLevel.info);
+		
+		// Unfortunately a HttpsURLConnection does not support method PATCH
+		// so we use Apache HttpComponents instead (https://hc.apache.org/)
+		HttpClient client = new DefaultHttpClient();
+		HttpPatch hp = new HttpPatch(patchURL.toURI());
+		hp.setHeader("Authorization", String.format("Seene api=%s,user=%s",token.api_id,token.api_token));
+		hp.setHeader("Accept", "application/vnd.seene.co; version=3,application/json");
+		List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+		nvps.add(new BasicNameValuePair("finalize", "1"));
+		hp.setEntity(new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
+		client.execute(hp);
+		
+		SeeneToolkit.log("Upload finished. Check your private seenes!",LogLevel.info);
+		
+	}
+	
+	private static void awsFileUpload(String targetDir, File file, String mimeType, SeeneAWS meta) {
+		try {
+			String dateHeader = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss Z",Locale.US).format(new Date());
+			String fileName = file.getName();
+			String resource  = "/" + meta.getBucket_name() + "/" + targetDir + "/" + fileName;
+			StringBuffer stringToSign = new StringBuffer("PUT\n\n");
+			stringToSign.append(mimeType + "\n");
+			stringToSign.append(dateHeader + "\n");
+			stringToSign.append("x-amz-acl:public-read\n");
+			stringToSign.append("x-amz-security-token:");
+			stringToSign.append(meta.getSession_token() + "\n");
+			stringToSign.append(resource);
+			String signature = SeeneAWSsignature.calculateRFC2104HMAC(stringToSign.toString(), meta.getSecret_access_key()); 
+			
+			URL url = new URL("https://" + meta.getBucket_name() + ".s3.amazonaws.com/" + targetDir + "/" + fileName);
+			
+			SeeneToolkit.log("Uploading " + fileName + " (" + mimeType + ") to target: " + targetDir,LogLevel.info);
+			
+			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+			conn.setDoOutput(true);
+			conn.setDoInput(true);
+			conn.setUseCaches(false);
+			conn.setRequestMethod("PUT");
+			conn.setRequestProperty("Host", meta.getBucket_name() + ".s3.amazonaws.com");
+			conn.setRequestProperty("Authorization", "AWS " + meta.getAccess_key_id() + ":" + signature);
+			conn.setRequestProperty("x-amz-acl", "public-read");
+			conn.setRequestProperty("x-amz-security-token", meta.getSession_token());
+			conn.setRequestProperty("Date", dateHeader);
+			conn.setRequestProperty("Content-Type", mimeType);
+			
+			InputStream in = new FileInputStream(file.getAbsolutePath());
+		    OutputStream out = conn.getOutputStream();
+		    copyStream(in, conn.getOutputStream());
+		    out.flush();
+		    out.close();
+		    conn.getInputStream();
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	protected static long copyStream(InputStream input, OutputStream output) throws IOException {
+	    byte[] buffer = new byte[12288]; // 12K
+	    long count = 0L;
+	    int n = 0;
+	    while (-1 != (n = input.read(buffer))) {
+	        output.write(buffer, 0, n);
+	        count += n;
+	    }
+	    return count;
 	}
 	
 	public static List<SeeneObject> getPublicSeeneByURL(String surl) throws Exception {

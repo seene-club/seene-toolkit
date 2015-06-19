@@ -5,6 +5,7 @@ import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -114,6 +115,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JButton tbSaveLocal = new JButton("save local");
     JButton tbShowModel = new JButton("show model");
     JButton tbShowPoster = new JButton("show poster");
+    JButton tbUploadSeene = new JButton("upload");
     ModelGraphics modelDisplay = new ModelGraphics();
 	
 	// Settings Dialog
@@ -136,6 +138,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     // Seene Object we are currently working on
     SeeneObject currentSeene = null;
     JLabel currentSelection = null;
+    SeeneNormalizer normalizer = new SeeneNormalizer();
     
     // method main - all begins with a thread!
 	@SuppressWarnings("static-access")
@@ -374,6 +377,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
     }
     
+    private static void doUploadSeene(File uploadsLocalDir,SeeneObject sO) {
+    	try {
+			Token token = SeeneAPI.login(seeneAPIid, seeneUser, seenePass);
+			SeeneAPI.uploadSeene(uploadsLocalDir, sO, seeneUser, token);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
     
     // Downloading with more than one thread is faster for most internet connections
     private static void downloadInThreads(List<SeeneObject> seenesToDownload, File targetDir, int number_of_threads) {
@@ -512,6 +525,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         JMenu fileMenu = new JMenu("Seene-Club");
         
         JMenuItem itemSettings = new JMenuItem("Settings");
+        itemSettings.setIcon(Helper.iconFromImageResource("settings.png", 16));
         itemSettings.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 showSettingsDialog();
@@ -519,6 +533,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         });
         
         JMenuItem itemExit = new JMenuItem("Exit");
+        itemExit.setIcon(Helper.iconFromImageResource("exit.png", 16));
         itemExit.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 System.exit(0);
@@ -529,6 +544,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         fileMenu.add(itemExit);
         
         JMenu taskMenu = new JMenu("Tasks");
+        
+        taskBackupPublic.setIcon(Helper.iconFromImageResource("download.png", 16));
+        taskBackupPrivate.setIcon(Helper.iconFromImageResource("downloadp.png", 16));
+        taskBackupOther.setIcon(Helper.iconFromImageResource("downloado.png", 16));
+        taskBackupByURL.setIcon(Helper.iconFromImageResource("downloadu.png", 16));
         
         taskBackupPublic.addActionListener(this);
         taskBackupPrivate.addActionListener(this);
@@ -574,21 +594,42 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         panelWestSouth.setBackground(Color.white);
         
         JMenu twoXtwoSubmenu = new JMenu("add to 2x2 grid");
+        twoXtwoSubmenu.setIcon(Helper.iconFromImageResource("2x2grid.png", 16));
         JMenuItem twXtwUpperLeft = new JMenuItem("place upper left");
+        twXtwUpperLeft.setIcon(Helper.iconFromImageResource("2x2gridul.png", 16));
         JMenuItem twXtwUpperRight = new JMenuItem("place upper right");
+        twXtwUpperRight.setIcon(Helper.iconFromImageResource("2x2gridur.png", 16));
         JMenuItem twXtwBottomLeft = new JMenuItem("place bottom left");
+        twXtwBottomLeft.setIcon(Helper.iconFromImageResource("2x2gridbl.png", 16));
         JMenuItem twXtwBottomRight = new JMenuItem("place bottom right");
+        twXtwBottomRight.setIcon(Helper.iconFromImageResource("2x2gridbr.png", 16));
         
         JMenu threeXthreeSubmenu = new JMenu("add to 3x3 grid");
+        threeXthreeSubmenu.setIcon(Helper.iconFromImageResource("3x3grid.png", 16));
         JMenuItem tXtUpperLeft = new JMenuItem("place upper left");
+        tXtUpperLeft.setIcon(Helper.iconFromImageResource("3x3gridul.png", 16));
         JMenuItem tXtUpperCenter = new JMenuItem("place upper center");
+        tXtUpperCenter.setIcon(Helper.iconFromImageResource("3x3griduc.png", 16));
         JMenuItem tXtUpperRight = new JMenuItem("place upper right");
+        tXtUpperRight.setIcon(Helper.iconFromImageResource("3x3gridur.png", 16));
         JMenuItem tXtMiddleLeft = new JMenuItem("place middle left");
+        tXtMiddleLeft.setIcon(Helper.iconFromImageResource("3x3gridml.png", 16));
         JMenuItem tXtMiddleCenter = new JMenuItem("place middle center");
+        tXtMiddleCenter.setIcon(Helper.iconFromImageResource("3x3gridmc.png", 16));
         JMenuItem tXtMiddleRight = new JMenuItem("place middle right");
+        tXtMiddleRight.setIcon(Helper.iconFromImageResource("3x3gridmr.png", 16));
         JMenuItem tXtBottomLeft = new JMenuItem("place bottom left");
+        tXtBottomLeft.setIcon(Helper.iconFromImageResource("3x3gridbl.png", 16));
         JMenuItem tXtBottomCenter = new JMenuItem("place bottom center");
+        tXtBottomCenter.setIcon(Helper.iconFromImageResource("3x3gridbc.png", 16));
         JMenuItem tXtBottomRight = new JMenuItem("place bottom right");
+        tXtBottomRight.setIcon(Helper.iconFromImageResource("3x3gridbr.png", 16));
+        
+        // Other Menu Items for right click on Seene folder
+        JMenuItem miShowInFS = new JMenuItem("show in file explorer");
+        miShowInFS.setIcon(Helper.iconFromImageResource("show.png", 16));
+        JMenuItem miDeleteFS = new JMenuItem("delete from local file system");
+        miDeleteFS.setIcon(Helper.iconFromImageResource("delete.png", 16));
         
         ActionListener popupListener = new ActionListener() {
             public void actionPerformed(ActionEvent event) {
@@ -644,6 +685,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,3);
             	  modelDisplay.setSeeneObject(currentSeene);
               }
+              if(event.getSource() == miShowInFS) {
+            	  try {
+            		  Desktop.getDesktop().open(new File(currentSelection.getToolTipText()));
+            	  } catch (IOException e) { e.printStackTrace(); }
+              }
+              if(event.getSource() == miDeleteFS) {
+            	  int an = JOptionPane.showConfirmDialog(mainFrame,
+            			    "Do you really want to delete\n"
+            			    + currentSelection.getToolTipText()+ "\n"
+                    		+ "from your computer?",
+            			    "Delete Seene?",
+            			    JOptionPane.YES_NO_OPTION);
+            	  if (an == JOptionPane.YES_OPTION) {
+            		  Helper.deleteDirectory(new File(currentSelection.getToolTipText()));
+            		  if (btPoolPublicSeenes.getModel().isSelected())	parsePool(storage.getPublicDir());
+            	      if (btPoolPrivateSeenes.getModel().isSelected())	parsePool(storage.getPrivateDir());
+            	      if (btPoolOtherSeenes.getModel().isSelected())	parsePool(storage.getOthersDir());
+            		  if (btPoolLocalSeenes.getModel().isSelected()) 	parsePool(storage.getOfflineDir()); 
+            	 }
+              }
             }
           };
           
@@ -677,8 +738,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         threeXthreeSubmenu.add(tXtBottomCenter);
         threeXthreeSubmenu.add(tXtBottomRight);
         
+        miShowInFS.addActionListener(popupListener);
+        miDeleteFS.addActionListener(popupListener);
+        
         rClickPopup.add(twoXtwoSubmenu);
         rClickPopup.add(threeXthreeSubmenu);
+        rClickPopup.add(miShowInFS);
+        rClickPopup.add(miDeleteFS);
+        
         
         // Region East-North: Seene display & Toolbar
         ActionListener toolbarListener = new ActionListener() {
@@ -690,11 +757,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             	  if ((localname != null) && (localname.length() > 0)) {
             		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
             		  savePath.mkdirs();
-            		  File testModelFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
-            		  File testPosterFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
+            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
             		  currentSeene.setLocalname(localname);
-            		  currentSeene.getModel().saveModelDateToFile(testModelFile);
-            		  currentSeene.getPoster().saveTextureToFile(testPosterFile);
+            		  currentSeene.getModel().saveModelDateToFile(mFile);
+            		  currentSeene.getPoster().saveTextureToFile(pFile);
             		  Helper.createFolderIcon(savePath, null);
             		  parsePool(storage.getOfflineDir());
             		  btPoolLocalSeenes.getModel().setSelected(true);
@@ -708,16 +775,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
               if(event.getSource() == tbShowPoster) {
             	  modelDisplay.repaintPosterOnly();
               }
+              if(event.getSource() == tbUploadSeene) {
+            	 doUploadSeene(storage.getUploadsDir() ,currentSeene);
+              }
             }
         };
         
         tbSaveLocal.addActionListener(toolbarListener);
         tbShowModel.addActionListener(toolbarListener);
         tbShowPoster.addActionListener(toolbarListener);
+        tbUploadSeene.addActionListener(toolbarListener);
         
         toolbar.add(tbSaveLocal);
         toolbar.add(tbShowModel);
         toolbar.add(tbShowPoster);
+        toolbar.add(tbUploadSeene);
         
         mainToolbarPanel.setLayout(new BorderLayout());
         mainToolbarPanel.add(toolbar,BorderLayout.PAGE_START);
@@ -756,6 +828,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		SeeneModel inlayModel = inlayObject.getModel();
 		log("Inlay Model width: " +  inlayModel.getDepthWidth(),LogLevel.info);
 		log("Inlay Model height: " +  inlayModel.getDepthHeight() ,LogLevel.info);
+		
+		
+		//Just testing here ...
+		//inlayModel = normalizer.normalizeModelToFarthest(inlayModel);
+		//inlayModel = normalizer.normalizeModelToClosest(inlayModel);
+		
 		
 		log("Loading Inlay Poster: " +  inlayObject.getPosterFile().getAbsolutePath(),LogLevel.info);
 		inlayObject.getPoster().loadTextureFromFile();
@@ -1047,6 +1125,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		// load the model-data from file system
 		log("Loading Seene Model: " +  currentSeene.getModelFile().getAbsolutePath(),LogLevel.info);
 		currentSeene.getModel().loadModelDataFromFile();
+		normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
+		normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
 		currentSeene.getPoster().loadTextureFromFile();
 		log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
 		log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
@@ -1258,6 +1338,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
     	settingsDialog.setTitle("Seene-Club Settings");
     	settingsDialog.setSize(400, 160);
+    	settingsDialog.setLocationRelativeTo(mainFrame);
     	settingsDialog.setModal(true);
     	
     	JPanel gridPanel = new JPanel();
@@ -1386,7 +1467,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     					seeneAPIid = line.substring(7);
     				}
     				if (line.substring(0, 8).equalsIgnoreCase("storage=")) {
-    					log("configured starage path: " + line.substring(8),LogLevel.debug);
+    					log("configured storage path: " + line.substring(8),LogLevel.debug);
     					storage.setPath(line.substring(8));
     					storageOK = storage.initializer();
     				}

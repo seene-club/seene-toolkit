@@ -104,5 +104,27 @@ public class Helper {
     public static String getDownloadFileName(URL u) {
     	return u.getFile().substring(u.getFile().lastIndexOf('/')+1, u.getFile().length());
     }
+    
+    public static ImageIcon iconFromImageResource(String iconName,int iconSize) { 
+    	return new ImageIcon((new ImageIcon(SeeneToolkit.class.getResource("/images/" + iconName)).getImage())
+    				.getScaledInstance(iconSize, iconSize, java.awt.Image.SCALE_SMOOTH));
+    }
+    
+    public static boolean deleteDirectory(File directory) {
+        if(directory.exists()){
+            File[] files = directory.listFiles();
+            if(null!=files){
+                for(int i=0; i<files.length; i++) {
+                    if(files[i].isDirectory()) {
+                        deleteDirectory(files[i]);
+                    }
+                    else {
+                        files[i].delete();
+                    }
+                }
+            }
+        }
+        return(directory.delete());
+    }
 
 }

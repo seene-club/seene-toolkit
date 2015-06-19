@@ -3,3 +3,4 @@ seene
 dir
 endianness
 toolbar
+metadata

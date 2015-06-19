@@ -6,7 +6,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
@@ -63,6 +62,8 @@ public class SeeneModel {
 			putFloatAtCurPos(out, mCameraK2);
 			out.writeInt(Integer.reverseBytes(mDepthWidth));
 			out.writeInt(Integer.reverseBytes(mDepthHeight));
+			setMinDepth(getMinFloat());
+			setMaxDepth(getMaxFloat());
 			putFloatAtCurPos(out, mMinDepth);
 			putFloatAtCurPos(out, mMaxDepth);
 			for (int i=0;i<mFloats.size();i++) {

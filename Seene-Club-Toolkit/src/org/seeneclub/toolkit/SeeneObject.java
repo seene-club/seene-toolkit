@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public class SeeneObject {
 	
-	/// header
+	// header
 	private String caption;
 	private Date captured_at;
 	private String short_code;
@@ -21,11 +21,12 @@ public class SeeneObject {
 	private URL avatarURL;
 	private String localname;
 
-	/// scene.oemodel
+    // model and poster
 	private SeeneModel model;
-	
-	/// poster.jpg
 	private SeeneTexture poster;
+	
+	// AWS-Metadata (upload)
+	private SeeneAWS awsmeta;
 
 	SeeneObject() {
 		caption = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
@@ -38,6 +39,7 @@ public class SeeneObject {
 		storage_version = 3;
 		poster = new SeeneTexture();
 		model = new SeeneModel();
+		awsmeta = new SeeneAWS();
 	}
 	
 	// constructor for a seene stored at local filesystem
@@ -53,18 +55,24 @@ public class SeeneObject {
 	// Getter and Setter
 
 	public String getCaption() {
-		return caption == null? "": caption;
+		if ((caption==null) || (caption.length()==0)) 
+			caption = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
+		return caption;
 	}
 	public void setCaption(String caption) {
 		this.caption = caption;
 	}
 	public Date getCaptured_at() {
+		if (captured_at==null) 
+			captured_at = new Date();
 		return captured_at;
 	}
 	public void setCaptured_at(Date captured_at) {
 		this.captured_at = captured_at;
 	}
 	public String getFilter_code() {
+		if ((filter_code==null) || (filter_code.length()==0))
+			filter_code = "none";
 		return filter_code;
 	}
 	public void setFilter_code(String filter_code) {
@@ -95,6 +103,7 @@ public class SeeneObject {
 		this.shared = shared;
 	}
 	public int getStorage_version() {
+		if (storage_version==0) storage_version=3;
 		return storage_version;
 	}
 	public void setStorage_version(int storage_version) {
@@ -159,6 +168,12 @@ public class SeeneObject {
 	}
 	public void setLocalname(String localname) {
 		this.localname = localname;
+	}
+	public SeeneAWS getAWSmeta() {
+		return awsmeta;
+	}
+	public void setAWSmeta(SeeneAWS awsmeta) {
+		this.awsmeta = awsmeta;
 	}
 
 }

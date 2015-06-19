@@ -13,6 +13,7 @@ public class SeeneStorage {
 	private File privateDir;
 	private File othersDir;
 	private File offlineDir;
+	private File uploadsDir;
 	
 	// check and initialize the storage
 	public Boolean initializer() {
@@ -31,7 +32,10 @@ public class SeeneStorage {
 			offlineDir = new File(this.path + File.separator + "local seenes");
 			boolean offlineOK = createSubCatalogueDir(offlineDir);
 			
-			if ((publicOK) && (privateOK) && (othersOK) && (offlineOK)) {
+			uploadsDir = new File(this.path + File.separator + "uploads");
+			boolean uploadsOK = createSubCatalogueDir(uploadsDir);
+			
+			if ((publicOK) && (privateOK) && (othersOK) && (offlineOK) && (uploadsOK)) {
 				return true;
 			} else {
 				SeeneToolkit.log("could not create all storage subdirs!",LogLevel.fatal);
@@ -125,6 +129,12 @@ public class SeeneStorage {
 	}
 	public void setOfflineDir(File offlineDir) {
 		this.offlineDir = offlineDir;
+	}
+	public File getUploadsDir() {
+		return uploadsDir;
+	}
+	public void setUploadsDir(File uploadsDir) {
+		this.uploadsDir = uploadsDir;
 	}
 
 }
