@@ -4,3 +4,6 @@ dir
 endianness
 toolbar
 metadata
+internet
+username
+temp
