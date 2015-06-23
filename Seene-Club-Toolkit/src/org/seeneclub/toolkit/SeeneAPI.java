@@ -49,7 +49,7 @@ import org.seeneclub.domainvalues.LogLevel;
 
 import com.vdurmont.emoji.EmojiParser;
 
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({ "rawtypes", "deprecation" })
 public class SeeneAPI {
 
 	public static class Token {
@@ -67,6 +67,7 @@ public class SeeneAPI {
 	public static Token login(String apiId, String username, String password) throws Exception {
 		
 		if ((apiId.length() == 0) || (apiId.equals("<insert Seene API ID here>"))) {
+			//SeeneToolkit.log("API-ID not configured!\nTrying to retrieve from remote service...",LogLevel.info);
 			apiId = getSeeneAPIidFromRemoteServer(username, password);
 			//SeeneToolkit.log(apiId,LogLevel.debug);
 		}
@@ -330,7 +331,7 @@ public class SeeneAPI {
 			
 			URL url = new URL("https://" + meta.getBucket_name() + ".s3.amazonaws.com/" + targetDir + "/" + fileName);
 			
-			SeeneToolkit.log("Uploading " + fileName + " (" + mimeType + ") to target: " + targetDir,LogLevel.info);
+			SeeneToolkit.log("Uploading " + fileName + " (" + mimeType + ")",LogLevel.info);
 			
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setDoOutput(true);
@@ -350,6 +351,7 @@ public class SeeneAPI {
 		    out.flush();
 		    out.close();
 		    conn.getInputStream();
+		    in.close();
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

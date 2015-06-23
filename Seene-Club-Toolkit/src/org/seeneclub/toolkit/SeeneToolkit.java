@@ -69,7 +69,7 @@ import org.seeneclub.toolkit.SeeneAPI.Token;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
@@ -161,6 +161,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 										   .withArgName("VISIBILITY")
 										   .create("b");
 		
+		Option uploadOption = OptionBuilder.withLongOpt("upload")
+										   .withDescription("upload to your private Seenes")
+										   .create("u");
+		
 		Option countOption = OptionBuilder.withLongOpt("count")
 				   						  .withDescription("number of seenes to retrieve")
 				   						  .hasArg()
@@ -171,13 +175,13 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 										   .withDescription("Seene Username")
 				   						   .hasArg()
 				   						   .withArgName("USERNAME")
-				   						   .create("u");
+				   						   .create("uid");
 		
 		Option passOption   = OptionBuilder.withLongOpt("password")
 					 		 			   .withDescription("Seene Password")
 					 		 			   .hasArg()
 					 					   .withArgName("PASSWORD")
-					 					   .create("p");
+					 					   .create("pwd");
 		
 		Option targetOption = OptionBuilder.withLongOpt("output-target")
 				 						   .withDescription("target directory for the backup")
@@ -186,6 +190,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				 						   .create("o");
 		
 		options.addOption(backupOption);
+		options.addOption(uploadOption);
 		options.addOption(countOption);
 		options.addOption(userOption);
 		options.addOption(passOption);
@@ -222,21 +227,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    	} // handle private backup. Login IS required. 
 		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
 		    		if (line.hasOption("username")) {
-		    			seeneUser = line.getOptionValue("username");
-		    			if (line.hasOption("password")) {
-		    				seenePass = line.getOptionValue("password");
-		    			} else {
-		    				// no password given? -> fetch password from console.
-		    				Console c = System.console();
-		    				if (c == null) {
-		    			           log("No console.",LogLevel.fatal);
-		    			           System.exit(1);
-		    			    }
-		    				char consolePass[] = c.readPassword(seeneUser + "'s password: ");
-		    				seenePass = new String(consolePass);
-		    			}
-		    			// because we never put the Seene-API-ID in the code, we read from file!
-	    				seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
+		    			getCredentialsForConsole(line);
 	    				
 	    				if (line.hasOption("count")) {
 				    		count = Integer.parseInt(line.getOptionValue("count"));
@@ -260,7 +251,43 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    		errorText.append(" unknown backup option. Try \"private\" or \"public\"");
 		    		throw new org.apache.commons.cli.ParseException(errorText.toString());
 		    	}
-		    }
+		    } // END OF BACKUP Options
+		    // Handle UPLOAD
+		    else if (line.hasOption("upload")) {
+		    	commandLineUsed = true;
+		    	// first we check if there's a model and poster file in the current working directory
+		    	String wd = System.getProperty("user.dir");
+		    	File mF = new File(wd + File.separator + "scene.oemodel");
+		    	File pF = new File(wd + File.separator + "poster.jpg");
+		    	if (mF.exists()) {
+		    		if (pF.exists()) {
+		    			// username has to be set for upload
+				    	if (line.hasOption("username")) {
+			    			getCredentialsForConsole(line);
+			    			// preparing directories
+			    			File sourceDir = new File(wd);
+			    			File tempUlDir = new File(wd + File.separator + ".~upload~temp");
+			    			tempUlDir.mkdir();
+			    			// loading seene
+			    			SeeneObject ulSeene = new SeeneObject(sourceDir);
+			    			ulSeene.getModel().loadModelDataFromFile();
+			    			ulSeene.getPoster().loadTextureFromFile();
+			    			ulSeene.setCaption("uploaded with https://github.com/seene-club/seene-toolkit");
+			    			// uploading seene
+			    			doUploadSeene(tempUlDir, ulSeene);
+			    			// removing temp
+			    			Helper.deleteDirectory(tempUlDir);
+				    	} else {
+			    			String errorText = new String("to upload a Seene your credentials are required!");
+			    			throw new org.apache.commons.cli.ParseException(errorText);
+			    		} // if (line.hasOption("username"))
+		    		} else { 
+		    			log("no texture file to upload!\nmissing poster.jpg",LogLevel.error);
+		    		} // if (pF.exists()) 
+		    	} else {
+		    		log("no model file to upload!\nmissing scene.oemodel",LogLevel.error);
+		    	} // if (mF.exists()) 
+		    } // if (line.hasOption("upload"))
 		} catch( org.apache.commons.cli.ParseException exp ) {
 			commandLineUsed = true;
 		    log("parameter exception: " + exp.getMessage() , LogLevel.error);
@@ -268,6 +295,25 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 		// Start GUI only if NO command line argument is used!
 		if (!commandLineUsed) new Thread(new SeeneToolkit()).start();
+	}
+
+
+	private static void getCredentialsForConsole(CommandLine line) {
+		seeneUser = line.getOptionValue("username");
+		if (line.hasOption("password")) {
+			seenePass = line.getOptionValue("password");
+		} else {
+			// no password given? -> fetch password from console.
+			Console c = System.console();
+			if (c == null) {
+		           log("No console.",LogLevel.fatal);
+		           System.exit(1);
+		    }
+			char consolePass[] = c.readPassword(seeneUser + "'s password: ");
+			seenePass = new String(consolePass);
+		}
+		// because we never put the Seene-API-ID in the code, we read from file!
+		seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
 	}
 	
 	
@@ -291,7 +337,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
  
     
-    // example: java -jar seene-club-toolkit.jar -b public -c 100 -u paf
+    // example: java -jar seene-club-toolkit.jar -b public -c 100 -uid paf
     private static void doTaskBackupPublicSeenes(File targetDir, int last) {
     	try {
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
@@ -346,7 +392,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     }
     
     
-    // example: java -jar seene-club-toolkit.jar -b private -c 500 -u paf -o /home/paf/myPrivateSeenes
+    // example: java -jar seene-club-toolkit.jar -b private -c 500 -uid paf -o /home/paf/myPrivateSeenes
     private static void doTaskBackupPrivateSeenes(File targetDir, int last) {
     	try {
         	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
@@ -1437,7 +1483,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				String line;
     			while ((line = br.readLine()) != null) {
     				if (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq)) {
-    					log("configured " + paramEq + " is: " + "<secret, shh!>" /*line.substring(paramEq.length())*/,LogLevel.debug);
+    					log("configured " + paramEq + " is: " + line.substring(paramEq.length()),LogLevel.debug);
     					br.close();
     					return line.substring(paramEq.length());
     				}
@@ -1462,20 +1508,20 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				br = new BufferedReader(new FileReader(cf));
 				String line;
     			while ((line = br.readLine()) != null) {
-    				if (line.substring(0, 7).equalsIgnoreCase("api_id=")) {
+    				if ((line.length() >= 7) && (line.substring(0, 7).equalsIgnoreCase("api_id="))) {
     					log("configured api_id is: " + line.substring(7),LogLevel.debug);
     					seeneAPIid = line.substring(7);
     				}
-    				if (line.substring(0, 8).equalsIgnoreCase("storage=")) {
+    				if ((line.length() >= 8) && (line.substring(0, 8).equalsIgnoreCase("storage="))) {
     					log("configured storage path: " + line.substring(8),LogLevel.debug);
     					storage.setPath(line.substring(8));
     					storageOK = storage.initializer();
     				}
-    				if (line.substring(0, 9).equalsIgnoreCase("username=")) {
+    				if ((line.length() >= 9 ) && (line.substring(0, 9).equalsIgnoreCase("username="))) {
     					log("configured username: " + line.substring(9),LogLevel.debug);
     					seeneUser = line.substring(9);
     				}
-    				if (line.substring(0, 11).equalsIgnoreCase("passphrase=")) {
+    				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("passphrase="))) {
     					log("configured passphrase: " + line.substring(11),LogLevel.debug);
     					seenePass = XOREncryption.xorIt(line.substring(11));
     				}

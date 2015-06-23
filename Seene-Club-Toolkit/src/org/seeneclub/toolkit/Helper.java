@@ -14,6 +14,8 @@ import java.net.URL;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
+import org.seeneclub.domainvalues.LogLevel;
+
 public class Helper {
 	
 	public static void createFolderIcon(File sFolder, URL avatarURL) {
@@ -117,8 +119,8 @@ public class Helper {
                 for(int i=0; i<files.length; i++) {
                     if(files[i].isDirectory()) {
                         deleteDirectory(files[i]);
-                    }
-                    else {
+                    } else {
+                    	files[i].setWritable(true);
                         files[i].delete();
                     }
                 }
