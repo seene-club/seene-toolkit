@@ -5,17 +5,22 @@ import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
@@ -1196,6 +1201,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		public SeeneTexture poster;
 		private List<Boolean> mask = new ArrayList<Boolean>();
 		int maskBrushRadius = 2;
+		public String lastChoice = "";
 
 		public int canvasSize=240;
 		public int pointSize=2;
@@ -1204,24 +1210,47 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		public ModelGraphics(){
 			setSize(canvasSize*getPointSize(), canvasSize*getPointSize());	
 	        setBackground(Color.white);
+	        
+	        // MouseWheel to change size of the mask brush
+	        addMouseWheelListener(new MouseWheelListener() {
+				public void mouseWheelMoved(MouseWheelEvent e) {
+					int steps = e.getWheelRotation();
+					maskBrushRadius += steps;
+					if (maskBrushRadius<0) maskBrushRadius=0;
+					if (maskBrushRadius>8) maskBrushRadius=8;
+					log("new Mask Brush Radius: " + maskBrushRadius,LogLevel.debug);
+					setMaskCursorWithSize(maskBrushRadius);
+				}
+			});
+	        
+	        // MouseListener for Painting the Mask
 	        addMouseListener(new MouseAdapter(){
-	        	
 	        	int w = 0;
-	        	float max = 0f;
 	        	int mOffX = 0;
 	        	int mOffY = 0;
 	        	
 	        	volatile private boolean mouseDown = false;
+	        	
+	        	public void mouseEntered(MouseEvent e) {
+    	        	setMaskCursorWithSize(maskBrushRadius);
+	        	}
 	        	
 	        	public void mousePressed(MouseEvent e) {
 	        	    if (e.getButton() == MouseEvent.BUTTON1) {
 	        	        mouseDown = true;
 	        	        if (model!=null) {
 	        	        	w = model.getDepthWidth();
-	        	        	max = model.getMaxFloat();
 	        	        	mOffX = MouseInfo.getPointerInfo().getLocation().x - e.getX();
 	        	        	mOffY = MouseInfo.getPointerInfo().getLocation().y - e.getY();
-	        	        	initThread();
+	        	        	// DepthPoint Info
+	        	        	initMaskPaintThread();
+	        	        	float max = model.getMaxFloat();
+	        	        	int mx = w - e.getX() / pointSize - 1;
+    						int my = e.getY() / pointSize;
+    						int n = mx * w + my;
+    						float f = model.getFloats().get(n);
+    						float cf = floatGreyScale(f, max);
+	        	        	log(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf,LogLevel.debug);
 	        	        }
 	        	    }
 	        	}
@@ -1229,6 +1258,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	public void mouseReleased(MouseEvent e) {
 	        	    if (e.getButton() == MouseEvent.BUTTON1) {
 	        	        mouseDown = false;
+	        	        if (lastChoice=="model") repaintModelOnly();
+	        	        if (lastChoice=="poster") repaintPosterOnly();
 	        	    }
 	        	}
 
@@ -1240,7 +1271,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	    return true;
 	        	}
 	        	
-	        	private void initThread() {
+	        	private void initMaskPaintThread() {
 	        	    if (checkAndMark()) {
 	        	        new Thread() {
 	        	            public void run() {
@@ -1259,44 +1290,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        							int n = mx * w + my;
     									mask.set(n, true);
 	        						}
-
 	        						repaintMaskOnly();
-	        	                	//System.out.println("("+cx+", "+cy+")");
+	        						
 	        	                } while (mouseDown);
 	        	                isRunning = false;
 	        	            }
 	        	        }.start();
 	        	    }
 	        	}
-	        	
-	        	/*
-				public void mousePressed(MouseEvent e){
-					if (model!=null) {
-						int w = model.getDepthWidth();
-						float max = model.getMaxFloat();
-						int mx = w - e.getX() / pointSize - 1;
-						int my = e.getY() / pointSize;
-						int n = mx * w + my;
-						float f = model.getFloats().get(n);
-						float cf = floatGreyScale(f, max);
-						log(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf,LogLevel.debug);
-						mask.set(n, true);
-						repaintMaskOnly();
-					}
-				}
-				*/
 			});
 	    }
 
-		/*
-		public ModelGraphics(SeeneModel seeneModel){
-			setModel(seeneModel);
-	        setSize(model.getDepthWidth(), model.getDepthHeight()); 
-	        setBackground(Color.white);
-	    } */
-		
-	    public void paint(Graphics g){
 
+	    public void paint(Graphics g){
 	    	paintModel(g,model);
 	    	paintPoster(g, poster);
 	    	paintMask(g);
@@ -1317,9 +1323,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        	for (int y=0;y<h;y++) {
 		        		masked = mask.get(c);
 		        		if (masked) g.fillRect((w-x-1)*p, y*p , p, p);
-		        		
-		        		//System.out.println("c: " + c + " - x: " + x + " - y: " + y + " - f:" + f + " - color: " + cf);
-		        		
 		        		c++;
 		        	} // for y
 		        } //  for x
@@ -1356,15 +1359,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        for (int x=0;x<w;x++) {
 		        	for (int y=0;y<h;y++) {
 		        		f = model.getFloats().get(c);
-
 		        		cf = floatGreyScale(f, max);
 		        		Color newColor = new Color(cf,cf,cf);
 		        		g.setColor(newColor);
 		        		
 		        		g.fillRect((w-x-1)*p, y*p , p, p);
-		        		
-		        		//System.out.println("c: " + c + " - x: " + x + " - y: " + y + " - f:" + f + " - color: " + cf);
-		        		
 		        		c++;
 		        	} // for y
 		        } //  for x
@@ -1387,15 +1386,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    public void repaintMaskOnly() {
 	    	if (model!=null) {
 				Graphics g = getGraphics();
-				setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
 				this.paintMask(g);
 			}
 	    }
 	    
 	    public void repaintModelOnly() {
 	    	if (model!=null) {
+	    		lastChoice="model";
 				Graphics g = getGraphics();
-				setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
+				//setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
 				this.paintModel(g, model);
 				this.paintMask(g);
 			}
@@ -1403,6 +1402,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    
 	    public void repaintPosterOnly() {
 	    	if (poster!=null) {
+	    		lastChoice="poster";
 				Graphics g = getGraphics();
 				this.paintPoster(g, poster);
 				this.paintMask(g);
@@ -1446,6 +1446,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 		public void setInverted(boolean inverted) {
 			this.inverted = inverted;
+		}
+
+		private void setMaskCursorWithSize(int radius) {
+			//TODO recrate cursors as 32x32 pics!
+			Toolkit toolkit = java.awt.Toolkit.getDefaultToolkit();
+			Image image = toolkit.getImage(SeeneToolkit.class.getResource("/images/cursor" + radius + ".png"));
+			Cursor cu = toolkit.createCustomCursor(image , new Point((radius + radius / 2) + 1, (radius + radius / 2) + 1), "");
+			setCursor(cu);
 		}
 	}
 
