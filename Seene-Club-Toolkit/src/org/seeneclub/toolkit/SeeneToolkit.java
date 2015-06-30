@@ -11,6 +11,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Menu;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Toolkit;
@@ -139,6 +140,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem taskBackupPrivate = new JMenuItem("retrieve my private seenes");
     JMenuItem taskBackupOther = new JMenuItem("retrieve someone else's seenes");
     JMenuItem taskBackupByURL = new JMenuItem("retrieve public seene by URL");
+    
+    // Mask Menu Items
+    JMenuItem maskAll = new JMenuItem("mask all");
+    JMenuItem maskRemove = new JMenuItem("remove mask");
+    JMenuItem maskInvert = new JMenuItem("invert mask");
+    JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
     
     // Tests Menu Items
     JMenuItem testDoLogin = new JMenuItem("Test Login");
@@ -614,13 +621,27 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         taskMenu.add(taskBackupOther);
         taskMenu.add(taskBackupByURL);
         
-        JMenu testMenu = new JMenu("Tests");
-        testDoLogin.addActionListener(this);
+        JMenu maskMenu = new JMenu("Mask operations");
         
-        testMenu.add(testDoLogin);
+        maskAll.addActionListener(this);
+        maskRemove.addActionListener(this);
+        maskInvert.addActionListener(this);
+        maskSetDepth.addActionListener(this);
+        
+        maskMenu.add(maskAll);
+        maskMenu.add(maskRemove);
+        maskMenu.add(maskInvert);
+        maskMenu.add(maskSetDepth);
+        
+        
+        //JMenu testMenu = new JMenu("Tests");
+        //testDoLogin.addActionListener(this);
+        
+        //testMenu.add(testDoLogin);
                 
         bar.add(fileMenu);
         bar.add(taskMenu);
+        bar.add(maskMenu);
         //bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
@@ -1108,6 +1129,28 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	parsePool(storage.getOthersDir());	
 	    } else if (arg0.getSource() == this.btPoolLocalSeenes) {
 	    	parsePool(storage.getOfflineDir());	    	
+	    } /* MASK Menu */ 
+	      else if(arg0.getSource() == this.maskAll) {
+	    	 modelDisplay.doMaskAll();
+	    	 modelDisplay.repaintLastChoice();
+	    } else if(arg0.getSource() == this.maskRemove) {
+	    	 modelDisplay.doMaskRemove();
+	    	 modelDisplay.repaintLastChoice();
+	    } else if(arg0.getSource() == this.maskInvert) {
+	    	 modelDisplay.doMaskInvert();
+	    	 modelDisplay.repaintLastChoice();
+	    } else if(arg0.getSource() == this.maskSetDepth) {
+	    	try {
+		    	 float dep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Depth to set:",
+							"Setting a fixed depth for masked area", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+		    	 if ((dep > 0)) {
+		    		 modelDisplay.doMaskSetDepth(dep);
+			    	 modelDisplay.repaintLastChoice();
+		    	 }
+	    	} catch (Exception ex) {
+	    		log(ex.toString(),LogLevel.debug);
+	    	}
+	    	 
 	    }
 	}
 	
@@ -1202,6 +1245,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		private List<Boolean> mask = new ArrayList<Boolean>();
 		int maskBrushRadius = 2;
 		public String lastChoice = "";
+		float rememberedFloat = 0.4f;
 
 		public int canvasSize=240;
 		public int pointSize=2;
@@ -1226,8 +1270,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        // MouseListener for Painting the Mask
 	        addMouseListener(new MouseAdapter(){
 	        	int w = 0;
+	        	int h = 0;
+	        	int ndx = 0;
 	        	int mOffX = 0;
 	        	int mOffY = 0;
+	        	int last_n = 0;
+	        	Boolean maskPaintMode;
 	        	
 	        	volatile private boolean mouseDown = false;
 	        	
@@ -1236,27 +1284,37 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	}
 	        	
 	        	public void mousePressed(MouseEvent e) {
-	        	    if (e.getButton() == MouseEvent.BUTTON1) {
+	        	    if ((e.getButton() == MouseEvent.BUTTON1) || 
+	        	    	(e.getButton() == MouseEvent.BUTTON2) ||
+	        	    	(e.getButton() == MouseEvent.BUTTON3)) {
+	        	    	if (e.getButton() == MouseEvent.BUTTON1) maskPaintMode = true;
+	        	    	if (e.getButton() == MouseEvent.BUTTON3) maskPaintMode = false;
 	        	        mouseDown = true;
 	        	        if (model!=null) {
 	        	        	w = model.getDepthWidth();
+	        	        	h = model.getDepthHeight();
+	        	        	ndx = w * h;
 	        	        	mOffX = MouseInfo.getPointerInfo().getLocation().x - e.getX();
 	        	        	mOffY = MouseInfo.getPointerInfo().getLocation().y - e.getY();
 	        	        	// DepthPoint Info
-	        	        	initMaskPaintThread();
-	        	        	float max = model.getMaxFloat();
-	        	        	int mx = w - e.getX() / pointSize - 1;
-    						int my = e.getY() / pointSize;
-    						int n = mx * w + my;
-    						float f = model.getFloats().get(n);
-    						float cf = floatGreyScale(f, max);
-	        	        	log(mx +  " - " + my + " - float number: " + n + " - float value: " + f + " - color: " + cf,LogLevel.debug);
+	        	        	if (e.getButton() != MouseEvent.BUTTON2) {
+	        	        		initMaskPaintThread();
+	        	        	} else {
+		        	        	float max = model.getMaxFloat();
+		        	        	int mx = w - e.getX() / pointSize - 1;
+	    						int my = e.getY() / pointSize;
+	    						int n = mx * w + my;
+	    						float f = model.getFloats().get(n);
+	    						float cf = floatGreyScale(f, max);
+		        	        	log("\nx: " + mx +  " - y: " + my + "\nfloat number: " + n + "\nfloat value: " + f + "\ncolor value: " + cf,LogLevel.info);
+		        	        	setRememberedFloat(f);
+	        	        	}
 	        	        }
 	        	    }
 	        	}
 	        	
 	        	public void mouseReleased(MouseEvent e) {
-	        	    if (e.getButton() == MouseEvent.BUTTON1) {
+	        		if ((e.getButton() == MouseEvent.BUTTON1) || (e.getButton() == MouseEvent.BUTTON3)) {
 	        	        mouseDown = false;
 	        	        if (lastChoice=="model") repaintModelOnly();
 	        	        if (lastChoice=="poster") repaintPosterOnly();
@@ -1278,19 +1336,23 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	                do {
 	        	                	int mx = w - (MouseInfo.getPointerInfo().getLocation().x - mOffX) / pointSize - 1;
 	        						int my = (MouseInfo.getPointerInfo().getLocation().y - mOffY) / pointSize;
-	        						// TODO check if in bounds!!!
+	        						int n=0;
 	        						if (maskBrushRadius>0) {
 	        							for (int bx=0-maskBrushRadius;bx<maskBrushRadius;bx++) {
 	        								for (int by=0-maskBrushRadius;by<maskBrushRadius;by++) {
-	        									int n = (mx + bx) * w + (my + by);
-	        									mask.set(n, true);
+	        									n = (mx + bx) * w + (my + by);
+	        									if ((n >= 0) && ( n < ndx) && ((my + by) < h) && ((my + by) >= 0)) mask.set(n, maskPaintMode);
 	        								}
 	        							}
 	        						} else {
-	        							int n = mx * w + my;
-    									mask.set(n, true);
+	        							n = mx * w + my;
+	        							if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) mask.set(n, maskPaintMode);
+	        							System.out.println(my);
 	        						}
-	        						repaintMaskOnly();
+	        						if (n!=last_n) {
+	        							repaintLastChoice();
+	        							last_n=n;
+	        						} else { repaintMaskOnly(); }
 	        						
 	        	                } while (mouseDown);
 	        	                isRunning = false;
@@ -1302,7 +1364,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    }
 
 
-	    public void paint(Graphics g){
+		public void paint(Graphics g){
 	    	paintModel(g,model);
 	    	paintPoster(g, poster);
 	    	paintMask(g);
@@ -1375,6 +1437,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	return 1 - value/maximum;
 	    }
 	    
+	    private void repaintLastChoice() {
+	    	if (lastChoice=="model") repaintModelOnly();
+			if (lastChoice=="poster") repaintPosterOnly();
+	    }
+	    
 	    private void repaintGraphics() {
 	    	if ((model!=null) && (poster!=null)) {
 				Graphics g = getGraphics();
@@ -1409,6 +1476,42 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			}
 	    }
 	    
+	    private void setMaskCursorWithSize(int radius) {
+			//TODO recreate cursors as 32x32 pics!
+			Toolkit toolkit = java.awt.Toolkit.getDefaultToolkit();
+			Image image = toolkit.getImage(SeeneToolkit.class.getResource("/images/cursor" + radius + ".png"));
+			Cursor cu = toolkit.createCustomCursor(image , new Point((radius + radius / 2) + 1, (radius + radius / 2) + 1), "");
+			setCursor(cu);
+		}
+	    
+	    // Mask Operation Methods
+	    public void doMaskAll() {
+	    	if (model!=null) mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), true));
+	    }
+	    
+	    public void doMaskRemove() {
+	    	if (model!=null) mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    }
+	    
+	    public void doMaskInvert() {
+	    	if (model!=null) {
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			mask.set(n, !mask.get(n));
+	    		}
+	    	}
+	    }
+	    
+	    public void doMaskSetDepth(float dep) {
+	    	if (model!=null) {
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) {
+	    				model.getFloats().set(n, dep);
+	    			}
+	    		}
+	    		model=findModelExtema(model);
+	    	}
+		}
+	    
 	    // Getter and Setter
 	    public SeeneObject getSeeneObject() {
 			return seeneObject;
@@ -1424,7 +1527,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 		public void setModel(SeeneModel model) {
 			this.model = model;
-			mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+			doMaskRemove();
 			repaintModelOnly();
 		}
 		public int getPointSize() {
@@ -1447,13 +1550,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		public void setInverted(boolean inverted) {
 			this.inverted = inverted;
 		}
-
-		private void setMaskCursorWithSize(int radius) {
-			//TODO recrate cursors as 32x32 pics!
-			Toolkit toolkit = java.awt.Toolkit.getDefaultToolkit();
-			Image image = toolkit.getImage(SeeneToolkit.class.getResource("/images/cursor" + radius + ".png"));
-			Cursor cu = toolkit.createCustomCursor(image , new Point((radius + radius / 2) + 1, (radius + radius / 2) + 1), "");
-			setCursor(cu);
+		public float getRememberedFloat() {
+			return rememberedFloat;
+		}
+		public void setRememberedFloat(float rememberedFloat) {
+			this.rememberedFloat = rememberedFloat;
 		}
 	}
 
@@ -1518,6 +1619,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			public void actionPerformed(java.awt.event.ActionEvent e) {
             	currentSeene.setCaption(tfCaption.getText());
             	doUploadSeene(storage.getUploadsDir() ,currentSeene);
+            	uploadDialog.remove(gridPanel);
+            	uploadDialog.dispose();
             }
     	});
 		
