@@ -11,7 +11,6 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.Menu;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Toolkit;
@@ -134,6 +133,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     static String seeneUser = new String();
     static String seenePass = new String();
     static String seeneAPIid = new String();
+    static ProxyData pd = new ProxyData(null, 0);
 	
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("retrieve my public seenes");
@@ -331,17 +331,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
 	}
 	
-	
-    private void doTestLogin() {
-		try {
-			SeeneAPI.Token token = SeeneAPI.login(seeneAPIid,seeneUser,seenePass);
-					
-			log(token.api_token,LogLevel.info);
-		} catch (Exception e) {
-			log(e.getMessage(),LogLevel.error);
-			
-		}
-	}	
+
     
     public static Thread getThreadByName(String threadName) {
         for (Thread t : Thread.getAllStackTraces().keySet()) {
@@ -356,13 +346,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     private static void doTaskBackupPublicSeenes(File targetDir, int last) {
     	try {
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+
+    		SeeneAPI myAPI = new SeeneAPI(pd);
     	
     		log("Resolving name to id", LogLevel.info);
-			String userId = SeeneAPI.usernameToId(seeneUser);
+			String userId = myAPI.usernameToId(seeneUser);
 			log("Seene user: " + userId, LogLevel.debug);
 
 			log("Getting index of last " + last + " public seenes", LogLevel.info);
-			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, last);
+			List<SeeneObject> index = myAPI.getPublicSeenes(userId, last);
 			log("You have at least " + index.size() + " public seenes", LogLevel.info);
 			
 			downloadInThreads(index, targetDir, 4);
@@ -376,13 +368,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     private static void doTaskBackupOtherSeenes(File targetDir, String username, int count) {
     	try {
     		log("Others Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    		
+    		SeeneAPI myAPI = new SeeneAPI(pd);
     	
     		log("Resolving name to id", LogLevel.info);
-			String userId = SeeneAPI.usernameToId(username);
+			String userId = myAPI.usernameToId(username);
 			log("Seene user: " + userId, LogLevel.debug);
 
 			log("Getting index of " + username + "'s last " + count + " public seenes", LogLevel.info);
-			List<SeeneObject> index = SeeneAPI.getPublicSeenes(userId, count);
+			List<SeeneObject> index = myAPI.getPublicSeenes(userId, count);
 			log(username + " has at least " + index.size() + " public seenes", LogLevel.info);
 			
 			downloadInThreads(index, targetDir, 4);
@@ -397,7 +391,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	try {
     		log("Seene will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
     		
-    		List<SeeneObject> index = SeeneAPI.getPublicSeeneByURL(surl);
+    		SeeneAPI myAPI = new SeeneAPI(pd);
+    		
+    		List<SeeneObject> index = myAPI.getPublicSeeneByURL(surl);
     		downloadInThreads(index, targetDir, 1);
 			
 		} catch (Exception e) {
@@ -411,20 +407,22 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     private static void doTaskBackupPrivateSeenes(File targetDir, int last) {
     	try {
         	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+        	
+        	SeeneAPI myAPI = new SeeneAPI(pd);
     	
         	log("Resolving name to id", LogLevel.info);
-			String userId = SeeneAPI.usernameToId(seeneUser);
+			String userId = myAPI.usernameToId(seeneUser);
 			log("Seene user: " + userId, LogLevel.debug);
 
 			Token token;
 			{
 				// @TODO Mathias, we may cache the token someday
 				log("Logging in",LogLevel.info);
-				token = SeeneAPI.login(seeneAPIid, seeneUser, seenePass);
+				token = myAPI.login(seeneAPIid, seeneUser, seenePass);
 			}
 					
 			log("Getting index of last " + last + " private seenes",LogLevel.info);
-			List<SeeneObject> index = SeeneAPI.getPrivateSeenes(token, userId, last);
+			List<SeeneObject> index = myAPI.getPrivateSeenes(token, userId, last);
 			log("You have at least " + index.size() + " private seenes", LogLevel.info);
 			
 			downloadInThreads(index, targetDir, 4);
@@ -440,8 +438,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     
     private static void doUploadSeene(File uploadsLocalDir,SeeneObject sO) {
     	try {
-			Token token = SeeneAPI.login(seeneAPIid, seeneUser, seenePass);
-			SeeneAPI.uploadSeene(uploadsLocalDir, sO, seeneUser, token);
+    		SeeneAPI myAPI = new SeeneAPI(pd);
+			Token token = myAPI.login(seeneAPIid, seeneUser, seenePass);
+			myAPI.uploadSeene(uploadsLocalDir, sO, seeneUser, token);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -480,7 +479,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			
 				for(SeeneObject o : toDownloadIndex) {
 					//downloadSeene(o,targetDir);
-					SeeneDownloader sd = new SeeneDownloader(o, targetDir, seeneUser);
+					SeeneDownloader sd = new SeeneDownloader(o, targetDir, seeneUser, pd);
 					SeeneDownloadCompleteListener l = new SeeneDownloadCompleteListener() {
 						
 						@Override
@@ -1119,8 +1118,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				};
 				dlThread.start();
 			}
-		} else if(arg0.getSource() == this.testDoLogin) {
-	    	doTestLogin();
 	    } else if (arg0.getSource() == this.btPoolPublicSeenes) {
 	    	parsePool(storage.getPublicDir());
 	    } else if (arg0.getSource() == this.btPoolPrivateSeenes) {
@@ -1700,6 +1697,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 							 if (tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + XOREncryption.xorIt(seenePass));
 						}
 						
+						// Write Proxy Settings (not in dialog)
+						writer.println("proxy.host=" + pd.getHost());
+						writer.println("proxy.port=" + pd.getPortString());
+						writer.println("proxy.user=" + pd.getUser());
+						writer.println("proxy.pass=" + pd.getPass());
+						
 		    			writer.close();
 		    			log("new configuration file " + configFile.getPath() + " written!",LogLevel.info);
 		    			
@@ -1795,6 +1798,22 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("passphrase="))) {
     					log("configured passphrase: " + line.substring(11),LogLevel.debug);
     					seenePass = XOREncryption.xorIt(line.substring(11));
+    				}
+    				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.host="))) {
+    					log("configured proxy.host: " + line.substring(11),LogLevel.debug);
+    					pd.setHost(line.substring(11));
+    				}
+    				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.port="))) {
+    					log("configured proxy.port: " + line.substring(11),LogLevel.debug);
+    					pd.setPort(line.substring(11));
+    				}
+    				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.user="))) {
+    					log("configured proxy.user: " + line.substring(11),LogLevel.debug);
+    					pd.setUser(line.substring(11));
+    				}
+    				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.pass="))) {
+    					log("configured proxy.pass: " + line.substring(11),LogLevel.debug);
+    					pd.setPass(line.substring(11));
     				}
     				
     			}
