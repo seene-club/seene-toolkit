@@ -17,12 +17,14 @@ public class SeeneDownloader extends Thread {
 	private SeeneObject seeneObject;
 	private File targetDir;
 	private String username;
+	private ProxyData proxyData;
 	
 
-	SeeneDownloader(SeeneObject seeneObject, File targetDir, String username) {
+	SeeneDownloader(SeeneObject seeneObject, File targetDir, String username, ProxyData proxyData) {
 		this.seeneObject = seeneObject;
 		this.targetDir = targetDir;
 		this.username = username;
+		this.proxyData = proxyData;
 	}
 	
 	private final Set<SeeneDownloadCompleteListener> listeners = new CopyOnWriteArraySet<SeeneDownloadCompleteListener>();
@@ -53,8 +55,8 @@ public class SeeneDownloader extends Thread {
     	
 			if (!seeneFolder.exists()) {
 				seeneTempFolder.mkdirs();
-				successTexture = Helper.downloadFile(seeneObject.getPosterURL(), seeneTempFolder);
-				successModel = Helper.downloadFile(seeneObject.getModelURL(), seeneTempFolder);
+				successTexture = Helper.downloadFile(seeneObject.getPosterURL(), proxyData, seeneTempFolder);
+				successModel = Helper.downloadFile(seeneObject.getModelURL(), proxyData, seeneTempFolder);
 			} else {
 				org.seeneclub.toolkit.SeeneToolkit.log(seeneFolder.getAbsolutePath() + " already exists!", LogLevel.info);
 			}
@@ -94,5 +96,13 @@ public class SeeneDownloader extends Thread {
 
 	public void setTargetDir(File targetDir) {
 		this.targetDir = targetDir;
+	}
+
+	public ProxyData getProxyData() {
+		return proxyData;
+	}
+
+	public void setProxyData(ProxyData proxyData) {
+		this.proxyData = proxyData;
 	}
 }

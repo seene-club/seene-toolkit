@@ -11,8 +11,12 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.net.Authenticator;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -51,6 +55,12 @@ import com.vdurmont.emoji.EmojiParser;
 
 @SuppressWarnings({ "rawtypes", "deprecation" })
 public class SeeneAPI {
+	
+	private ProxyData proxyData;
+	
+	public SeeneAPI(ProxyData proxyData) {
+		this.proxyData = proxyData;
+	}
 
 	public static class Token {
 		public String api_id;
@@ -64,7 +74,7 @@ public class SeeneAPI {
 	}
 	
 	/// can be cached until expires; if expires is null, cached forever.
-	public static Token login(String apiId, String username, String password) throws Exception {
+	public Token login(String apiId, String username, String password) throws Exception {
 		
 		if ((apiId.length() == 0) || (apiId.equals("<insert Seene API ID here>"))) {
 			//SeeneToolkit.log("API-ID not configured!\nTrying to retrieve from remote service...",LogLevel.info);
@@ -80,10 +90,8 @@ public class SeeneAPI {
 		Map<String,String> params = new HashMap<String,String>();
 		params.put("username", username);
 		params.put("password", password);
-		Map map = request(result, 
-				"POST", 
-				new URL("https://oecamera.herokuapp.com/api/users/authenticate"), 
-				params);
+		Map map = request(result, "POST", 
+				new URL("https://oecamera.herokuapp.com/api/users/authenticate"),params);
 		result.api_token = (String) map.get("api_token");
 		result.api_token_expires_at = parseISO8601((String)map.get("api_token_expires_at"));
 		return result;
@@ -168,8 +176,36 @@ public class SeeneAPI {
 	    return result.toString();
 	}
 	
-	private static Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {
-		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+	private Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {
+		
+		HttpURLConnection conn = null;
+		
+		// Proxy configured?
+		if ((proxyData!=null) && (proxyData.getHost().length()>0)) {
+			Proxy proxy = new Proxy(Proxy.Type.HTTP, 
+					new InetSocketAddress(proxyData.getHost(), proxyData.getPort()));
+			
+			// Proxy with Authentication?
+			if (proxyData.getUser().length()>0) {
+				Authenticator authenticator = new Authenticator() {
+		
+			        public PasswordAuthentication getPasswordAuthentication() {
+			            return (new PasswordAuthentication(proxyData.getUser(),
+			                    proxyData.getPass().toCharArray()));
+			        }
+			    };
+			    Authenticator.setDefault(authenticator);
+			}
+			
+		    // Connection with Proxy!
+			SeeneToolkit.log("Using Proxy: " + proxyData.getHost(), LogLevel.debug);
+		    conn = (HttpURLConnection) url.openConnection(proxy);
+		} else {
+			// Connection without Proxy!
+			SeeneToolkit.log("Using NO Proxy!", LogLevel.debug);
+			conn = (HttpURLConnection) url.openConnection();
+		}
+		
 		conn.setReadTimeout(20000);
 		conn.setConnectTimeout(15000);
 	    conn.setRequestMethod(method);
@@ -195,18 +231,16 @@ public class SeeneAPI {
 		}
 
 	    conn.connect();
-
+	    
 	    // create JSON object from content
 	    return (Map)JSONValue.parseWithException(
 	    		new InputStreamReader(conn.getInputStream(), 
 	    				StandardCharsets.UTF_8));
 	}
 	
-	public static String usernameToId(String username) throws Exception {
-		Map map = request(null, 
-				"GET", 
-				new URL("http://seene.co/api/seene/-/users/@" + username), 
-				null);
+	public  String usernameToId(String username) throws Exception {
+		Map map = request(null, "GET", 
+				new URL("http://seene.co/api/seene/-/users/@" + username), null);
 		return map.get("id").toString();
 	}
 	
@@ -225,7 +259,7 @@ public class SeeneAPI {
 		return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").parse(s);
     }
 	
-	public static List<SeeneObject> getPublicSeenes(String userId, int last) throws Exception {
+	public List<SeeneObject> getPublicSeenes(String userId, int last) throws Exception {
 		Map map = request(null, 
 				"GET", 
 				new URL(String.format("http://seene.co/api/seene/-/users/%s/scenes?count=%d", userId, last)), 
@@ -234,7 +268,7 @@ public class SeeneAPI {
 		return createFromResponse(map);    	
 	}
 
-	public static List<SeeneObject> getPrivateSeenes(Token token, String userId, int last) throws Exception {
+	public List<SeeneObject> getPrivateSeenes(Token token, String userId, int last) throws Exception {
 		Map map = request(token, 
 				"GET", 
 				new URL(String.format("https://oecamera.herokuapp.com/api/users/%s/scenes?count=%d&only_private=1", userId, last)), 
@@ -245,7 +279,7 @@ public class SeeneAPI {
 	
 	
 	@SuppressWarnings("deprecation")
-	public static void uploadSeene(File uploadsLocalDir, SeeneObject sO, String username, Token token) throws MalformedURLException, Exception {
+	public void uploadSeene(File uploadsLocalDir, SeeneObject sO, String username, Token token) throws MalformedURLException, Exception {
 		Map<String,String> params = new HashMap<String,String>();
 		
 		params.put("caption", sO.getCaption());
@@ -371,7 +405,7 @@ public class SeeneAPI {
 	    return count;
 	}
 	
-	public static List<SeeneObject> getPublicSeeneByURL(String surl) throws Exception {
+	public List<SeeneObject> getPublicSeeneByURL(String surl) throws Exception {
 		 
 		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
 		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
@@ -414,6 +448,14 @@ public class SeeneAPI {
 		s.setUserinfo((String)u.get("username"));
 		s.setAvatarURL(new URL((String)u.get("avatar_url")));
 		return s;
+	}
+
+	// Getter and Setter
+	public ProxyData getProxyData() {
+		return proxyData;
+	}
+	public void setProxyData(ProxyData proxyData) {
+		proxyData = proxyData;
 	}
 
 }

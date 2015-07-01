@@ -9,6 +9,11 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.Authenticator;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
 import java.net.URL;
 
 import javax.imageio.ImageIO;
@@ -82,10 +87,38 @@ public class Helper {
 	
 		
     // downloads a File to a target Directory
-    public static boolean downloadFile(URL fU, File sFolder) {
+    public static boolean downloadFile(URL fU,ProxyData proxyData, File sFolder) {
     	File dF = new File(sFolder.getAbsolutePath() + File.separator + getDownloadFileName(fU));
+    	
+    	BufferedInputStream in = null;
+    	
     	try {
-    		BufferedInputStream in = new BufferedInputStream(fU.openStream());
+    		// Proxy configured?
+    		if ((proxyData!=null) && (proxyData.getHost().length()>0)) {
+    			Proxy proxy = new Proxy(Proxy.Type.HTTP, 
+    					new InetSocketAddress(proxyData.getHost(), proxyData.getPort()));
+    			
+    			// Proxy with Authentication?
+    			if (proxyData.getUser().length()>0) {
+    				Authenticator authenticator = new Authenticator() {
+    		
+    			        public PasswordAuthentication getPasswordAuthentication() {
+    			            return (new PasswordAuthentication(proxyData.getUser(),
+    			                    proxyData.getPass().toCharArray()));
+    			        }
+    			    };
+    			    Authenticator.setDefault(authenticator);
+    			}
+    			
+    		    // Connection with Proxy!
+    			SeeneToolkit.log("Using Proxy: " + proxyData.getHost(), LogLevel.debug);
+    			in = new BufferedInputStream(fU.openConnection(proxy).getInputStream());
+    		} else {
+    			// Connection without Proxy!
+    			SeeneToolkit.log("Using NO Proxy!", LogLevel.debug);
+    			in = new BufferedInputStream(fU.openConnection().getInputStream());
+    		}
+    	    
 			FileOutputStream fos = new FileOutputStream(dF);
         	BufferedOutputStream bous = new BufferedOutputStream(fos);
         	byte data[] = new byte[1024];
