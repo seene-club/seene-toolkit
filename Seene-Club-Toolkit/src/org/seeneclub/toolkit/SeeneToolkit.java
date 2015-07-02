@@ -8,9 +8,11 @@ import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Desktop;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Toolkit;
@@ -669,6 +671,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         btPoolOtherSeenes.setPreferredSize(new Dimension(55,22));
         btPoolLocalSeenes.setPreferredSize(new Dimension(55,22));
         
+        btPoolPublicSeenes.setMargin(new Insets(0, 0, 0, 0));
+        btPoolPrivateSeenes.setMargin(new Insets(0, 0, 0, 0));
+        btPoolOtherSeenes.setMargin(new Insets(0, 0, 0, 0));
+        btPoolLocalSeenes.setMargin(new Insets(0, 0, 0, 0));
+        
+        btPoolPublicSeenes.setFont(new Font("Arial", Font.PLAIN, 10));
+        btPoolPrivateSeenes.setFont(new Font("Arial", Font.PLAIN, 10));
+        btPoolOtherSeenes.setFont(new Font("Arial", Font.PLAIN, 10));
+        btPoolLocalSeenes.setFont(new Font("Arial", Font.PLAIN, 10));
         
         // Region West-South: displays the seenes in a pool
         panelWestSouth.setBackground(Color.white);
