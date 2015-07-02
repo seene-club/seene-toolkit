@@ -664,6 +664,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         panelWestNorth.add(btPoolOtherSeenes);
         panelWestNorth.add(btPoolLocalSeenes);
         
+        btPoolPublicSeenes.setPreferredSize(new Dimension(55,22));
+        btPoolPrivateSeenes.setPreferredSize(new Dimension(55,22));
+        btPoolOtherSeenes.setPreferredSize(new Dimension(55,22));
+        btPoolLocalSeenes.setPreferredSize(new Dimension(55,22));
+        
+        
         // Region West-South: displays the seenes in a pool
         panelWestSouth.setBackground(Color.white);
         
@@ -1043,7 +1049,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitWestEast.setRightComponent(splitEastNorthSouth);
 		splitWestEast.setOneTouchExpandable(true);
 		splitWestEast.setDividerSize(2);
-		splitWestEast.setDividerLocation(300);
+		splitWestEast.setDividerLocation(250);
 		splitWestEast.setResizeWeight(0.5);
 		
 		return splitWestEast;
