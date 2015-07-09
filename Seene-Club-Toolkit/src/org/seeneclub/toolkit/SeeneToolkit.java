@@ -624,6 +624,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         
         JMenu maskMenu = new JMenu("Mask operations");
         
+        maskAll.setIcon(Helper.iconFromImageResource("maskall.png", 16));
+        maskRemove.setIcon(Helper.iconFromImageResource("masknothing.png", 16));
+        maskInvert.setIcon(Helper.iconFromImageResource("maskinvert.png", 16));
+        maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
+        
         maskAll.addActionListener(this);
         maskRemove.addActionListener(this);
         maskInvert.addActionListener(this);
@@ -632,6 +637,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskAll);
         maskMenu.add(maskRemove);
         maskMenu.add(maskInvert);
+        maskMenu.addSeparator();
         maskMenu.add(maskSetDepth);
         
         
@@ -1154,17 +1160,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	 modelDisplay.doMaskInvert();
 	    	 modelDisplay.repaintLastChoice();
 	    } else if(arg0.getSource() == this.maskSetDepth) {
-	    	try {
-		    	 float dep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Depth to set:",
-							"Setting a fixed depth for masked area", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
-		    	 if ((dep > 0)) {
-		    		 modelDisplay.doMaskSetDepth(dep);
-			    	 modelDisplay.repaintLastChoice();
-		    	 }
-	    	} catch (Exception ex) {
-	    		log(ex.toString(),LogLevel.debug);
-	    	}
-	    	 
+	    	if (modelDisplay.isMasked()) {
+		    	try {
+			    	 float dep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Depth to set:",
+								"Setting a fixed depth for masked area", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+			    	 if ((dep > 0)) {
+			    		 modelDisplay.doMaskSetDepth(dep);
+				    	 modelDisplay.repaintLastChoice();
+			    	 }
+		    	} catch (Exception ex) {
+		    		log(ex.toString(),LogLevel.debug);
+		    	}
+	    	} 
 	    }
 	}
 	
@@ -1518,13 +1525,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    public void doMaskSetDepth(float dep) {
 	    	if (model!=null) {
 	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
-	    			if (mask.get(n)) {
-	    				model.getFloats().set(n, dep);
-	    			}
+	    			if (mask.get(n)) model.getFloats().set(n, dep);
 	    		}
 	    		model=findModelExtema(model);
 	    	}
 		}
+	    
+	    public Boolean isMasked() {
+	    	if (model!=null) {
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) return true;
+	    		}
+	    	}
+	    	return false;
+		}
+	    
 	    
 	    // Getter and Setter
 	    public SeeneObject getSeeneObject() {
