@@ -847,33 +847,42 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         // Region East-North: Seene display & Toolbar
         ActionListener toolbarListener = new ActionListener() {
             public void actionPerformed(ActionEvent event) {
-              if(event.getSource() == tbSaveLocal) {
-            	  String localname = (String)JOptionPane.showInputDialog(mainFrame, "Give your Seene a name:",
-                          "Saving as local Seene", JOptionPane.PLAIN_MESSAGE, null, null, currentSeene.getLocalname());
-      			
-            	  if ((localname != null) && (localname.length() > 0)) {
-            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
-            		  savePath.mkdirs();
-            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
-            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
-            		  currentSeene.setLocalname(localname);
-            		  currentSeene.getModel().saveModelDateToFile(mFile);
-            		  currentSeene.getPoster().saveTextureToFile(pFile);
-            		  Helper.createFolderIcon(savePath, null);
-            		  parsePool(storage.getOfflineDir());
-            		  btPoolLocalSeenes.getModel().setSelected(true);
-            	  } else {
-            		  JOptionPane.showMessageDialog(null,  "Aborted. Seene not saved!", "Seene not saved.", JOptionPane.ERROR_MESSAGE);
-            	  }
+              if (event.getSource() == tbSaveLocal) {
+            	  if (modelDisplay.getModel()!=null) {
+	            	  String localname = (String)JOptionPane.showInputDialog(mainFrame, "Give your Seene a name:",
+	                          "Saving as local Seene", JOptionPane.PLAIN_MESSAGE, null, null, currentSeene.getLocalname());
+	      			
+	            	  if ((localname != null) && (localname.length() > 0)) {
+	            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
+	            		  savePath.mkdirs();
+	            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
+	            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+	            		  currentSeene.setLocalname(localname);
+	            		  currentSeene.getModel().saveModelDateToFile(mFile);
+	            		  currentSeene.getPoster().saveTextureToFile(pFile);
+	            		  Helper.createFolderIcon(savePath, null);
+	            		  parsePool(storage.getOfflineDir());
+	            		  btPoolLocalSeenes.getModel().setSelected(true);
+	            	  } else {
+	            		  JOptionPane.showMessageDialog(mainFrame,  "Aborted. Seene not saved!", "Seene not saved.", JOptionPane.ERROR_MESSAGE);
+	            	  }
+            	  } else { showNoSeeneThereDialog("Can't save!"); }
+            		  
               }
               if(event.getSource() == tbShowModel) {
-            	  modelDisplay.repaintModelOnly();
+            	  if (modelDisplay.getModel()!=null) {
+            		  modelDisplay.repaintModelOnly();
+            	  } else { showNoSeeneThereDialog("Can't show model!"); }
               }
               if(event.getSource() == tbShowPoster) {
-            	  modelDisplay.repaintPosterOnly();
+            	  if (modelDisplay.getModel()!=null) {
+            		  modelDisplay.repaintPosterOnly();
+            	  } else { showNoSeeneThereDialog("Can't show poster!"); }
               }
               if(event.getSource() == tbUploadSeene) {
-            	  showUploadDialog();
+            	  if (modelDisplay.getModel()!=null) {
+            		  showUploadDialog();
+            	  } else { showNoSeeneThereDialog("Can't upload!"); }
               }
             }
         };
@@ -913,6 +922,13 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
         
+	}
+	
+	public void showNoSeeneThereDialog(String title) {
+		JOptionPane.showMessageDialog(mainFrame,  "There's no Seene in the editor!\n" + 
+				"Please double click a Seene from the list on the left side.\n\n" + 
+				"No, Seenes there?\n" +
+				"Please use the 'task' menu to retrieve some!" , title, JOptionPane.WARNING_MESSAGE);
 	}
 	
 	public SeeneObject inlaySeene(SeeneObject sO, String inlayPath, int divisor, int position) {
@@ -1241,19 +1257,27 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	private void openSeene(File seeneFolder) {
 		currentSeene = new SeeneObject(seeneFolder);
 		// load the model-data from file system
-		log("Loading Seene Model: " +  currentSeene.getModelFile().getAbsolutePath(),LogLevel.info);
-		currentSeene.getModel().loadModelDataFromFile();
-		normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
-		normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
-		currentSeene.getPoster().loadTextureFromFile();
-		log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
-		log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
-		
-		modelDisplay.setModel(currentSeene.getModel());
-		modelDisplay.setPoster(currentSeene.getPoster());
-		
-		//mainFrame.setVisible(true);
-		
+		File mf = new File(currentSeene.getModelFile().getAbsolutePath());
+		if (mf.exists()) {
+			log("Loading Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
+			currentSeene.getModel().loadModelDataFromFile();
+			log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
+			log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
+			normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
+			normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
+			modelDisplay.setModel(currentSeene.getModel());
+		} else {
+			JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no model file!", "Can't find model", JOptionPane.ERROR_MESSAGE);
+		}
+			
+		File tf = new File(currentSeene.getPosterFile().getAbsolutePath());
+		if (tf.exists()) {
+			log("Loading Seene Texture: " +  tf.getAbsolutePath(),LogLevel.info);
+			currentSeene.getPoster().loadTextureFromFile();
+			modelDisplay.setPoster(currentSeene.getPoster());
+		} else {
+			JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no poster file!", "Can't find texture", JOptionPane.ERROR_MESSAGE);
+		}
 	}
 	
 	

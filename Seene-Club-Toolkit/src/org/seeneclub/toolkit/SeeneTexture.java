@@ -9,6 +9,8 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
+import org.seeneclub.domainvalues.LogLevel;
+
 public class SeeneTexture {
 	
 	private Image textureImage;
@@ -52,8 +54,7 @@ public class SeeneTexture {
 		try {
 			 textureImage = ImageIO.read(tF);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			SeeneToolkit.log(e.getMessage(),LogLevel.error);
 		}
 		return textureImage;
 	}

@@ -149,8 +149,7 @@ public class SeeneModel {
 		    SeeneToolkit.log("maximum float: " + maxFloat,LogLevel.debug);
 		    
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			SeeneToolkit.log(e.getMessage(),LogLevel.error);
 		}
 		
 		return mFloats; 
