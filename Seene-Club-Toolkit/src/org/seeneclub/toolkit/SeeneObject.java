@@ -25,6 +25,11 @@ public class SeeneObject {
 	private SeeneModel model;
 	private SeeneTexture poster;
 	
+	// XMP Components
+	private File XMP_unblurred;		// poster_unblurred.jpg
+	private File XMP_depthpng;		// poster_depth.png
+	private File XMP_combined;		// poster_xmp.jpg
+	
 	// AWS-Metadata (upload)
 	private SeeneAWS awsmeta;
 
@@ -48,6 +53,9 @@ public class SeeneObject {
 	    	  if (seeneFolder.isDirectory()) {
 	    		  setModel(new SeeneModel(new File(seeneFolder.getAbsolutePath() + File.separator + "scene.oemodel")));
 	    		  setPoster(new SeeneTexture(new File(seeneFolder.getAbsolutePath() + File.separator + "poster.jpg")));
+	    		  setXMP_combined(new File(seeneFolder.getAbsolutePath() + File.separator + "poster_xmp.jpg"));
+	    		  setXMP_depthpng(new File(seeneFolder.getAbsolutePath() + File.separator + "poster_depth.png"));
+	    		  setXMP_unblurred(new File(seeneFolder.getAbsolutePath() + File.separator + "poster_unblurred.png"));
 	    	  }
 		}
 	}
@@ -175,5 +183,22 @@ public class SeeneObject {
 	public void setAWSmeta(SeeneAWS awsmeta) {
 		this.awsmeta = awsmeta;
 	}
-
+	public File getXMP_unblurred() {
+		return XMP_unblurred;
+	}
+	public void setXMP_unblurred(File xMP_unblurred) {
+		XMP_unblurred = xMP_unblurred;
+	}
+	public File getXMP_depthpng() {
+		return XMP_depthpng;
+	}
+	public void setXMP_depthpng(File xMP_depthpng) {
+		XMP_depthpng = xMP_depthpng;
+	}
+	public File getXMP_combined() {
+		return XMP_combined;
+	}
+	public void setXMP_combined(File xMP_combined) {
+		XMP_combined = xMP_combined;
+	}
 }

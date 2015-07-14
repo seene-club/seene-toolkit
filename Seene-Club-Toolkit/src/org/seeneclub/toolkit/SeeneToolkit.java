@@ -1267,7 +1267,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
 			modelDisplay.setModel(currentSeene.getModel());
 		} else {
-			JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no model file!", "Can't find model", JOptionPane.ERROR_MESSAGE);
+			//JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no model file!", "Can't find model", JOptionPane.ERROR_MESSAGE);
 		}
 			
 		File tf = new File(currentSeene.getPosterFile().getAbsolutePath());
@@ -1276,8 +1276,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			currentSeene.getPoster().loadTextureFromFile();
 			modelDisplay.setPoster(currentSeene.getPoster());
 		} else {
-			JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no poster file!", "Can't find texture", JOptionPane.ERROR_MESSAGE);
+			//JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no poster file!", "Can't find texture", JOptionPane.ERROR_MESSAGE);
 		}
+		
+		File xf = currentSeene.getXMP_combined();
+		if (xf.exists()) {
+			log("Loading XMP combined file: " +  xf.getAbsolutePath(),LogLevel.info);
+			//TODO
+		}
+		
 	}
 	
 	
