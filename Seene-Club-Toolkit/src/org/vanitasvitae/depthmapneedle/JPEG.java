@@ -2,6 +2,7 @@ package org.vanitasvitae.depthmapneedle;
 
 
 import java.io.File;
+import java.util.Base64;
 
 /**
  * Created by vanitas on 28.04.15.
@@ -67,6 +68,25 @@ public class JPEG extends Const
         this.base64 = wrapper;
 		this.init(IO.read(new File(filename)), filename);
 	}
+	
+	public JPEG(String filename) {
+        this.base64 = new Base64Wrapper(){
+			@Override
+			public byte[] decode(byte[] data)
+			{
+				return Base64.getDecoder().decode(data);
+			}
+
+			@Override
+			public byte[] encode(byte[] data)
+			{
+				return Base64.getEncoder().encode(data);
+			}
+		};
+		this.init(IO.read(new File(filename)), filename);
+	}
+	
+	
 
 	/**
 	 * Disassemble the rawData byte array into sub arrays
@@ -87,8 +107,8 @@ public class JPEG extends Const
 	public boolean exportDepthMap()
 	{
 		String out = m_Filename;
-		if (out.endsWith(".jpg") || out.endsWith(".JPG")) out = out.substring(0, out.length()-4);
-		return this.exportDepthMap(out+"_d.png");
+		if (out.endsWith("_xmp.jpg") || out.endsWith("_xmp.JPG")) out = out.substring(0, out.length()-8);
+		return this.exportDepthMap(out+"_depth.png");
 	}
 
 	/**
@@ -116,8 +136,8 @@ public class JPEG extends Const
 	public boolean exportSourceImage()
 	{
 		String out = m_Filename;
-		if (out.endsWith(".jpg") || out.endsWith(".JPG")) out = out.substring(0, out.length()-4);
-		return this.exportSourceImage(out+"_s.jpg");
+		if (out.endsWith("_xmp.jpg") || out.endsWith("_xmp.JPG")) out = out.substring(0, out.length()-8);
+		return this.exportSourceImage(out+"_unblurred.jpg");
 	}
 
 	/**
@@ -129,6 +149,7 @@ public class JPEG extends Const
 	public boolean exportSourceImage(String file)
 	{
 		byte[] b64 = ArrayUtils.unsign(extractSourceImage());
+		if (b64==null) return false;
 		byte[] src = base64.decode(b64);
 		if (src != null)
 		{
@@ -303,6 +324,10 @@ public class JPEG extends Const
             this.m_Filename = filename;
             this.disassemble();
         }
+	}
+	
+	public byte[] getDepthMap(String filename) {
+		return base64.encode(IO.read(new File(filename)));
 	}
 
 	/**

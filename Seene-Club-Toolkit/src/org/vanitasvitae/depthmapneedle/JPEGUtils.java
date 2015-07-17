@@ -130,10 +130,10 @@ public class JPEGUtils extends Const
 					}
 
 				}
-				System.err.println("JPEGUtils extract found end for \""+new String(key)+"\": false");
+				//System.err.println("JPEGUtils extract found end for \""+new String(key)+"\": false");
 			}
 		}
-		System.err.println("JPEGUtils extract found start for \""+new String(key)+"\": false");
+		//System.err.println("JPEGUtils extract found start for \""+new String(key)+"\": false");
 		return null;
 	}
 
@@ -147,7 +147,7 @@ public class JPEGUtils extends Const
 	{
 		byte[] meta = getXMPBlocksContent(data);
 		byte[] depth = extract(meta, keyGDepthData);
-		if (depth == null) System.err.println("JPEGUtils extractDepthMap is null");
+		//if (depth == null) System.err.println("JPEGUtils extractDepthMap is null");
 		return depth;
 	}
 
@@ -161,7 +161,7 @@ public class JPEGUtils extends Const
 	{
 		byte[] meta = getXMPBlocksContent(data);
 		byte[] src = extract(meta, keyGImageData);
-		if (src == null) System.err.println("JPEGUtils extractSourceImage is null");
+		//if (src == null) System.err.println("JPEGUtils extractSourceImage is null");
 		return src;
 	}
 

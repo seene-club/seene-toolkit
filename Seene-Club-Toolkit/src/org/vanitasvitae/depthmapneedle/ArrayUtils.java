@@ -94,6 +94,7 @@ public class ArrayUtils
 	 */
 	public static byte[] unsign(byte[] b)
 	{
+		if (b==null) return null;
 		byte[] u = new byte[b.length];
 		for (int i = 0; i < b.length; i++)
 			u[i] = (byte) (b[i] & 0xFF);

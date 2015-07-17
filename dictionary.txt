@@ -8,3 +8,4 @@ internet
 username
 temp
 depthmap
+unblurred

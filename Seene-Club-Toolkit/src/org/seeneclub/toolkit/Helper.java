@@ -161,5 +161,16 @@ public class Helper {
         }
         return(directory.delete());
     }
+    
+    public static BufferedImage rotateImage(Image origImage, int new_width, int new_height, int degree) {
+		BufferedImage transformedImage = new BufferedImage(new_width, new_height, BufferedImage.TYPE_INT_ARGB); 
+
+		Graphics2D tGr = transformedImage.createGraphics();
+		tGr.rotate(Math.toRadians(degree), new_width/2, new_height/2);
+		tGr.drawImage(origImage, 0, 0, new_height, new_width, null);
+		tGr.dispose();
+		return transformedImage;
+	}
+
 
 }

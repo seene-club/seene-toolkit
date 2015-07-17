@@ -33,12 +33,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
@@ -76,6 +80,9 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.seeneclub.domainvalues.LogLevel;
 import org.seeneclub.toolkit.SeeneAPI.Token;
+import org.vanitasvitae.depthmapneedle.Base64Wrapper;
+import org.vanitasvitae.depthmapneedle.IO;
+import org.vanitasvitae.depthmapneedle.JPEG;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
@@ -1256,35 +1263,103 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	private void openSeene(File seeneFolder) {
 		currentSeene = new SeeneObject(seeneFolder);
-		// load the model-data from file system
-		File mf = new File(currentSeene.getModelFile().getAbsolutePath());
-		if (mf.exists()) {
-			log("Loading Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
-			currentSeene.getModel().loadModelDataFromFile();
+
+		File mf = currentSeene.getModelFile();
+		File tf = currentSeene.getPosterFile();
+		File xf = currentSeene.getXMP_combined();
+		
+		String loadmode = "unloadable: image and depthmap missing";
+		
+		if ((mf.exists())  && (tf.exists())  && (xf.exists()))  loadmode="model:decision,image:decision";
+		if ((!mf.exists()) && (tf.exists())  && (xf.exists()))  loadmode="model:xmp,image:decision";
+		if ((mf.exists())  && (!tf.exists()) && (xf.exists()))  loadmode="model:decision,image:xmp";
+		if ((!mf.exists()) && (!tf.exists()) && (xf.exists()))  loadmode="model:xmp,image:xmp";
+		if ((mf.exists())  && (tf.exists())  && (!xf.exists())) loadmode="model:proprietary,image:proprietary";
+		if ((mf.exists()) && (!tf.exists())  && (!xf.exists())) loadmode="unloadable: image missing";
+		if ((!mf.exists()) && (tf.exists())  && (!xf.exists())) loadmode="unloadable: depthmap missing";
+		
+		
+		if (loadmode.indexOf("unloadable")>=0) {
+			log(loadmode,LogLevel.error);
+		} else {
+			if (loadmode.indexOf("model:proprietary")>=0) {
+				log("Loading proprietary Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
+				currentSeene.getModel().loadModelDataFromFile();
+			}
+			if (loadmode.indexOf("image:proprietary")>=0) {
+				log("Loading proprietary Seene Texture: " +  tf.getAbsolutePath(),LogLevel.info);
+				currentSeene.getPoster().loadTextureFromFile();
+			}
+			if (loadmode.indexOf("model:xmp")>=0) {
+				String xmpFilepath = xf.getAbsolutePath();
+				log("Loading XMP Model: " + xmpFilepath ,LogLevel.info);
+				JPEG image = new JPEG(xmpFilepath);
+				// Trying to extract the depthmap from the XMP enhanced JPG
+				if (image.exportDepthMap()) {
+					log("Depthmap extracted for file " + xmpFilepath, LogLevel.info);
+					String depthmapFilePath = xmpFilepath.substring(0, xmpFilepath.length()-8) + "_depth.png";
+					//TODO: load depthmap PNG as modeldata
+					try {
+						BufferedImage depthmap = ImageIO.read(new File(depthmapFilePath));
+						int h = depthmap.getHeight();
+						int w = depthmap.getWidth();
+						List<Float> mFloats = new ArrayList<Float>();
+						System.out.println("h:" + h + " -  w:" + w);
+						int c=0;
+						for (int y=0;y<h;y++) {
+							for (int x=0;x<w;x++) {
+								
+								Color col = new Color(depthmap.getRGB(x, y));
+								
+								float f = (float) ( col.getRed() * 5.6f ) / 255 + 0.4f;
+								//System.out.println("R:" + col.getRed() + " - G:" + col.getGreen() + " - B:" + col.getBlue() + " - f:" + f);
+								mFloats.add(f);
+								
+								
+							}
+						}
+						
+						SeeneModel newModel = new SeeneModel();
+						newModel.setDepthHeight(h);
+						newModel.setDepthWidth(w);
+						newModel.setFloats(mFloats);
+						currentSeene.setModel(findModelExtema(newModel));
+						
+						
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+				}
+				
+				else log("There is no Depthmap in file " + xmpFilepath, LogLevel.warn);
+			}
+			if (loadmode.indexOf("image:xmp")>=0) {
+				String xmpFilepath = xf.getAbsolutePath();
+				log("Loading XMP Image: " + xmpFilepath ,LogLevel.info);
+				 try {
+					BufferedImage textureImage = ImageIO.read(xf);
+					SeeneTexture poster = new SeeneTexture(
+							Helper.rotateImage(textureImage, textureImage.getWidth(), textureImage.getHeight(), 270));
+					currentSeene.setPoster(poster);
+				} catch (IOException e) {
+					SeeneToolkit.log(e.getMessage(),LogLevel.error);
+				}
+				
+			}
+			
+			
+			
 			log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
 			log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
 			normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
 			normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
 			modelDisplay.setModel(currentSeene.getModel());
-		} else {
-			//JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no model file!", "Can't find model", JOptionPane.ERROR_MESSAGE);
-		}
-			
-		File tf = new File(currentSeene.getPosterFile().getAbsolutePath());
-		if (tf.exists()) {
-			log("Loading Seene Texture: " +  tf.getAbsolutePath(),LogLevel.info);
-			currentSeene.getPoster().loadTextureFromFile();
 			modelDisplay.setPoster(currentSeene.getPoster());
-		} else {
-			//JOptionPane.showMessageDialog(mainFrame,  "Not a valid Seene!\nReason: there's no poster file!", "Can't find texture", JOptionPane.ERROR_MESSAGE);
+			
+			
 		}
-		
-		File xf = currentSeene.getXMP_combined();
-		if (xf.exists()) {
-			log("Loading XMP combined file: " +  xf.getAbsolutePath(),LogLevel.info);
-			//TODO
-		}
-		
 	}
 	
 	
@@ -1448,13 +1523,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		Image texture = poster.getTextureImage();
 	    		int new_width = canvasSize*getPointSize();
 	    		int new_height = canvasSize*getPointSize();
-	    		BufferedImage textureTransformed = new BufferedImage(new_width, new_height, BufferedImage.TYPE_INT_ARGB); 
-
-			    Graphics2D tGr = textureTransformed.createGraphics();
-			    tGr.rotate(Math.toRadians(90), new_width/2, new_height/2);
-			    tGr.drawImage(texture, 0, 0, new_height, new_width, null);
-			    tGr.dispose();
-			    
+	    		BufferedImage textureTransformed = Helper.rotateImage(texture, new_width, new_height,90);
 	    		g.drawImage(textureTransformed, 0, 0, null);
 	    	}
 	    }
@@ -1890,6 +1959,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	return storageOK;
     }
 	
+	
+
 	public static void log(String logLine, String LogLevelKey) {
 		if (APPLICATION_LOG_MODE.contains(LogLevelKey)) {
 			if (!commandLineUsed) {
