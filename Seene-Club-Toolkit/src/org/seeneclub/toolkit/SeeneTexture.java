@@ -33,16 +33,25 @@ public class SeeneTexture {
 	     this.textureURL = sURL;
 	}
 	
-	public void saveTextureToFile(File tF) {
+	public void saveTextureRotatedToFile(File tF, int degree) {
 		try {
-			BufferedImage bImage      = new BufferedImage(textureImage.getWidth(null), textureImage.getHeight(null), BufferedImage.TYPE_INT_RGB);
+			int w = textureImage.getWidth(null);
+			int h = textureImage.getHeight(null);
+			BufferedImage bImage      = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
 			Graphics2D bImageGraphics = bImage.createGraphics();
+			if (degree != 0) bImageGraphics.rotate(Math.toRadians(degree), w/2, h/2);
 			bImageGraphics.drawImage(textureImage, null, null);
+			bImageGraphics.dispose();
+			
 			ImageIO.write(bImage, "jpg", tF);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	
+	public void saveTextureToFile(File tF) {
+		saveTextureRotatedToFile(tF, 0);
 	}
 	
 	public void loadTextureFromFile() {

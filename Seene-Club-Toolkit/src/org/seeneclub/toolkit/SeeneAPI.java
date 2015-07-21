@@ -321,7 +321,7 @@ public class SeeneAPI {
 		
 		File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
 		File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
-		sO.getModel().saveModelDateToFile(mFile);
+		sO.getModel().saveModelDataToFile(mFile);
 		sO.getPoster().saveTextureToFile(pFile);
 		Helper.createFolderIcon(savePath, null);
 		

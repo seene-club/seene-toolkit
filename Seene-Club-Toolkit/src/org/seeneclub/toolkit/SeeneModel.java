@@ -42,9 +42,9 @@ public class SeeneModel {
 	
 	// Constructors
 	public SeeneModel() {
-		setDepthWidth(240);
-		setDepthHeight(240);
-		mFloats = new ArrayList<Float>(Collections.nCopies(getDepthWidth()*getDepthHeight(), 0.4f));
+		setDepthWidth(STK.WORK_WIDTH);
+		setDepthHeight(STK.WORK_HEIGHT);
+		mFloats = new ArrayList<Float>(Collections.nCopies(getDepthWidth()*getDepthHeight(), STK.INIT_DEPTH));
 	}
 	SeeneModel(File sFile) {
 	     this.modelFile = sFile;
@@ -53,7 +53,7 @@ public class SeeneModel {
 	     this.modelURL = sURL;
 	}
 	
-	public void saveModelDateToFile(File sFile) {
+	public void saveModelDataToFile(File sFile) {
 		try {
 			DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(sFile)));
 			
@@ -80,13 +80,39 @@ public class SeeneModel {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
 	}
 	
-	public void loadModelDataFromFile() {
-		mFloats = loadModelDataFromFile(modelFile);
+	public void saveModelDataToPNG(File pngFile) {
+		BufferedImage pngImage = new BufferedImage(mDepthWidth, mDepthHeight, BufferedImage.TYPE_INT_ARGB);
+		int c = 0;
+		float f;
+		float max = getMaxFloat();
+		for (int x=0;x<mDepthHeight;x++) {
+			for (int y=0;y<mDepthWidth;y++) {
+				f = mFloats.get(c);
+        		pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(f/max,f/max,f/max));
+				c++;
+			}
+		}
+		try {
+			ImageIO.write(pngImage,"PNG",pngFile);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
+	public int getIntFromColor(float Red, float Green, float Blue){
+	    int R = Math.round(255 * Red);
+	    int G = Math.round(255 * Green);
+	    int B = Math.round(255 * Blue);
+
+	    R = (R << 16) & 0x00FF0000;
+	    G = (G << 8) & 0x0000FF00;
+	    B = B & 0x000000FF;
+
+	    return 0xFF000000 | R | G | B;
+	}
 	
 	public List<Float> loadModelDataFromPNG(File pngFile) {
 		try {
@@ -103,12 +129,12 @@ public class SeeneModel {
 		maxFloat = -1;
 		minFloat = 1000;
 		mFloats.clear();
-		if ((mDepthWidth > 240) || (mDepthHeight > 240)) depthmap = resizeDepthmapPNG(depthmap);
 		SeeneToolkit.log("PNG depthmap size is h:" + mDepthWidth + " -  w:" + mDepthHeight,LogLevel.info);
+		if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) depthmap = resizeDepthmapPNG(depthmap);
 		for (int x=0;x<mDepthHeight;x++) {
 			for (int y=0;y<mDepthWidth;y++) {
 				Color col = new Color(depthmap.getRGB(mDepthHeight - 1 - x, y));
-				float f = (float) ( col.getRed() * 5.6f ) / 255 + 0.4f;
+				float f = (float) ( col.getRed() * (6.0f - STK.INIT_DEPTH) ) / 255 + STK.INIT_DEPTH;
 				//System.out.println("R:" + col.getRed() + " - G:" + col.getGreen() + " - B:" + col.getBlue() + " - f:" + f);
 				if (f > maxFloat) maxFloat = f;
 		    	if (f < minFloat) minFloat = f;
@@ -121,10 +147,14 @@ public class SeeneModel {
 	}
 	
 	private BufferedImage resizeDepthmapPNG(BufferedImage depthmap) {
-		depthmap = Helper.resizeImage(depthmap, 240, 240);
+		depthmap = Helper.resizeImage(depthmap, STK.WORK_WIDTH, STK.WORK_HEIGHT);
 		mDepthWidth = depthmap.getHeight();
 		mDepthHeight = depthmap.getWidth();
 		return depthmap;
+	}
+	
+	public void loadModelDataFromFile() {
+		mFloats = loadModelDataFromFile(modelFile);
 	}
 	
 	// Origin of this method is https://github.com/BenVanCitters/SeeneLib---Processing-Library
@@ -190,6 +220,14 @@ public class SeeneModel {
 			
 		    in.close();
 		    
+		    // if depthmap is larger than WORK_WIDTH or WORK_HEIGHT it will be resized to WORK_WIDTH / WORK_HEIGHT
+		    if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) {
+		    	System.out.println(mFile.getPath());
+		    	File pFile = new File(mFile.getAbsolutePath().substring(0,mFile.getAbsolutePath().lastIndexOf(File.separator)) + File.separator + "poster_depth.png");
+		    	saveModelDataToPNG(pFile);
+		    	loadModelDataFromPNG(pFile);
+		    }
+		    	
 		    SeeneToolkit.log("minimum float: " + minFloat,LogLevel.debug);
 		    SeeneToolkit.log("maximum float: " + maxFloat,LogLevel.debug);
 		    

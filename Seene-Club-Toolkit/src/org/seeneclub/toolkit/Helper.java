@@ -25,23 +25,40 @@ public class Helper {
 	
 	public static void createFolderIcon(File sFolder, URL avatarURL) {
 		try {
+			
+			BufferedImage overlayOriginialSize = null;
+
+			// First try to find Seene's proprietary poster.jpg 
 			File jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + "poster.jpg");		// Seene Poster
+			if (jpgPoster.exists()) {
+				overlayOriginialSize = ImageIO.read(jpgPoster);
+			} else {
+				// Second try to find a XMP enhanced JPG
+				jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + "poster_xmp.jpg");
+				if (jpgPoster.exists()) {
+					overlayOriginialSize = ImageIO.read(jpgPoster);
+					overlayOriginialSize = rotateAndResizeImage(overlayOriginialSize, 
+																overlayOriginialSize.getWidth(), 
+																overlayOriginialSize.getHeight(), -90);
+				}
+			}
+			
 			ImageIcon standardFolderIcon = new ImageIcon(SeeneToolkit.class.getResource("/images/folder.png")); // template Folder
-			File combinedFile = new File(sFolder.getAbsolutePath() + File.separator + "folder.png");    // Combined File
+			// transfer icon -> image -> buffered image
+			Image standardFolderImage = standardFolderIcon.getImage();
+			BufferedImage standardFolderBuffered = new BufferedImage(standardFolderImage.getWidth(null), standardFolderImage.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+			
+			// draw the folder image on to the buffered image
+		    Graphics2D bGr = standardFolderBuffered.createGraphics();
+		    bGr.drawImage(standardFolderImage, 0, 0, null);
+		    bGr.dispose();
+			
+			File finishedFolderFile = new File(sFolder.getAbsolutePath() + File.separator + "folder.png");    // Combined File
 			BufferedImage avatar = null;
 			if (avatarURL != null) avatar = ImageIO.read(avatarURL);
     	
-	    	BufferedImage overlayOriginialSize = ImageIO.read(jpgPoster);
-			
 			if (overlayOriginialSize != null) {
-				// transfer icon -> image -> buffered image
-				Image standardFolderImage = standardFolderIcon.getImage();
-				BufferedImage standardFolderBuffered = new BufferedImage(standardFolderImage.getWidth(null), standardFolderImage.getHeight(null), BufferedImage.TYPE_INT_ARGB);
-			    // draw the image on to the buffered image
-			    Graphics2D bGr = standardFolderBuffered.createGraphics();
-			    bGr.drawImage(standardFolderImage, 0, 0, null);
-			    bGr.dispose();
-			    
+
 			    // size calculations
 			    int new_height=standardFolderBuffered.getHeight()/2 + 10;
 			    
@@ -75,7 +92,13 @@ public class Helper {
 				g.drawImage(overlayResized, offsetX, offsetY, null);
 				if (avatarURL != null) g.drawImage(avatarResized, 0, standardFolderBuffered.getHeight()-32, null);
 			
-				ImageIO.write(combined, "PNG", combinedFile);
+				ImageIO.write(combined, "PNG", finishedFolderFile);
+			} else {
+				BufferedImage folderonly = new BufferedImage(standardFolderBuffered.getWidth(), standardFolderBuffered.getHeight(), BufferedImage.TYPE_INT_ARGB);
+				Graphics g = folderonly.getGraphics();
+				g.drawImage(standardFolderBuffered, 0, 0, null);
+				
+				ImageIO.write(folderonly,"PNG",finishedFolderFile);
 			}
 
 		} catch (IOException e) {

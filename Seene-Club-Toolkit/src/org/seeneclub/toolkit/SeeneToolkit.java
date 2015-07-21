@@ -863,10 +863,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
 	            		  savePath.mkdirs();
 	            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
-	            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+	            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster_depth.png");
+	            		  File xFile = new File(savePath.getAbsoluteFile() + File.separator + "poster_xmb.jpg");
+	            		  File tFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+	            		  
 	            		  currentSeene.setLocalname(localname);
-	            		  currentSeene.getModel().saveModelDateToFile(mFile);
-	            		  currentSeene.getPoster().saveTextureToFile(pFile);
+	            		  currentSeene.getModel().saveModelDataToFile(mFile);
+	            		  currentSeene.getPoster().saveTextureToFile(tFile);
+	            		  currentSeene.getPoster().saveTextureRotatedToFile(xFile, 90);
+	            		  currentSeene.getModel().saveModelDataToPNG(pFile);
+	            		  
+	            		  JPEG image = new JPEG(xFile.getAbsolutePath());
+	            		  /*
+	            		   * TODO
+	            		  if (image.injectDepthMap(pFile.getAbsolutePath()))
+	      					System.out.println("Depthmap injected into file "+xFile.getAbsolutePath()+".");
+	            		  else
+	      					System.err.println("Something went wrong while injecting "+pFile.getAbsolutePath()+" into "+xFile.getAbsolutePath());
+	            		  image.save();
+	            		  */
+	            		  
 	            		  Helper.createFolderIcon(savePath, null);
 	            		  parsePool(storage.getOfflineDir());
 	            		  btPoolLocalSeenes.getModel().setSelected(true);
@@ -1208,7 +1224,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    for (int i = files.length - 1; i > -1; i--) {
 		      log(files[i].getAbsolutePath(),LogLevel.debug);
 		      if ((files[i].isDirectory()) && (!files[i].getName().startsWith("."))) {
-			       ImageIcon imgDir = new ImageIcon(files[i].getAbsolutePath() + File.separator + "folder.png");
+		    	   File fPNG = new File(files[i].getAbsolutePath() + File.separator + "folder.png");
+		    	   if (!fPNG.exists()) {
+		    		   Helper.createFolderIcon(files[i], null);
+		    	   }
+			       ImageIcon imgDir = new ImageIcon(fPNG.getAbsolutePath());
 			       String labelname;
 			       if (files[i].getName().length() >= 19) {
 			    	   labelname = files[i].getName().substring(0, 19);
@@ -1374,9 +1394,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		private List<Boolean> mask = new ArrayList<Boolean>();
 		int maskBrushRadius = 2;
 		public String lastChoice = "";
-		float rememberedFloat = 0.4f;
+		float rememberedFloat = STK.INIT_DEPTH;
 
-		public int canvasSize=240;
+		public int canvasSize=STK.WORK_WIDTH;
 		public int pointSize=2;
 		public boolean inverted=true;
 		
