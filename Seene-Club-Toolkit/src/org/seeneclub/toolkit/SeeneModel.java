@@ -1,5 +1,7 @@
 package org.seeneclub.toolkit;
 
+import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -14,6 +16,8 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import javax.imageio.ImageIO;
 
 import org.seeneclub.domainvalues.LogLevel;
 
@@ -84,6 +88,45 @@ public class SeeneModel {
 	}
 	
 	
+	public List<Float> loadModelDataFromPNG(File pngFile) {
+		try {
+			return loadModelDataFromBufferedImage(ImageIO.read(pngFile));
+		} catch (IOException e) {
+			SeeneToolkit.log("Could not load depthmap from " + pngFile.getAbsolutePath(),LogLevel.error);
+		}
+		return null;
+	}
+	
+	private List<Float> loadModelDataFromBufferedImage(BufferedImage depthmap) {
+		mDepthWidth = depthmap.getHeight();
+		mDepthHeight = depthmap.getWidth();
+		maxFloat = -1;
+		minFloat = 1000;
+		mFloats.clear();
+		if ((mDepthWidth > 240) || (mDepthHeight > 240)) depthmap = resizeDepthmapPNG(depthmap);
+		SeeneToolkit.log("PNG depthmap size is h:" + mDepthWidth + " -  w:" + mDepthHeight,LogLevel.info);
+		for (int x=0;x<mDepthHeight;x++) {
+			for (int y=0;y<mDepthWidth;y++) {
+				Color col = new Color(depthmap.getRGB(mDepthHeight - 1 - x, y));
+				float f = (float) ( col.getRed() * 5.6f ) / 255 + 0.4f;
+				//System.out.println("R:" + col.getRed() + " - G:" + col.getGreen() + " - B:" + col.getBlue() + " - f:" + f);
+				if (f > maxFloat) maxFloat = f;
+		    	if (f < minFloat) minFloat = f;
+				mFloats.add(f);
+			}
+		}
+		SeeneToolkit.log("minimum float: " + minFloat,LogLevel.debug);
+	    SeeneToolkit.log("maximum float: " + maxFloat,LogLevel.debug);
+		return mFloats;
+	}
+	
+	private BufferedImage resizeDepthmapPNG(BufferedImage depthmap) {
+		depthmap = Helper.resizeImage(depthmap, 240, 240);
+		mDepthWidth = depthmap.getHeight();
+		mDepthHeight = depthmap.getWidth();
+		return depthmap;
+	}
+	
 	// Origin of this method is https://github.com/BenVanCitters/SeeneLib---Processing-Library
 	private List<Float> loadModelDataFromFile(File mFile) {
 		try {
@@ -132,6 +175,8 @@ public class SeeneModel {
 		    
 		    int floatCount = mDepthWidth * mDepthHeight;
 		    mFloats.clear();
+		    maxFloat = -1;
+			minFloat = 1000;
 		    float scale = 1;
 		    float f;
 		    for(int i = 0; i<floatCount;i++)

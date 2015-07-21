@@ -61,6 +61,10 @@ public class SeeneObject {
 	}
 	
 	// Getter and Setter
+	
+	public void setModelfromXMP_depthpng() {
+		model.loadModelDataFromPNG(XMP_depthpng);
+	}
 
 	public String getCaption() {
 		if ((caption==null) || (caption.length()==0)) 
