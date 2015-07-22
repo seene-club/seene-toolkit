@@ -86,14 +86,14 @@ import org.vanitasvitae.depthmapneedle.JPEG;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static String programVersion = "0.2b"; 
+	static String programVersion = "0.3b"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
