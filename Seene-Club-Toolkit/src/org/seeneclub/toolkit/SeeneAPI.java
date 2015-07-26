@@ -319,8 +319,8 @@ public class SeeneAPI {
 		File savePath = new File(uploadsLocalDir.getAbsolutePath() + File.separator + folderName);
 		savePath.mkdirs();
 		
-		File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
-		File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+		File mFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_MODEL);
+		File pFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_TEXTURE);
 		sO.getModel().saveModelDataToFile(mFile);
 		sO.getPoster().saveTextureToFile(pFile);
 		Helper.createFolderIcon(savePath, null);

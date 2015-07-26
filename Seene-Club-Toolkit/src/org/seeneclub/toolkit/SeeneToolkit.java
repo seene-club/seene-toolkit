@@ -26,12 +26,17 @@ import java.awt.event.MouseWheelListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -83,6 +88,10 @@ import org.seeneclub.toolkit.SeeneAPI.Token;
 import org.vanitasvitae.depthmapneedle.Base64Wrapper;
 import org.vanitasvitae.depthmapneedle.IO;
 import org.vanitasvitae.depthmapneedle.JPEG;
+
+import com.adobe.xmp.XMPException;
+import com.adobe.xmp.XMPMeta;
+import com.android.camera.util.XmpUtil;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
@@ -281,8 +290,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    	commandLineUsed = true;
 		    	// first we check if there's a model and poster file in the current working directory
 		    	String wd = System.getProperty("user.dir");
-		    	File mF = new File(wd + File.separator + "scene.oemodel");
-		    	File pF = new File(wd + File.separator + "poster.jpg");
+		    	File mF = new File(wd + File.separator + STK.SEENE_MODEL);
+		    	File pF = new File(wd + File.separator + STK.SEENE_TEXTURE);
 		    	if (mF.exists()) {
 		    		if (pF.exists()) {
 		    			// username has to be set for upload
@@ -306,10 +315,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			    			throw new org.apache.commons.cli.ParseException(errorText);
 			    		} // if (line.hasOption("username"))
 		    		} else { 
-		    			log("no texture file to upload!\nmissing poster.jpg",LogLevel.error);
+		    			log("no texture file to upload!\nmissing " + STK.SEENE_TEXTURE,LogLevel.error);
 		    		} // if (pF.exists()) 
 		    	} else {
-		    		log("no model file to upload!\nmissing scene.oemodel",LogLevel.error);
+		    		log("no model file to upload!\nmissing " + STK.SEENE_MODEL,LogLevel.error);
 		    	} // if (mF.exists()) 
 		    } // if (line.hasOption("upload"))
 		} catch( org.apache.commons.cli.ParseException exp ) {
@@ -862,10 +871,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	            	  if ((localname != null) && (localname.length() > 0)) {
 	            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
 	            		  savePath.mkdirs();
-	            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + "scene.oemodel");
-	            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + "poster_depth.png");
-	            		  File xFile = new File(savePath.getAbsoluteFile() + File.separator + "poster_xmb.jpg");
-	            		  File tFile = new File(savePath.getAbsoluteFile() + File.separator + "poster.jpg");
+	            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_MODEL);
+	            		  File tFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_TEXTURE);
+	            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + STK.XMP_DEPTH_PNG);
+	            		  File xFile = new File(savePath.getAbsoluteFile() + File.separator + STK.XMP_COMBINED_JPG);
+	            		  
 	            		  
 	            		  currentSeene.setLocalname(localname);
 	            		  currentSeene.getModel().saveModelDataToFile(mFile);
@@ -873,19 +883,34 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	            		  currentSeene.getPoster().saveTextureRotatedToFile(xFile, 90);
 	            		  currentSeene.getModel().saveModelDataToPNG(pFile);
 	            		  
+	            		  // Inject XMP Metadata into the jpg
 	            		  JPEG image = new JPEG(xFile.getAbsolutePath());
-	            		  /*
-	            		   * TODO
-	            		  if (image.injectDepthMap(pFile.getAbsolutePath()))
-	      					System.out.println("Depthmap injected into file "+xFile.getAbsolutePath()+".");
-	            		  else
-	      					System.err.println("Something went wrong while injecting "+pFile.getAbsolutePath()+" into "+xFile.getAbsolutePath());
-	            		  image.save();
-	            		  */
+	            		  byte[] depthmap = image.getDepthMap(pFile.getAbsolutePath());
+	            		  byte[] depthmap_base64 = image.base64_decode(depthmap);
 	            		  
-	            		  Helper.createFolderIcon(savePath, null);
-	            		  parsePool(storage.getOfflineDir());
-	            		  btPoolLocalSeenes.getModel().setSelected(true);
+	            		  XMPMeta xmpMeta = XmpUtil.extractOrCreateXMPMeta(xFile.getAbsolutePath());
+	            		  
+	            		  try {
+	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Mime", "image/png");
+	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Format", "RangeInverse");
+	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", currentSeene.getModel().getMaxDepth());
+	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near", currentSeene.getModel().getMinDepth());
+	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageWidth", STK.WORK_WIDTH);
+	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageHeight", STK.WORK_HEIGHT);
+							xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Data", depthmap_base64);
+							
+							
+						} catch (XMPException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+	            		  
+	            		XmpUtil.writeXMPMeta(xFile.getAbsolutePath(), xmpMeta);
+	            		  
+	            		Helper.createFolderIcon(savePath, null);
+	            		parsePool(storage.getOfflineDir());
+	            		btPoolLocalSeenes.getModel().setSelected(true);
+	            		
 	            	  } else {
 	            		  JOptionPane.showMessageDialog(mainFrame,  "Aborted. Seene not saved!", "Seene not saved.", JOptionPane.ERROR_MESSAGE);
 	            	  }
@@ -1349,6 +1374,23 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				if (loadmode.indexOf("model:xmp")>=0) {
 					String xmpFilepath = xf.getAbsolutePath();
 					log("Loading XMP Model: " + xmpFilepath ,LogLevel.info);
+					
+					XMPMeta xmpM = XmpUtil.extractXMPMeta(xmpFilepath);
+					
+					/*
+					//serialize the List
+				    try (
+				      OutputStream file = new FileOutputStream("xmp.ser");
+				      OutputStream buffer = new BufferedOutputStream(file);
+				      ObjectOutput output = new ObjectOutputStream(buffer);
+				    ){
+				      output.writeObject(xmpM);
+				    }  
+				    catch(IOException ex){
+				      System.out.println(ex);
+				    }
+					*/
+					
 					JPEG image = new JPEG(xmpFilepath);
 					// Trying to extract the depthmap from the XMP enhanced JPG
 					if (image.exportDepthMap()) {

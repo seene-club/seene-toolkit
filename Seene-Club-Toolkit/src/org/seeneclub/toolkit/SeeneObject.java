@@ -26,7 +26,7 @@ public class SeeneObject {
 	private SeeneTexture poster;
 	
 	// XMP Components
-	private File XMP_unblurred;		// poster_unblurred.jpg
+	private File XMP_original;		// poster_unblurred.jpg
 	private File XMP_depthpng;		// poster_depth.png
 	private File XMP_combined;		// poster_xmp.jpg
 	
@@ -51,11 +51,11 @@ public class SeeneObject {
 	public SeeneObject(File seeneFolder) {
 		if(seeneFolder.exists()) {
 	    	  if (seeneFolder.isDirectory()) {
-	    		  setModel(new SeeneModel(new File(seeneFolder.getAbsolutePath() + File.separator + "scene.oemodel")));
-	    		  setPoster(new SeeneTexture(new File(seeneFolder.getAbsolutePath() + File.separator + "poster.jpg")));
-	    		  setXMP_combined(new File(seeneFolder.getAbsolutePath() + File.separator + "poster_xmp.jpg"));
-	    		  setXMP_depthpng(new File(seeneFolder.getAbsolutePath() + File.separator + "poster_depth.png"));
-	    		  setXMP_unblurred(new File(seeneFolder.getAbsolutePath() + File.separator + "poster_unblurred.png"));
+	    		  setModel(new SeeneModel(new File(seeneFolder.getAbsolutePath() + File.separator + STK.SEENE_MODEL)));
+	    		  setPoster(new SeeneTexture(new File(seeneFolder.getAbsolutePath() + File.separator + STK.SEENE_TEXTURE)));
+	    		  setXMP_combined(new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG));
+	    		  setXMP_depthpng(new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_DEPTH_PNG));
+	    		  setXMP_original(new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_ORIGINAL_JPG));
 	    	  }
 		}
 	}
@@ -187,11 +187,11 @@ public class SeeneObject {
 	public void setAWSmeta(SeeneAWS awsmeta) {
 		this.awsmeta = awsmeta;
 	}
-	public File getXMP_unblurred() {
-		return XMP_unblurred;
+	public File getXMP_original() {
+		return XMP_original;
 	}
-	public void setXMP_unblurred(File xMP_unblurred) {
-		XMP_unblurred = xMP_unblurred;
+	public void setXMP_original(File xMP_unblurred) {
+		XMP_original = xMP_unblurred;
 	}
 	public File getXMP_depthpng() {
 		return XMP_depthpng;

@@ -4,6 +4,9 @@ package org.vanitasvitae.depthmapneedle;
 import java.util.Arrays;
 import java.util.Vector;
 
+import org.seeneclub.domainvalues.LogLevel;
+import org.seeneclub.toolkit.SeeneToolkit;
+
 /**
  * Created by vanitas on 28.04.15.
  * https://github.com/vanitasvitae/DepthMapNeedle
@@ -361,7 +364,7 @@ public class JPEGUtils extends Const
 			byte[] block = JPEGUtils.getBlock(data, e);
 			if (JPEGUtils.isStandardXMP(block)) return JPEGUtils.getBlockWithoutHeader(data, e);
 		}
-		System.err.println("JPEGUtils getStandardXMPBlockContent is null");
+		SeeneToolkit.log("JPEGUtils getStandardXMPBlockContent is null", LogLevel.debug);
 		return null;
 	}
 
@@ -377,7 +380,7 @@ public class JPEGUtils extends Const
 		byte[] ext = getExtendedXMPBlockContent(data);
 
 		byte[] out = ArrayUtils.concatenate(stand, ext);
-		if (out == null) System.err.println("JPEGUtils getXMPBlocksContent is null");
+		if (out == null) SeeneToolkit.log("JPEGUtils getXMPBlockContent is null", LogLevel.debug);
 		return out;
 	}
 

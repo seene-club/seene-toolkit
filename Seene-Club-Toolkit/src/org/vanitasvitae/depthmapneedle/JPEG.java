@@ -100,7 +100,7 @@ public class JPEG extends Const
 	}
 
 	/**
-	 * extract the depth map from the jpeg and store it in the same location as the jpeg itself but with the suffix _d.png
+	 * extract the depth map from the jpeg and store it in the same location as the jpeg itself but with the suffix _depth.png
 	 *
 	 * @return
 	 */
@@ -127,9 +127,17 @@ public class JPEG extends Const
 			return true;
 		} else return false;
 	}
+	
+	public byte[] base64_encode(byte[] depthmap) {
+		return base64.encode(depthmap);
+	}
+	
+	public byte[] base64_decode(byte[] depthmap) {
+		return base64.decode(depthmap);
+	}
 
 	/**
-	 * Extract and save the unblurred source image. The image will be saved in the same location as the jpeg itself, but with the suffix "_s.jpg"
+	 * Extract and save the unblurred source image. The image will be saved in the same location as the jpeg itself, but with the suffix "_unblurred.jpg"
 	 *
 	 * @return success
 	 */
@@ -329,7 +337,7 @@ public class JPEG extends Const
 	public byte[] getDepthMap(String filename) {
 		return base64.encode(IO.read(new File(filename)));
 	}
-
+	
 	/**
 	 * Inject a new depthmap into the jpeg ("replace" the old GDepth:Data value with the Base64 encoded png file)
 	 *

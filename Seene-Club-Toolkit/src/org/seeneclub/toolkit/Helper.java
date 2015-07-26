@@ -29,12 +29,12 @@ public class Helper {
 			BufferedImage overlayOriginialSize = null;
 
 			// First try to find Seene's proprietary poster.jpg 
-			File jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + "poster.jpg");		// Seene Poster
+			File jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + STK.SEENE_TEXTURE);		
 			if (jpgPoster.exists()) {
 				overlayOriginialSize = ImageIO.read(jpgPoster);
 			} else {
 				// Second try to find a XMP enhanced JPG
-				jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + "poster_xmp.jpg");
+				jpgPoster = new File(sFolder.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG);
 				if (jpgPoster.exists()) {
 					overlayOriginialSize = ImageIO.read(jpgPoster);
 					overlayOriginialSize = rotateAndResizeImage(overlayOriginialSize, 
