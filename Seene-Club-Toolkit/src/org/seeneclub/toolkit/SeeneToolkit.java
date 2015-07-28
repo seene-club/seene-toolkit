@@ -95,7 +95,7 @@ import com.android.camera.util.XmpUtil;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
@@ -164,7 +164,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskRemove = new JMenuItem("remove mask");
     JMenuItem maskInvert = new JMenuItem("invert mask");
     JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
-    
+        
     // Tests Menu Items
     JMenuItem testDoLogin = new JMenuItem("Test Login");
     
@@ -739,9 +739,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         tXtBottomRight.setIcon(Helper.iconFromImageResource("3x3gridbr.png", 16));
         
         // Other Menu Items for right click on Seene folder
+        JMenuItem miGenerateXMP = new JMenuItem("generate XMP (JPG with depthmap)");
         JMenuItem miShowInFS = new JMenuItem("show in file explorer");
-        miShowInFS.setIcon(Helper.iconFromImageResource("show.png", 16));
         JMenuItem miDeleteFS = new JMenuItem("delete from local file system");
+        miGenerateXMP.setIcon(Helper.iconFromImageResource("xmp.png", 16));
+        miShowInFS.setIcon(Helper.iconFromImageResource("show.png", 16));
         miDeleteFS.setIcon(Helper.iconFromImageResource("delete.png", 16));
         
         ActionListener popupListener = new ActionListener() {
@@ -798,6 +800,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,3);
             	  modelDisplay.setSeeneObject(currentSeene);
               }
+              if(event.getSource() == miGenerateXMP) {
+            	  generateXMP(currentSelection.getToolTipText());
+              }
               if(event.getSource() == miShowInFS) {
             	  try {
             		  Desktop.getDesktop().open(new File(currentSelection.getToolTipText()));
@@ -851,14 +856,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         threeXthreeSubmenu.add(tXtBottomCenter);
         threeXthreeSubmenu.add(tXtBottomRight);
         
+        miGenerateXMP.addActionListener(popupListener);
         miShowInFS.addActionListener(popupListener);
         miDeleteFS.addActionListener(popupListener);
         
         rClickPopup.add(twoXtwoSubmenu);
         rClickPopup.add(threeXthreeSubmenu);
+        rClickPopup.addSeparator();
+        rClickPopup.add(miGenerateXMP,STK.GENERATE_XMP_MENU_POSITION);
+        rClickPopup.addSeparator();
         rClickPopup.add(miShowInFS);
         rClickPopup.add(miDeleteFS);
-        
         
         // Region East-North: Seene display & Toolbar
         ActionListener toolbarListener = new ActionListener() {
@@ -871,45 +879,20 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	            	  if ((localname != null) && (localname.length() > 0)) {
 	            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + localname);
 	            		  savePath.mkdirs();
+	            		  // Save proprietary Seene files
 	            		  File mFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_MODEL);
 	            		  File tFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_TEXTURE);
-	            		  File pFile = new File(savePath.getAbsoluteFile() + File.separator + STK.XMP_DEPTH_PNG);
-	            		  File xFile = new File(savePath.getAbsoluteFile() + File.separator + STK.XMP_COMBINED_JPG);
-	            		  
 	            		  
 	            		  currentSeene.setLocalname(localname);
 	            		  currentSeene.getModel().saveModelDataToFile(mFile);
 	            		  currentSeene.getPoster().saveTextureToFile(tFile);
-	            		  currentSeene.getPoster().saveTextureRotatedToFile(xFile, 90);
-	            		  currentSeene.getModel().saveModelDataToPNG(pFile);
 	            		  
-	            		  // Inject XMP Metadata into the jpg
-	            		  JPEG image = new JPEG(xFile.getAbsolutePath());
-	            		  byte[] depthmap = image.getDepthMap(pFile.getAbsolutePath());
-	            		  byte[] depthmap_base64 = image.base64_decode(depthmap);
-	            		  
-	            		  XMPMeta xmpMeta = XmpUtil.extractOrCreateXMPMeta(xFile.getAbsolutePath());
-	            		  
-	            		  try {
-	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Mime", "image/png");
-	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Format", "RangeInverse");
-	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", currentSeene.getModel().getMaxDepth());
-	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near", currentSeene.getModel().getMinDepth());
-	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageWidth", STK.WORK_WIDTH);
-	            			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageHeight", STK.WORK_HEIGHT);
-							xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Data", depthmap_base64);
-							
-							
-						} catch (XMPException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-	            		  
-	            		XmpUtil.writeXMPMeta(xFile.getAbsolutePath(), xmpMeta);
-	            		  
-	            		Helper.createFolderIcon(savePath, null);
-	            		parsePool(storage.getOfflineDir());
-	            		btPoolLocalSeenes.getModel().setSelected(true);
+	            		  // Save XMP components
+	            		  generateXMP(savePath.getAbsoluteFile().toString());
+	            		     
+	            		  Helper.createFolderIcon(savePath, null);
+	            		  parsePool(storage.getOfflineDir());
+	            		  btPoolLocalSeenes.getModel().setSelected(true);
 	            		
 	            	  } else {
 	            		  JOptionPane.showMessageDialog(mainFrame,  "Aborted. Seene not saved!", "Seene not saved.", JOptionPane.ERROR_MESSAGE);
@@ -970,6 +953,50 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
         
+	}
+	
+	public void generateXMP(String seenePath) {
+		
+		// Load proprietary Seene Files 
+		File mFile = new File(seenePath + File.separator + STK.SEENE_MODEL);
+		File tFile = new File(seenePath + File.separator + STK.SEENE_TEXTURE);
+		
+		SeeneModel mO = new SeeneModel(mFile);
+		SeeneTexture tO = new SeeneTexture(tFile);
+		
+		mO.loadModelDataFromFile();
+		tO.loadTextureFromFile();
+		
+		// Save XMP components from proprietary Seene
+		File pFile = new File(seenePath + File.separator + STK.XMP_DEPTH_PNG);
+		File oFile = new File(seenePath + File.separator + STK.XMP_ORIGINAL_JPG);
+		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
+		
+		tO.saveTextureRotatedToFile(oFile, 90);
+		tO.saveTextureRotatedToFile(xFile, 90);
+		mO.saveModelDataToPNG(pFile);
+		
+		// Inject XMP Metadata into the XMP JPG
+		JPEG image = new JPEG(xFile.getAbsolutePath());
+		byte[] depthmap = image.getDepthMap(pFile.getAbsolutePath());
+		byte[] depthmap_base64 = image.base64_decode(depthmap);
+		  
+		XMPMeta xmpMeta = XmpUtil.extractOrCreateXMPMeta(xFile.getAbsolutePath());
+		  
+		try {
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Mime", "image/png");
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Format", "RangeInverse");
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", currentSeene.getModel().getMaxDepth());
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near", currentSeene.getModel().getMinDepth());
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageWidth", STK.WORK_WIDTH);
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageHeight", STK.WORK_HEIGHT);
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Data", depthmap_base64);
+			
+			XmpUtil.writeXMPMeta(xFile.getAbsolutePath(), xmpMeta);	
+		} catch (XMPException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void showNoSeeneThereDialog(String title) {
@@ -1281,6 +1308,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		if (mevent.getClickCount() == 1) {
 			currentSelection=(JLabel)mevent.getSource();
 			if(SwingUtilities.isRightMouseButton(mevent)){
+				// check if "Generate XMP" should be enabled
+				File xmpF = new File(currentSelection.getToolTipText() + File.separator + STK.XMP_COMBINED_JPG);
+				if (xmpF.exists())  rClickPopup.getComponent(STK.GENERATE_XMP_MENU_POSITION).setEnabled(false);
+				else rClickPopup.getComponent(STK.GENERATE_XMP_MENU_POSITION).setEnabled(true);
+				// show the popup menu
 		        rClickPopup.show((Component)mevent.getSource(), mevent.getX(), mevent.getY());
 		    }
 			// clear markup state of all file labels
@@ -1308,6 +1340,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	private void openSeene(File seeneFolder) {
 		currentSeene = new SeeneObject(seeneFolder);
+		
+		String seenePath = seeneFolder.getAbsolutePath();
+		String offlinePath = storage.getOfflineDir().getAbsolutePath();
+		
+		// Set Localname if Seene is loaded from the "Offline" pool
+		if (seenePath.toLowerCase().contains(offlinePath.toLowerCase())) {
+			currentSeene.setLocalname(seenePath.substring(offlinePath.length()+1));
+		}
 
 		File mf = currentSeene.getModelFile();
 		File tf = currentSeene.getPosterFile();
@@ -1374,22 +1414,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				if (loadmode.indexOf("model:xmp")>=0) {
 					String xmpFilepath = xf.getAbsolutePath();
 					log("Loading XMP Model: " + xmpFilepath ,LogLevel.info);
-					
-					XMPMeta xmpM = XmpUtil.extractXMPMeta(xmpFilepath);
-					
-					/*
-					//serialize the List
-				    try (
-				      OutputStream file = new FileOutputStream("xmp.ser");
-				      OutputStream buffer = new BufferedOutputStream(file);
-				      ObjectOutput output = new ObjectOutputStream(buffer);
-				    ){
-				      output.writeObject(xmpM);
-				    }  
-				    catch(IOException ex){
-				      System.out.println(ex);
-				    }
-					*/
 					
 					JPEG image = new JPEG(xmpFilepath);
 					// Trying to extract the depthmap from the XMP enhanced JPG

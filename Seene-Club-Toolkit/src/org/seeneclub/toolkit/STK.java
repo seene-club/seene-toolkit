@@ -13,6 +13,8 @@ public interface STK {
 	public static final String XMP_DEPTH_PNG = "poster_depth.png";
 	public static final String XMP_COMBINED_JPG = "poster_xmp.jpg";
 	
+	public static final int GENERATE_XMP_MENU_POSITION = 3;
+	
 			
 }
 

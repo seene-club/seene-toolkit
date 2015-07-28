@@ -51,7 +51,7 @@ import java.util.List;
       private static final int MAX_XMP_BUFFER_SIZE = 65502;
       public static final String GOOGLE_PANO_NAMESPACE = "http://ns.google.com/photos/1.0/panorama/";
       public static final String GOOGLE_DEPTH_NAMESPACE = "http://ns.google.com/photos/1.0/depthmap/";
-      public static final String GOOGLE_IMAGE_NAMESPACE = "http://ns.google.com/photos/1.0/image/";
+      //public static final String GOOGLE_IMAGE_NAMESPACE = "http://ns.google.com/photos/1.0/image/";
       public static final String PANO_PREFIX = "GPano";
       public static final String DEPTH_PREFIX = "GDepth";
       private static final int M_SOI = 0xd8; // File start marker.
@@ -66,8 +66,8 @@ import java.util.List;
       }
       static {
         try {
-          XMPMetaFactory.getSchemaRegistry().registerNamespace(
-              GOOGLE_PANO_NAMESPACE, PANO_PREFIX);
+          XMPMetaFactory.getSchemaRegistry().registerNamespace(GOOGLE_PANO_NAMESPACE, PANO_PREFIX);
+          XMPMetaFactory.getSchemaRegistry().registerNamespace(GOOGLE_DEPTH_NAMESPACE, DEPTH_PREFIX);
         } catch (XMPException e) {
           e.printStackTrace();
         }
