@@ -26,7 +26,7 @@ public class SeeneObject {
 	private SeeneTexture poster;
 	
 	// XMP Components
-	private File XMP_original;		// poster_unblurred.jpg
+	private File XMP_original;		// poster_original.jpg
 	private File XMP_depthpng;		// poster_depth.png
 	private File XMP_combined;		// poster_xmp.jpg
 	

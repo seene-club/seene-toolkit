@@ -46,6 +46,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
@@ -151,6 +152,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     static String seeneUser = new String();
     static String seenePass = new String();
     static String seeneAPIid = new String();
+    static String seeneAuthorizationCode = new String();
     static ProxyData pd = new ProxyData(null, 0);
 	
 	// Task Menu Items
@@ -166,7 +168,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
         
     // Tests Menu Items
-    JMenuItem testDoLogin = new JMenuItem("Test Login");
+    JMenuItem testSomething = new JMenuItem("Test Something");
     
     // Seene Object we are currently working on
     SeeneObject currentSeene = null;
@@ -657,15 +659,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskSetDepth);
         
         
-        //JMenu testMenu = new JMenu("Tests");
-        //testDoLogin.addActionListener(this);
+        JMenu testMenu = new JMenu("Tests");
+        testSomething.addActionListener(this);
         
-        //testMenu.add(testDoLogin);
+        testMenu.add(testSomething);
                 
         bar.add(fileMenu);
         bar.add(taskMenu);
         bar.add(maskMenu);
-        //bar.add(testMenu);
+        bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
         
@@ -1232,7 +1234,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				};
 				dlThread.start();
 			}
-	    } else if (arg0.getSource() == this.btPoolPublicSeenes) {
+		 } /* TEST Menu */ 
+	      else if(arg0.getSource() == this.testSomething) {
+	    	 try {
+	    		SeeneAPI api = new SeeneAPI(pd); 
+				Map  testdata = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
+				System.out.println(testdata.toString());
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
+	    } /* POOL Selection */
+	      else if (arg0.getSource() == this.btPoolPublicSeenes) {
 	    	parsePool(storage.getPublicDir());
 	    } else if (arg0.getSource() == this.btPoolPrivateSeenes) {
 	    	parsePool(storage.getPrivateDir());	    	
@@ -1908,13 +1921,20 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						if (seeneAPIid.length() > 0) {
 							writer.println("api_id=" + seeneAPIid);
 						} else {
-							writer.println("api_id=<insert Seene API ID here>");
+							writer.println("api_id=" + STK.CONFIG_API_ID_HINT);
 						}
 						writer.println("storage=" + tfLocalStorage.getText());
 						writer.println("username=" + tfUsername.getText());
 						if (tfPassphrase.getText().length() > 0) {
 							 if (!tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + XOREncryption.xorIt(tfPassphrase.getText()));
 							 if (tfPassphrase.getText().equals("{unchanged}")) writer.println("passphrase=" + XOREncryption.xorIt(seenePass));
+						}
+						
+						// Authorization Code
+						if (seeneAuthorizationCode.length() > 0) {
+							writer.println("auth_code=" + seeneAPIid);
+						} else {
+							writer.println("auth_code="+ STK.CONFIG_AUTH_CODE_HINT);
 						}
 						
 						// Write Proxy Settings (not in dialog)
@@ -2018,6 +2038,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("passphrase="))) {
     					log("configured passphrase: " + line.substring(11),LogLevel.debug);
     					seenePass = XOREncryption.xorIt(line.substring(11));
+    				}
+    				if ((line.length() >= 10) && (line.substring(0, 10).equalsIgnoreCase("auth_code="))) {
+    					log("configured authorization code: " + line.substring(10),LogLevel.debug);
+    					seeneAuthorizationCode = line.substring(10);
     				}
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.host="))) {
     					log("configured proxy.host: " + line.substring(11),LogLevel.debug);

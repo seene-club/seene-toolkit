@@ -40,7 +40,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import javax.xml.bind.DatatypeConverter;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -76,9 +78,9 @@ public class SeeneAPI {
 	/// can be cached until expires; if expires is null, cached forever.
 	public Token login(String apiId, String username, String password) throws Exception {
 		
-		if ((apiId.length() == 0) || (apiId.equals("<insert Seene API ID here>"))) {
+		if ((apiId.length() == 0) || (apiId.equals(STK.CONFIG_API_ID_HINT))) {
 			//SeeneToolkit.log("API-ID not configured!\nTrying to retrieve from remote service...",LogLevel.info);
-			apiId = getSeeneAPIidFromRemoteServer(username, password);
+			apiId = getSeeneKeyFromRemoteServer(username, password,STK.API_ID_KEY);
 			//SeeneToolkit.log(apiId,LogLevel.debug);
 		}
 		
@@ -97,9 +99,9 @@ public class SeeneAPI {
 		return result;
 	}
 	
-	// Retrieves the API-ID from a WebService. API-ID is only returned for experienced users with valid credentials
-	private static String getSeeneAPIidFromRemoteServer(String username, String password) throws IOException, NoSuchAlgorithmException, KeyManagementException {
-		URL url = new URL("https://54.243.113.182/actions/sapi");
+	// Retrieves the key with the key_id from a WebService. Keys are only returned for experienced users with valid credentials
+	private static String getSeeneKeyFromRemoteServer(String username, String password, String key_id) throws IOException, NoSuchAlgorithmException, KeyManagementException {
+		URL url = new URL("https://54.243.113.182/actions/" + key_id);
         Map<String,Object> params = new LinkedHashMap<>();
         params.put("username", username);
         params.put("password", password);
@@ -176,35 +178,63 @@ public class SeeneAPI {
 	    return result.toString();
 	}
 	
+	
+	public Map requestBearerToken(String username, String password, String auth_or_refresh_code, Boolean isRefresh) throws Exception {
+		
+		String sclient = getSeeneKeyFromRemoteServer(username, password, STK.API_CLIENT_KEY);
+		byte[] basicBytes = new String(STK.API_CLIENT_ID + ":" + sclient).getBytes();
+		String basicBase64 = new String(Base64.encodeBase64(basicBytes));
+		
+		HttpURLConnection conn = proxyGate(new URL("https://api.seene.co/oauth/token"));
+		
+		conn.setReadTimeout(20000);
+		conn.setConnectTimeout(15000);
+	    conn.setRequestMethod("POST");
+	    
+	    conn.setRequestProperty("Host","https://api.seene.co");
+	    conn.setRequestProperty("Authorization", "Basic " + basicBase64);
+	    conn.setRequestProperty("Accept", "application/vnd.seene.v1+json");
+	    conn.setRequestProperty("Content-Type", "application/json");
+	    //conn.setRequestProperty("Accept-Encoding", "gzip");
+	    conn.setRequestProperty("Cache-Control", "no-cache");
+	    
+	    conn.setDoOutput(true);
+	    conn.setDoInput(true);
+	    
+	    OutputStream os = conn.getOutputStream();
+    	BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+    	writer.write("{");
+    	if (isRefresh) {
+    		writer.write("\"grant_type\": \"refresh_token\",");
+    		writer.write("\"redirect_uri\": \"" + STK.API_REDIRECT + "\",");
+    		writer.write("\"code\": \"" + auth_or_refresh_code + "\"");
+    	} else {
+    		writer.write("\"grant_type\": \"authorization_code\",");
+    		writer.write("\"redirect_uri\": \"" + STK.API_REDIRECT + "\",");
+    		writer.write("\"refresh_token\": \"" + auth_or_refresh_code + "\"");
+    	}
+        writer.write("}");
+
+    	writer.flush();
+    	writer.close();
+	    os.close();
+	    
+	    // create JSON object from response
+	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+	    
+	    // TODO: Read bearer and refresh token and store it in the config!
+	    // {"access_token":"43blablablablablablablabla49","refresh_token":"c7blablablablablablablablablablablablac9","scope":"public write","created_at":1438265691,"token_type":"bearer","expires_in":7200}
+	    
+		return response;
+		
+	}
+	
 	private Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {
 		
-		HttpURLConnection conn = null;
+		SeeneToolkit.log("REQUEST.url: " + url.toString(),LogLevel.debug);
+		//if(params != null) SeeneToolkit.log("REQUEST.params: " + getQuery(params),LogLevel.debug);
 		
-		// Proxy configured?
-		if ((proxyData!=null) && (proxyData.getHost().length()>0)) {
-			Proxy proxy = new Proxy(Proxy.Type.HTTP, 
-					new InetSocketAddress(proxyData.getHost(), proxyData.getPort()));
-			
-			// Proxy with Authentication?
-			if (proxyData.getUser().length()>0) {
-				Authenticator authenticator = new Authenticator() {
-		
-			        public PasswordAuthentication getPasswordAuthentication() {
-			            return (new PasswordAuthentication(proxyData.getUser(),
-			                    proxyData.getPass().toCharArray()));
-			        }
-			    };
-			    Authenticator.setDefault(authenticator);
-			}
-			
-		    // Connection with Proxy!
-			SeeneToolkit.log("Using Proxy: " + proxyData.getHost(), LogLevel.debug);
-		    conn = (HttpURLConnection) url.openConnection(proxy);
-		} else {
-			// Connection without Proxy!
-			SeeneToolkit.log("Using NO Proxy!", LogLevel.debug);
-			conn = (HttpURLConnection) url.openConnection();
-		}
+		HttpURLConnection conn = proxyGate(url);
 		
 		conn.setReadTimeout(20000);
 		conn.setConnectTimeout(15000);
@@ -232,10 +262,43 @@ public class SeeneAPI {
 
 	    conn.connect();
 	    
-	    // create JSON object from content
-	    return (Map)JSONValue.parseWithException(
-	    		new InputStreamReader(conn.getInputStream(), 
-	    				StandardCharsets.UTF_8));
+	    // create JSON object from response
+	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+	    
+	    //SeeneToolkit.log("RESPONSE.json: " + response.toString(),LogLevel.debug);
+	    
+	    return response;
+	}
+
+	private HttpURLConnection proxyGate(URL url) throws IOException {
+		HttpURLConnection conn = null;
+		
+		// Proxy configured?
+		if ((proxyData!=null) && (proxyData.getHost().length()>0)) {
+			Proxy proxy = new Proxy(Proxy.Type.HTTP, 
+					new InetSocketAddress(proxyData.getHost(), proxyData.getPort()));
+			
+			// Proxy with Authentication?
+			if (proxyData.getUser().length()>0) {
+				Authenticator authenticator = new Authenticator() {
+		
+			        public PasswordAuthentication getPasswordAuthentication() {
+			            return (new PasswordAuthentication(proxyData.getUser(),
+			                    proxyData.getPass().toCharArray()));
+			        }
+			    };
+			    Authenticator.setDefault(authenticator);
+			}
+			
+		    // Connection with Proxy!
+			SeeneToolkit.log("Using Proxy: " + proxyData.getHost(), LogLevel.debug);
+		    conn = (HttpURLConnection) url.openConnection(proxy);
+		} else {
+			// Connection without Proxy!
+			SeeneToolkit.log("Using NO Proxy!", LogLevel.debug);
+			conn = (HttpURLConnection) url.openConnection();
+		}
+		return conn;
 	}
 	
 	public  String usernameToId(String username) throws Exception {
@@ -265,7 +328,7 @@ public class SeeneAPI {
 				new URL(String.format("http://seene.co/api/seene/-/users/%s/scenes?count=%d", userId, last)), 
 				null);
 		
-		return createFromResponse(map);    	
+		return createSeeneListFromResponse(map);    	
 	}
 
 	public List<SeeneObject> getPrivateSeenes(Token token, String userId, int last) throws Exception {
@@ -274,7 +337,7 @@ public class SeeneAPI {
 				new URL(String.format("https://oecamera.herokuapp.com/api/users/%s/scenes?count=%d&only_private=1", userId, last)), 
 				null);
 		
-		return createFromResponse(map);    	
+		return createSeeneListFromResponse(map);    	
 	}
 	
 	
@@ -416,23 +479,23 @@ public class SeeneAPI {
 				null);
 		
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
-		result.add(createFromMap(map));
+		result.add(createSeeneObjectFromMap(map));
 		
 		return result;
 	}
 
-	private static List<SeeneObject> createFromResponse(Map map)
+	private static List<SeeneObject> createSeeneListFromResponse(Map map)
 			throws ParseException, MalformedURLException {
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
 
 		List scenes = (List)map.get("scenes");
 		for (Object o : scenes)
-			result.add(createFromMap((Map)o));
+			result.add(createSeeneObjectFromMap((Map)o));
 		
 		return result;
 	}
 
-	private static SeeneObject createFromMap(Map j) throws ParseException,
+	private static SeeneObject createSeeneObjectFromMap(Map j) throws ParseException,
 			MalformedURLException {
 		SeeneObject s = new SeeneObject();
 		s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
@@ -455,7 +518,7 @@ public class SeeneAPI {
 		return proxyData;
 	}
 	public void setProxyData(ProxyData proxyData) {
-		proxyData = proxyData;
+		this.proxyData = proxyData;
 	}
 
 }
