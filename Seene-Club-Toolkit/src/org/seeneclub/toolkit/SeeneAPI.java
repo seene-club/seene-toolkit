@@ -99,7 +99,7 @@ public class SeeneAPI {
 		return result;
 	}
 	
-	// Retrieves the key with the key_id from a WebService. Keys are only returned for experienced users with valid credentials
+	// Retrieves a key with the key_id from a WebService. Keys are only returned for experienced users with valid credentials
 	private static String getSeeneKeyFromRemoteServer(String username, String password, String key_id) throws IOException, NoSuchAlgorithmException, KeyManagementException {
 		URL url = new URL("https://54.243.113.182/actions/" + key_id);
         Map<String,Object> params = new LinkedHashMap<>();
@@ -178,6 +178,29 @@ public class SeeneAPI {
 	    return result.toString();
 	}
 	
+	public Map requestUserInfo(String uID, String bearer) throws Exception {
+
+		HttpURLConnection conn = proxyGate(new URL("https://api.seene.co/users/" + uID));
+		
+		conn.setReadTimeout(20000);
+		conn.setConnectTimeout(15000);
+	    conn.setRequestMethod("GET");
+	    
+	    conn.setRequestProperty("Host","https://api.seene.co");
+	    conn.setRequestProperty("Authorization", "Bearer " + bearer);
+	    conn.setRequestProperty("Accept", "application/vnd.seene.v1+json");
+	    conn.setRequestProperty("Content-Type", "application/json");
+	    //conn.setRequestProperty("Accept-Encoding", "gzip");
+	    conn.setRequestProperty("Cache-Control", "no-cache");
+		
+	    conn.setDoInput(true);
+	    
+	    // create JSON object from response
+	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+	    
+		return response;
+	}
+
 	
 	public Map requestBearerToken(String username, String password, String auth_or_refresh_code, Boolean isRefresh) throws Exception {
 		
@@ -207,11 +230,11 @@ public class SeeneAPI {
     	if (isRefresh) {
     		writer.write("\"grant_type\": \"refresh_token\",");
     		writer.write("\"redirect_uri\": \"" + STK.API_REDIRECT + "\",");
-    		writer.write("\"code\": \"" + auth_or_refresh_code + "\"");
+    		writer.write("\"refresh_token\": \"" + auth_or_refresh_code + "\"");
     	} else {
     		writer.write("\"grant_type\": \"authorization_code\",");
     		writer.write("\"redirect_uri\": \"" + STK.API_REDIRECT + "\",");
-    		writer.write("\"refresh_token\": \"" + auth_or_refresh_code + "\"");
+    		writer.write("\"code\": \"" + auth_or_refresh_code + "\"");
     	}
         writer.write("}");
 
@@ -222,11 +245,7 @@ public class SeeneAPI {
 	    // create JSON object from response
 	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 	    
-	    // TODO: Read bearer and refresh token and store it in the config!
-	    // {"access_token":"43blablablablablablablabla49","refresh_token":"c7blablablablablablablablablablablablac9","scope":"public write","created_at":1438265691,"token_type":"bearer","expires_in":7200}
-	    
 		return response;
-		
 	}
 	
 	private Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {

@@ -149,10 +149,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	static File configDir = null;
     static File configFile = null;
 	JDialog settingsDialog = new JDialog();
-    static String seeneUser = new String();
-    static String seenePass = new String();
-    static String seeneAPIid = new String();
-    static String seeneAuthorizationCode = new String();
+    static String seeneUser = new String("");
+    static String seenePass = new String("");
+    static String seeneAPIid = new String("");
+    static String seeneAuthorizationCode = new String("");
+    static String seeneBearerToken = new String("");
     static ProxyData pd = new ProxyData(null, 0);
 	
 	// Task Menu Items
@@ -1237,9 +1238,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		 } /* TEST Menu */ 
 	      else if(arg0.getSource() == this.testSomething) {
 	    	 try {
-	    		SeeneAPI api = new SeeneAPI(pd); 
-				Map  testdata = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
-				System.out.println(testdata.toString());
+	    		//TODO
+				System.out.println(getValidBearerToken());
+				
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1279,6 +1280,108 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    }
 	}
 	
+	@SuppressWarnings("rawtypes")
+	private String getValidBearerToken() throws Exception {
+		
+		SeeneAPI api = new SeeneAPI(pd);
+		
+		// Step 1 - try to read bearer token from config file
+		seeneBearerToken = getParameterFromConfiguration(configFile, "api_token");
+		
+		// Step 2 - test the stored bearer token
+		if ((seeneBearerToken!=null) && (seeneBearerToken.length() > 0)) {
+			if (testBearerToken(seeneBearerToken)) {
+				return seeneBearerToken;
+			} else { // Step 3 - if test fails, try to refresh bearer token
+				seeneAuthorizationCode = getParameterFromConfiguration(configFile, "auth_code");
+				if (seeneAuthorizationCode.length() > 0) {
+					// try to get new bearer token with refresh_token from the seene API
+					Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, true);
+					seeneBearerToken = (String)response.get("access_token");
+					seeneAuthorizationCode = (String)response.get("refresh_token");
+					replaceConfigParameter(configFile, "api_token", seeneBearerToken);
+					replaceConfigParameter(configFile, "auth_code", seeneAuthorizationCode);
+					
+					return seeneBearerToken;
+				}
+			}
+			
+		} else { // No bearer token found!
+			// try to read authorization code from config file
+			seeneAuthorizationCode = getParameterFromConfiguration(configFile, "auth_code");
+			if (seeneAuthorizationCode.length() > 0) {
+				// try to get bearer token from the seene API
+				Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
+				// {"access_token":"43blablablablablablablabla49","refresh_token":"c7blablablablablablablablablablablablac9","scope":"public write","created_at":1438265691,"token_type":"bearer","expires_in":7200}
+				seeneBearerToken = (String)response.get("access_token");
+				seeneAuthorizationCode = (String)response.get("refresh_token");
+				replaceConfigParameter(configFile, "api_token", seeneBearerToken);
+				replaceConfigParameter(configFile, "auth_code", seeneAuthorizationCode);
+				
+				return seeneBearerToken;
+				
+			} else {
+				// NO authorization code AND NO bearer token available!
+				log("Seene-Toolkit seems not to be authorized to use the Seene API.",LogLevel.warn);
+				// TODO: total fail!
+			} 
+		}
+		
+		return null;
+	}
+	
+	@SuppressWarnings("rawtypes")
+	private Boolean testBearerToken(String token) {
+		SeeneAPI api = new SeeneAPI(pd);
+		try {
+			String userId = api.usernameToId(seeneUser);
+			Map response = api.requestUserInfo(userId, token);
+			String username = (String)response.get("username");
+			if (username.equalsIgnoreCase(seeneUser)) return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		return false;
+	}
+	
+	
+	private void replaceConfigParameter(File cf, String param, String newValue) {
+		String paramEq = new String(param + "=");
+		if(cf.exists() && !cf.isDirectory()) {
+			BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader(cf));
+				String line;
+				String newConf = "";
+				Boolean replaced = false;
+    			while ((line = br.readLine()) != null) {
+    				if (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq)) {
+    					newConf += paramEq + newValue + '\n';
+    					log("replaced " + param + " in " + cf.getAbsolutePath(),LogLevel.info);
+    					replaced = true;
+    				} else {
+    					newConf += line + '\n';
+    				}
+    			}
+    			// Parameter not replaced? -> append to config!
+    			if (!replaced) newConf += paramEq + newValue + '\n';
+    			br.close();
+    			
+    			// Write new config file
+    			FileOutputStream fileOut = new FileOutputStream(cf.getAbsolutePath());
+    	        fileOut.write(newConf.getBytes());
+    	        fileOut.flush();
+    	        fileOut.close();
+    	        
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} // try
+		} // if (f.exists()...
+	}
+
+
 	private void parsePool(File baseDir) {
 		File[] files = baseDir.listFiles();
 		Arrays.sort(files);
@@ -1931,11 +2034,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						}
 						
 						// Authorization Code
-						if (seeneAuthorizationCode.length() > 0) {
-							writer.println("auth_code=" + seeneAPIid);
-						} else {
-							writer.println("auth_code="+ STK.CONFIG_AUTH_CODE_HINT);
-						}
+						if (seeneAuthorizationCode.length() > 0) writer.println("auth_code=" + seeneAuthorizationCode);
+						else writer.println("auth_code="+ STK.CONFIG_AUTH_CODE_HINT);
+						
+						// Bearer Token
+						if (seeneBearerToken.length() > 0) writer.println("api_token=" + seeneBearerToken);
 						
 						// Write Proxy Settings (not in dialog)
 						writer.println("proxy.host=" + pd.getHost());
@@ -2042,6 +2145,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     				if ((line.length() >= 10) && (line.substring(0, 10).equalsIgnoreCase("auth_code="))) {
     					log("configured authorization code: " + line.substring(10),LogLevel.debug);
     					seeneAuthorizationCode = line.substring(10);
+    				}
+    				if ((line.length() >= 10) && (line.substring(0, 10).equalsIgnoreCase("api_token="))) {
+    					log("configured Bearer token: " + line.substring(10),LogLevel.debug);
+    					seeneBearerToken = line.substring(10);
     				}
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.host="))) {
     					log("configured proxy.host: " + line.substring(11),LogLevel.debug);

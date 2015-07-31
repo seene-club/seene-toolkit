@@ -9,3 +9,5 @@ username
 temp
 depthmap
 unblurred
+progressbar
+config
