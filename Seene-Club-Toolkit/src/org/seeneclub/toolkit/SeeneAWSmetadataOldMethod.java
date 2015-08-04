@@ -1,7 +1,7 @@
 package org.seeneclub.toolkit;
 
 // Object for the AWS-Metadata needed for upload
-public class SeeneAWS {
+public class SeeneAWSmetadataOldMethod {
 
 	private String access_key_id;
 	private String bucket_name;

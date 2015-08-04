@@ -23,4 +23,6 @@ public interface STK {
 	public static final String API_ID_KEY = "sapi";
 	public static final String API_CLIENT_KEY = "sclient";
 	
+	public static final String LINE_FEED = "\r\n";
+	
 }

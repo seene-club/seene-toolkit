@@ -310,7 +310,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			    			ulSeene.getPoster().loadTextureFromFile();
 			    			ulSeene.setCaption("uploaded with https://github.com/seene-club/seene-toolkit");
 			    			// uploading seene
-			    			doUploadSeene(tempUlDir, ulSeene);
+			    			doUploadSeeneOldMethod(tempUlDir, ulSeene);
 			    			// removing temp
 			    			Helper.deleteDirectory(tempUlDir);
 				    	} else {
@@ -457,11 +457,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
     }
     
-    private static void doUploadSeene(File uploadsLocalDir,SeeneObject sO) {
+    private void doUploadSeene(SeeneObject sO) {
+    	SeeneAPI myAPI = new SeeneAPI(pd);
+    	try {
+			myAPI.uploadSeene(sO, getValidBearerToken());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    private static void doUploadSeeneOldMethod(File uploadsLocalDir,SeeneObject sO) {
     	try {
     		SeeneAPI myAPI = new SeeneAPI(pd);
 			Token token = myAPI.login(seeneAPIid, seeneUser, seenePass);
-			myAPI.uploadSeene(uploadsLocalDir, sO, seeneUser, token);
+			myAPI.uploadSeeneOldMethod(uploadsLocalDir, sO, seeneUser, token);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -1238,11 +1248,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		 } /* TEST Menu */ 
 	      else if(arg0.getSource() == this.testSomething) {
 	    	 try {
-	    		//TODO
-				System.out.println(getValidBearerToken());
-				
+				log("bearer token: " + getValidBearerToken(),LogLevel.info);
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}	
 	    } /* POOL Selection */
@@ -1291,8 +1298,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		// Step 2 - test the stored bearer token
 		if ((seeneBearerToken!=null) && (seeneBearerToken.length() > 0)) {
 			if (testBearerToken(seeneBearerToken)) {
+				log("stored bearer token still valid!", LogLevel.debug);
 				return seeneBearerToken;
 			} else { // Step 3 - if test fails, try to refresh bearer token
+				log("bearer token expired! trying to get new one...", LogLevel.debug);
 				seeneAuthorizationCode = getParameterFromConfiguration(configFile, "auth_code");
 				if (seeneAuthorizationCode.length() > 0) {
 					// try to get new bearer token with refresh_token from the seene API
@@ -1312,7 +1321,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			if (seeneAuthorizationCode.length() > 0) {
 				// try to get bearer token from the seene API
 				Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
-				// {"access_token":"43blablablablablablablabla49","refresh_token":"c7blablablablablablablablablablablablac9","scope":"public write","created_at":1438265691,"token_type":"bearer","expires_in":7200}
 				seeneBearerToken = (String)response.get("access_token");
 				seeneAuthorizationCode = (String)response.get("refresh_token");
 				replaceConfigParameter(configFile, "api_token", seeneBearerToken);
@@ -1339,7 +1347,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			String username = (String)response.get("username");
 			if (username.equalsIgnoreCase(seeneUser)) return true;
 		} catch (Exception e) {
-			e.printStackTrace();
+			log("Test failed: " + e.getMessage(),LogLevel.warn);
 		}
 		
 		return false;
@@ -1951,7 +1959,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	buttonOK.addActionListener(new java.awt.event.ActionListener() {
 			public void actionPerformed(java.awt.event.ActionEvent e) {
             	currentSeene.setCaption(tfCaption.getText());
-            	doUploadSeene(storage.getUploadsDir() ,currentSeene);
+            	//doUploadSeeneOldMethod(storage.getUploadsDir() ,currentSeene);
+            	doUploadSeene(currentSeene);
             	uploadDialog.remove(gridPanel);
             	uploadDialog.dispose();
             }

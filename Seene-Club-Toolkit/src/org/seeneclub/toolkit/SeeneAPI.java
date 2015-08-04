@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.Authenticator;
@@ -40,7 +41,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import javax.xml.bind.DatatypeConverter;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.NameValuePair;
@@ -199,6 +199,151 @@ public class SeeneAPI {
 	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 	    
 		return response;
+	}
+	
+	public Map requestNewSeene(SeeneObject sO, String bearer) throws Exception {
+		HttpURLConnection conn = proxyGate(new URL("https://api.seene.co/seenes"));
+		
+		conn.setReadTimeout(20000);
+		conn.setConnectTimeout(15000);
+	    conn.setRequestMethod("POST");
+	    
+	    conn.setRequestProperty("Host","https://api.seene.co");
+	    conn.setRequestProperty("Authorization", "Bearer " + bearer);
+	    conn.setRequestProperty("Accept", "application/vnd.seene.v1+json");
+	    conn.setRequestProperty("Content-Type", "application/json");
+	    //conn.setRequestProperty("Accept-Encoding", "gzip");
+	    conn.setRequestProperty("Cache-Control", "no-cache");
+		
+	    conn.setDoOutput(true);
+	    conn.setDoInput(true);
+	    
+	    OutputStream os = conn.getOutputStream();
+    	BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+    	writer.write("{");
+   		writer.write("\"caption\": \"" + sO.getCaption() + "\",");
+   		writer.write("\"captured_at\": \"" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(sO.getCaptured_at()) + "\",");
+   		writer.write("\"shared\": \"false\"");
+        writer.write("}");
+
+    	writer.flush();
+    	writer.close();
+	    os.close();
+	    
+	    // create JSON object from response
+	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+	    
+		return response;
+	}
+	
+	public void uploadSeene(SeeneObject sO, String bearer) throws Exception {
+		Map response = requestNewSeene(sO, bearer);
+		
+		sO.setIdentifier((String)response.get("identifier"));
+		Map upload_url = (Map)response.get("upload_url");
+		Map upload_fields = (Map)upload_url.get("fields");
+		
+		SeeneAWSUploadMeta awsMeta = new SeeneAWSUploadMeta();
+		awsMeta.setUpload_url((String)upload_url.get("url"));
+		awsMeta.setSignature((String)upload_fields.get("signature"));
+		awsMeta.setAWSAccessKeyId((String)upload_fields.get("AWSAccessKeyId"));
+		awsMeta.setAcl((String)upload_fields.get("acl"));
+		awsMeta.setKey((String)upload_fields.get("key"));
+		awsMeta.setPolicy((String)upload_fields.get("policy"));
+		
+		String boundary = "----WebKitFormBoundary" + Long.toHexString(System.currentTimeMillis());
+		
+		HttpURLConnection conn = proxyGate(new URL(awsMeta.getUpload_url()));
+		
+		conn.setReadTimeout(20000);
+		conn.setConnectTimeout(15000);
+	    conn.setRequestMethod("POST");
+	    
+	    conn.setDoOutput(true);
+	    conn.setDoInput(true);
+	    
+	    conn.setRequestProperty("Cache-Control", "no-cache");
+	    conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+	    
+	    OutputStream os = conn.getOutputStream();
+	    PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, "UTF-8"),true);
+    	
+    	writer.println("--" + boundary);
+    	writer.println("Content-Disposition: form-data; name=\"AWSAccessKeyId\"");
+    	writer.println();
+    	writer.println(awsMeta.getAWSAccessKeyId());
+    	
+    	writer.println("--" + boundary);
+    	writer.println("Content-Disposition: form-data; name=\"key\"");
+    	writer.println();
+    	writer.println(awsMeta.getKey());
+    	
+    	writer.println("--" + boundary);
+    	writer.println("Content-Disposition: form-data; name=\"policy\"");
+    	writer.println();
+    	writer.println(awsMeta.getPolicy());
+    	
+    	writer.println("--" + boundary);
+    	writer.println("Content-Disposition: form-data; name=\"signature\"");
+    	writer.println();
+    	writer.println(awsMeta.getSignature());
+    	
+    	writer.println("--" + boundary);
+    	writer.println("Content-Disposition: form-data; name=\"acl\"");
+    	writer.println();
+    	writer.println(awsMeta.getAcl());
+    	
+    	writer.println("--" + boundary);
+    	writer.println("Content-Disposition: form-data; name=\"Content-Type\"");
+    	writer.println();
+    	writer.println("image/jpeg");
+    	
+    	writer.println("--" + boundary);
+    	//writer.println("Content-Disposition: form-data; name=\"file\"; filename=\"" + sO.getXMP_combined().getName() + "\"");
+    	//writer.println("Content-Disposition: form-data; name=\"file\"");
+    	writer.println("Content-Disposition: form-data; name=\"file\"; filename=\"poster-gdepth.jpg\"");
+    	writer.println("Content-Transfer-Encoding: binary");
+    	writer.println();
+    	
+    	writer.flush();
+    	
+    	FileInputStream inputStream = new FileInputStream(sO.getXMP_combined());
+        byte[] buffer = new byte[4096];
+        int bytesRead = -1;
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            os.write(buffer, 0, bytesRead);
+        }
+        os.flush();
+        inputStream.close();
+        
+        //writer.println();
+        writer.println();
+        writer.println("--" + boundary + "--");
+        writer.flush();
+        writer.close();
+        
+        os.close();
+  
+        int responseCode = conn.getResponseCode();
+        System.out.println("ResponseCode is : " + responseCode);
+        
+        // FINALIZING
+     	URL patchURL = new URL("https://api.seene.co/seenes/" + sO.getIdentifier());
+     		
+     	SeeneToolkit.log("Finalizing new Seene " + sO.getIdentifier(),LogLevel.info);
+     		
+     	// Unfortunately the HttpsURLConnection does not support method PATCH
+     	// so we use Apache HttpComponents instead (https://hc.apache.org/)
+     	HttpClient client = new DefaultHttpClient();
+     	HttpPatch hp = new HttpPatch(patchURL.toURI());
+     	hp.setHeader("Authorization", "Bearer " + bearer);
+     	hp.setHeader("Accept", "application/vnd.seene.v1+json");
+   		List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+   		nvps.add(new BasicNameValuePair("finalize", "true"));
+   		hp.setEntity(new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
+   		client.execute(hp);
+     		
+   		SeeneToolkit.log("Upload finished. Check your private seenes!",LogLevel.info);
 	}
 
 	
@@ -361,7 +506,7 @@ public class SeeneAPI {
 	
 	
 	@SuppressWarnings("deprecation")
-	public void uploadSeene(File uploadsLocalDir, SeeneObject sO, String username, Token token) throws MalformedURLException, Exception {
+	public void uploadSeeneOldMethod(File uploadsLocalDir, SeeneObject sO, String username, Token token) throws MalformedURLException, Exception {
 		Map<String,String> params = new HashMap<String,String>();
 		
 		params.put("caption", sO.getCaption());
@@ -381,7 +526,7 @@ public class SeeneAPI {
 		Map awsmeta = (Map)metamap.get("meta");
 		Map scenemeta = (Map)metamap.get("scene");
 		
-		SeeneAWS awsMeta = new SeeneAWS();
+		SeeneAWSmetadataOldMethod awsMeta = new SeeneAWSmetadataOldMethod();
 		
 		awsMeta.setAccess_key_id((String)awsmeta.get("access_key_id"));
 		awsMeta.setBucket_name((String)awsmeta.get("bucket_name"));
@@ -408,8 +553,8 @@ public class SeeneAPI {
 		Helper.createFolderIcon(savePath, null);
 		
 		// UPLOADING THE FILES
-		awsFileUpload(awsMeta.getModel_dir(),mFile,"application/octet-stream",awsMeta);
-		awsFileUpload(awsMeta.getPoster_dir(),pFile,"image/jpeg",awsMeta);
+		awsFileUploadOldMethod(awsMeta.getModel_dir(),mFile,"application/octet-stream",awsMeta);
+		awsFileUploadOldMethod(awsMeta.getPoster_dir(),pFile,"image/jpeg",awsMeta);
 		
 		// FINALIZING
 		URL patchURL = new URL("https://oecamera.herokuapp.com/api/scenes/" + sO.getIdentifier());
@@ -431,7 +576,7 @@ public class SeeneAPI {
 		
 	}
 	
-	private static void awsFileUpload(String targetDir, File file, String mimeType, SeeneAWS meta) {
+	private static void awsFileUploadOldMethod(String targetDir, File file, String mimeType, SeeneAWSmetadataOldMethod meta) {
 		try {
 			String dateHeader = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss Z",Locale.US).format(new Date());
 			String fileName = file.getName();
