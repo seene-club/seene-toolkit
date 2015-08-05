@@ -23,6 +23,8 @@ public interface STK {
 	public static final String API_ID_KEY = "sapi";
 	public static final String API_CLIENT_KEY = "sclient";
 	
+	public static final String AUTHORIZE_URL = "https://api.seene.co/oauth/authorize?client_id=" + API_CLIENT_ID + "&redirect_uri=" + API_REDIRECT + "&response_type=code&scope=public+write";
+	
 	public static final String LINE_FEED = "\r\n";
 	
 }

@@ -43,11 +43,19 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPatch;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
 import org.json.simple.JSONValue;
@@ -100,7 +108,7 @@ public class SeeneAPI {
 	}
 	
 	// Retrieves a key with the key_id from a WebService. Keys are only returned for experienced users with valid credentials
-	private static String getSeeneKeyFromRemoteServer(String username, String password, String key_id) throws IOException, NoSuchAlgorithmException, KeyManagementException {
+	private String getSeeneKeyFromRemoteServer(String username, String password, String key_id) throws IOException, NoSuchAlgorithmException, KeyManagementException {
 		URL url = new URL("https://54.243.113.182/actions/" + key_id);
         Map<String,Object> params = new LinkedHashMap<>();
         params.put("username", username);
@@ -143,7 +151,8 @@ public class SeeneAPI {
 
        	HttpsURLConnection.setDefaultHostnameVerifier(myHostValid);
         
-        HttpsURLConnection conn = (HttpsURLConnection)url.openConnection();
+        //HttpsURLConnection conn = (HttpsURLConnection)url.openConnection();
+        HttpsURLConnection conn = (HttpsURLConnection) proxyGate(url);
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         conn.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
@@ -202,7 +211,12 @@ public class SeeneAPI {
 	}
 	
 	public Map requestNewSeene(SeeneObject sO, String bearer) throws Exception {
-		HttpURLConnection conn = proxyGate(new URL("https://api.seene.co/seenes"));
+		
+		String r_url =  new String("https://api.seene.co/seenes");
+		
+		SeeneToolkit.log("Requesting new Seene on " + r_url, LogLevel.info);
+		
+		HttpURLConnection conn = proxyGate(new URL(r_url));
 		
 		conn.setReadTimeout(20000);
 		conn.setConnectTimeout(15000);
@@ -236,10 +250,17 @@ public class SeeneAPI {
 		return response;
 	}
 	
-	public void uploadSeene(SeeneObject sO, String bearer) throws Exception {
-		Map response = requestNewSeene(sO, bearer);
+	public Boolean uploadSeene(SeeneObject sO, String bearer) throws Exception {
 		
-		sO.setIdentifier((String)response.get("identifier"));
+		Boolean success = false;
+		
+		if (bearer==null) return false;
+		
+		Map response = requestNewSeene(sO, bearer);
+		String uuid = (String)response.get("identifier");
+		
+		sO.setIdentifier(uuid);
+		SeeneToolkit.log("Response = New UUID:" + uuid, LogLevel.info);
 		Map upload_url = (Map)response.get("upload_url");
 		Map upload_fields = (Map)upload_url.get("fields");
 		
@@ -252,6 +273,8 @@ public class SeeneAPI {
 		awsMeta.setPolicy((String)upload_fields.get("policy"));
 		
 		String boundary = "----WebKitFormBoundary" + Long.toHexString(System.currentTimeMillis());
+		
+		SeeneToolkit.log("Uploading Seene: " + uuid, LogLevel.info);
 		
 		HttpURLConnection conn = proxyGate(new URL(awsMeta.getUpload_url()));
 		
@@ -327,23 +350,50 @@ public class SeeneAPI {
         int responseCode = conn.getResponseCode();
         System.out.println("ResponseCode is : " + responseCode);
         
+        if ((responseCode>199) && (responseCode<205)) success = true;
+        
         // FINALIZING
-     	URL patchURL = new URL("https://api.seene.co/seenes/" + sO.getIdentifier());
-     		
-     	SeeneToolkit.log("Finalizing new Seene " + sO.getIdentifier(),LogLevel.info);
-     		
-     	// Unfortunately the HttpsURLConnection does not support method PATCH
-     	// so we use Apache HttpComponents instead (https://hc.apache.org/)
-     	HttpClient client = new DefaultHttpClient();
-     	HttpPatch hp = new HttpPatch(patchURL.toURI());
-     	hp.setHeader("Authorization", "Bearer " + bearer);
-     	hp.setHeader("Accept", "application/vnd.seene.v1+json");
-   		List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-   		nvps.add(new BasicNameValuePair("finalize", "true"));
-   		hp.setEntity(new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
-   		client.execute(hp);
-     		
-   		SeeneToolkit.log("Upload finished. Check your private seenes!",LogLevel.info);
+        if (success) {
+	     	URL patchURL = new URL("https://api.seene.co/seenes/" + uuid);
+	     		
+	     	SeeneToolkit.log("Upload complete! Finalizing new Seene " + uuid,LogLevel.info);
+	     		
+	     	// Unfortunately the HttpsURLConnection does not support method PATCH
+	     	// so we use Apache HttpComponents instead (https://hc.apache.org/)
+	     	CloseableHttpClient client = HttpClients.createDefault();
+	     	RequestConfig proxyConfig = null;
+	     	
+	     	// Proxy configured?
+	     	if ((proxyData!=null) && (proxyData.getHost().length()>0)) {
+	     		HttpHost proxy = new HttpHost(proxyData.getHost(), proxyData.getPort(), "http");
+	     		
+	     		// Proxy with Authentication?
+	     		if (proxyData.getUser().length()>0) {
+	     			CredentialsProvider proxyCredsProvider = new BasicCredentialsProvider();
+	     			proxyCredsProvider.setCredentials(
+	     	                new AuthScope(proxyData.getHost(), proxyData.getPort()),
+	     	                new UsernamePasswordCredentials(proxyData.getUser(), proxyData.getPass()));
+	     			client = HttpClients.custom().setDefaultCredentialsProvider(proxyCredsProvider).build();
+	     		}
+	     		
+	     		proxyConfig = RequestConfig.custom().setProxy(proxy).build();
+	     		
+	     	}
+	     	
+	     	HttpPatch hp = new HttpPatch(patchURL.toURI());
+	     	if (proxyConfig!=null) hp.setConfig(proxyConfig);
+	     	
+	     	hp.setHeader("Authorization", "Bearer " + bearer);
+	     	hp.setHeader("Accept", "application/vnd.seene.v1+json");
+	   		List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+	   		nvps.add(new BasicNameValuePair("finalize", "true"));
+	   		hp.setEntity(new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
+	   		client.execute(hp);
+	   		
+	   		SeeneToolkit.log("Finalized. Check your private seenes!",LogLevel.info);
+        } // if (success)
+   		
+   		return success;
 	}
 
 	

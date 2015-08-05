@@ -26,7 +26,6 @@ import java.awt.event.MouseWheelListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
@@ -34,16 +33,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -86,8 +79,6 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.seeneclub.domainvalues.LogLevel;
 import org.seeneclub.toolkit.SeeneAPI.Token;
-import org.vanitasvitae.depthmapneedle.Base64Wrapper;
-import org.vanitasvitae.depthmapneedle.IO;
 import org.vanitasvitae.depthmapneedle.JPEG;
 
 import com.adobe.xmp.XMPException;
@@ -1318,7 +1309,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		} else { // No bearer token found!
 			// try to read authorization code from config file
 			seeneAuthorizationCode = getParameterFromConfiguration(configFile, "auth_code");
-			if (seeneAuthorizationCode.length() > 0) {
+			if ((seeneAuthorizationCode!=null) && (seeneAuthorizationCode.length() > 0)) {
 				// try to get bearer token from the seene API
 				Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
 				seeneBearerToken = (String)response.get("access_token");
@@ -1331,7 +1322,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			} else {
 				// NO authorization code AND NO bearer token available!
 				log("Seene-Toolkit seems not to be authorized to use the Seene API.",LogLevel.warn);
-				// TODO: total fail!
+				log("Please visit: " + STK.AUTHORIZE_URL, LogLevel.info);
+				// TODO: total fail! Pop up dialog for AUTHORIZATION CODE!
 			} 
 		}
 		
@@ -2043,11 +2035,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						}
 						
 						// Authorization Code
-						if (seeneAuthorizationCode.length() > 0) writer.println("auth_code=" + seeneAuthorizationCode);
+						if ((seeneAuthorizationCode!=null) && (seeneAuthorizationCode.length() > 0)) writer.println("auth_code=" + seeneAuthorizationCode);
 						else writer.println("auth_code="+ STK.CONFIG_AUTH_CODE_HINT);
 						
 						// Bearer Token
-						if (seeneBearerToken.length() > 0) writer.println("api_token=" + seeneBearerToken);
+						if ((seeneBearerToken!=null) && (seeneBearerToken.length() > 0)) writer.println("api_token=" + seeneBearerToken);
 						
 						// Write Proxy Settings (not in dialog)
 						writer.println("proxy.host=" + pd.getHost());
