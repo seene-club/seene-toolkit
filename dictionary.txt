@@ -11,3 +11,4 @@ depthmap
 unblurred
 progressbar
 config
+proxy
