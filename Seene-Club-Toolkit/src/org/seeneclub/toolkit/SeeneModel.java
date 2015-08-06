@@ -118,16 +118,22 @@ public class SeeneModel {
 	    return 0xFF000000 | R | G | B;
 	}
 	
-	private List<Float> loadModelDataFromPNG(String pngFile, String xmpFile) {
-		return loadModelDataFromPNG(new File(pngFile), new File(xmpFile));
+	private List<Float> loadModelDataFromPNG(File pngFile, float min, float max) {
+		try {
+			return loadModelDataFromBufferedImage(ImageIO.read(pngFile), min, max);
+		} catch (IOException e) {
+			SeeneToolkit.log("Could not load depthmap from " + pngFile.getAbsolutePath(),LogLevel.error);
+		}
+		return null;
 	}
-	
+
 	public List<Float> loadModelDataFromPNG(File pngFile, File xmpFile) {
 		try {
 			
 			float min = STK.INIT_DEPTH;
 			float max = 6.0f;
 			
+			// We'll get a better result if we have min- and maxDepth values. So perhaps there's a XMP File to read the values.
 			if (xmpFile.exists()) {
 				XMPMeta xmpMeta = XmpUtil.extractXMPMeta(xmpFile.getAbsolutePath());
 				min = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near").toString());
@@ -241,10 +247,10 @@ public class SeeneModel {
 		    
 		    // if depthmap is larger than WORK_WIDTH or WORK_HEIGHT it will be resized to WORK_WIDTH / WORK_HEIGHT
 		    if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) {
-		    	System.out.println(mFile.getPath());
-		    	String savePath = new String(mFile.getAbsolutePath().substring(0,mFile.getAbsolutePath().lastIndexOf(File.separator)));
-		    	SeeneToolkit.generateXMP(savePath);
-		    	loadModelDataFromPNG(savePath + File.separator + STK.XMP_DEPTH_PNG, savePath + File.separator + STK.XMP_COMBINED_JPG);
+		    	SeeneToolkit.log("original depthmap: " + mDepthWidth + " x " + mDepthHeight + " will be resized to " + STK.WORK_WIDTH + " x " + STK.WORK_HEIGHT, LogLevel.info);
+		    	File pFile = new File(mFile.getAbsolutePath().substring(0,mFile.getAbsolutePath().lastIndexOf(File.separator)) + File.separator + "poster_depth.png");
+		    	saveModelDataToPNG(pFile);
+		    	loadModelDataFromPNG(pFile, minFloat, maxFloat);
 		    }
 		    	
 		    SeeneToolkit.log("minimum float: " + minFloat,LogLevel.debug);
@@ -256,8 +262,7 @@ public class SeeneModel {
 		
 		return mFloats; 
 	}
-	
-	
+
 	// Writing floats as BIG ENDIAN bytes.
 	private static void putFloatAtCurPos(DataOutputStream out,float f) {
 		try {

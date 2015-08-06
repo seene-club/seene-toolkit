@@ -158,6 +158,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskRemove = new JMenuItem("remove mask");
     JMenuItem maskInvert = new JMenuItem("invert mask");
     JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
+    JMenuItem maskDivideByTwo = new JMenuItem("devide depth in masked area by 2");
+    JMenuItem maskDivideByThree = new JMenuItem("devide depth in masked area by 3");
         
     // Tests Menu Items
     JMenuItem testSomething = new JMenuItem("Test Something");
@@ -653,12 +655,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskRemove.addActionListener(this);
         maskInvert.addActionListener(this);
         maskSetDepth.addActionListener(this);
+        maskDivideByTwo.addActionListener(this);
+        maskDivideByThree.addActionListener(this);
         
         maskMenu.add(maskAll);
         maskMenu.add(maskRemove);
         maskMenu.add(maskInvert);
         maskMenu.addSeparator();
         maskMenu.add(maskSetDepth);
+        maskMenu.addSeparator();
+        maskMenu.add(maskDivideByTwo);
+        maskMenu.add(maskDivideByThree);
         
         
         JMenu testMenu = new JMenu("Tests");
@@ -669,7 +676,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         bar.add(fileMenu);
         bar.add(taskMenu);
         bar.add(maskMenu);
-        bar.add(testMenu);
+        //bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
         
@@ -1273,8 +1280,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			    	 }
 		    	} catch (Exception ex) {
 		    		log(ex.toString(),LogLevel.debug);
-		    	}
-	    	} 
+		    	} // try / catch
+	    	} // if (modelDisplay.isMasked())
+	    } else if(arg0.getSource() == this.maskDivideByTwo) {
+	    	if (modelDisplay.isMasked()) {
+	    		// TODO
+	    	}
+	    	
+	    } else if(arg0.getSource() == this.maskDivideByThree) {
+	    	if (modelDisplay.isMasked()) {
+	    		// TODO
+	    	}
 	    }
 	}
 	
