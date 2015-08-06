@@ -308,42 +308,42 @@ public class SeeneAPI {
 	    OutputStream os = conn.getOutputStream();
 	    PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, "UTF-8"),true);
     	
-    	writer.println("--" + boundary);
-    	writer.println("Content-Disposition: form-data; name=\"AWSAccessKeyId\"");
-    	writer.println();
-    	writer.println(awsMeta.getAWSAccessKeyId());
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
+    	writer.append("Content-Disposition: form-data; name=\"AWSAccessKeyId\"").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
+    	writer.append(awsMeta.getAWSAccessKeyId()).append(STK.LINE_FEED);
     	
-    	writer.println("--" + boundary);
-    	writer.println("Content-Disposition: form-data; name=\"key\"");
-    	writer.println();
-    	writer.println(awsMeta.getKey());
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
+    	writer.append("Content-Disposition: form-data; name=\"key\"").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
+    	writer.append(awsMeta.getKey()).append(STK.LINE_FEED);
     	
-    	writer.println("--" + boundary);
-    	writer.println("Content-Disposition: form-data; name=\"policy\"");
-    	writer.println();
-    	writer.println(awsMeta.getPolicy());
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
+    	writer.append("Content-Disposition: form-data; name=\"policy\"").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
+    	writer.append(awsMeta.getPolicy()).append(STK.LINE_FEED);
     	
-    	writer.println("--" + boundary);
-    	writer.println("Content-Disposition: form-data; name=\"signature\"");
-    	writer.println();
-    	writer.println(awsMeta.getSignature());
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
+    	writer.append("Content-Disposition: form-data; name=\"signature\"").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
+    	writer.append(awsMeta.getSignature()).append(STK.LINE_FEED);
     	
-    	writer.println("--" + boundary);
-    	writer.println("Content-Disposition: form-data; name=\"acl\"");
-    	writer.println();
-    	writer.println(awsMeta.getAcl());
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
+    	writer.append("Content-Disposition: form-data; name=\"acl\"").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
+    	writer.append(awsMeta.getAcl()).append(STK.LINE_FEED);
     	
-    	writer.println("--" + boundary);
-    	writer.println("Content-Disposition: form-data; name=\"Content-Type\"");
-    	writer.println();
-    	writer.println("image/jpeg");
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
+    	writer.append("Content-Disposition: form-data; name=\"Content-Type\"").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
+    	writer.append("image/jpeg").append(STK.LINE_FEED);
     	
-    	writer.println("--" + boundary);
+    	writer.append("--" + boundary).append(STK.LINE_FEED);
     	//writer.println("Content-Disposition: form-data; name=\"file\"; filename=\"" + sO.getXMP_combined().getName() + "\"");
     	//writer.println("Content-Disposition: form-data; name=\"file\"");
-    	writer.println("Content-Disposition: form-data; name=\"file\"; filename=\"poster-gdepth.jpg\"");
-    	writer.println("Content-Transfer-Encoding: binary");
-    	writer.println();
+    	writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"poster-gdepth.jpg\"").append(STK.LINE_FEED);
+    	writer.append("Content-Transfer-Encoding: binary").append(STK.LINE_FEED);
+    	writer.append(STK.LINE_FEED);
     	
     	writer.flush();
     	
@@ -357,8 +357,8 @@ public class SeeneAPI {
         inputStream.close();
         
         //writer.println();
-        writer.println();
-        writer.println("--" + boundary + "--");
+        writer.append(STK.LINE_FEED);
+        writer.append("--" + boundary + "--").append(STK.LINE_FEED);
         writer.flush();
         writer.close();
         
