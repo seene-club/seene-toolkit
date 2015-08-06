@@ -451,7 +451,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     private void doUploadSeene(SeeneObject sO) {
     	SeeneAPI myAPI = new SeeneAPI(pd);
     	try {
-			myAPI.uploadSeene(sO, getValidBearerToken());
+			myAPI.uploadSeene(sO, getValidBearerToken(), storage.getUploadsDir());
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -959,7 +959,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         
 	}
 	
-	public void generateXMP(String seenePath) {
+	public static void generateXMP(String seenePath) {
 		
 		// Load proprietary Seene Files 
 		File mFile = new File(seenePath + File.separator + STK.SEENE_MODEL);
@@ -990,8 +990,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		try {
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Mime", "image/png");
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Format", "RangeInverse");
-			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", currentSeene.getModel().getMaxDepth());
-			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near", currentSeene.getModel().getMinDepth());
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", mO.getMaxDepth());
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near", mO.getMinDepth());
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageWidth", STK.WORK_WIDTH);
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageHeight", STK.WORK_HEIGHT);
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Data", depthmap_base64);
@@ -1951,7 +1951,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	buttonOK.addActionListener(new java.awt.event.ActionListener() {
 			public void actionPerformed(java.awt.event.ActionEvent e) {
             	currentSeene.setCaption(tfCaption.getText());
-            	//doUploadSeeneOldMethod(storage.getUploadsDir() ,currentSeene);
             	doUploadSeene(currentSeene);
             	uploadDialog.remove(gridPanel);
             	uploadDialog.dispose();

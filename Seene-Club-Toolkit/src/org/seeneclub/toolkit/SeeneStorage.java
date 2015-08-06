@@ -75,11 +75,15 @@ public class SeeneStorage {
 		String folderName;
 		String sCaption = sO.getCaption().replaceAll("\n",  " ").replaceAll("/", ".");
 		if (sCaption.length()>80) sCaption = sCaption.substring(0, 80); 
-				
-		if (sO.getUserinfo().equalsIgnoreCase(username)) {
-			folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
+		
+		if (username!=null) {		
+			if (sO.getUserinfo().equalsIgnoreCase(username)) {
+				folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
+			} else {
+				folderName = new String(sO.getUserinfo() + " " + sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
+			}
 		} else {
-			folderName = new String(sO.getUserinfo() + " " + sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
+			folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
 		}
 		
 		// Windows is different

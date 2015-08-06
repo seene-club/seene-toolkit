@@ -31,7 +31,8 @@ public class SeeneObject {
 	private File XMP_combined;		// poster_xmp.jpg
 	
 	// AWS-Metadata (upload)
-	private SeeneAWSmetadataOldMethod awsmeta;
+	private SeeneAWSmetadataOldMethod awsmetaOldMethod;
+	private SeeneAWSUploadMeta awsMeta;
 
 	SeeneObject() {
 		caption = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
@@ -44,7 +45,7 @@ public class SeeneObject {
 		storage_version = 3;
 		poster = new SeeneTexture();
 		model = new SeeneModel();
-		awsmeta = new SeeneAWSmetadataOldMethod();
+		awsMeta = new SeeneAWSUploadMeta();
 	}
 	
 	// constructor for a seene stored at local filesystem
@@ -63,7 +64,7 @@ public class SeeneObject {
 	// Getter and Setter
 	
 	public void setModelfromXMP_depthpng() {
-		model.loadModelDataFromPNG(XMP_depthpng);
+		model.loadModelDataFromPNG(XMP_depthpng, XMP_combined);
 	}
 
 	public String getCaption() {
@@ -184,11 +185,11 @@ public class SeeneObject {
 	public void setLocalname(String localname) {
 		this.localname = localname;
 	}
-	public SeeneAWSmetadataOldMethod getAWSmeta() {
-		return awsmeta;
+	public SeeneAWSmetadataOldMethod getAWSmetaOldMethod() {
+		return awsmetaOldMethod;
 	}
-	public void setAWSmeta(SeeneAWSmetadataOldMethod awsmeta) {
-		this.awsmeta = awsmeta;
+	public void setAWSmetaOldMethod(SeeneAWSmetadataOldMethod awsmeta) {
+		this.awsmetaOldMethod = awsmeta;
 	}
 	public File getXMP_original() {
 		return XMP_original;
@@ -207,5 +208,11 @@ public class SeeneObject {
 	}
 	public void setXMP_combined(File xMP_combined) {
 		XMP_combined = xMP_combined;
+	}
+	public SeeneAWSUploadMeta getAwsMeta() {
+		return awsMeta;
+	}
+	public void setAwsMeta(SeeneAWSUploadMeta awsMeta) {
+		this.awsMeta = awsMeta;
 	}
 }

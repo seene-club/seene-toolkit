@@ -21,6 +21,10 @@ import javax.imageio.ImageIO;
 
 import org.seeneclub.domainvalues.LogLevel;
 
+import com.adobe.xmp.XMPException;
+import com.adobe.xmp.XMPMeta;
+import com.android.camera.util.XmpUtil;
+
 public class SeeneModel {
 	
 	private int mSeeneVersion = -1;
@@ -114,16 +118,30 @@ public class SeeneModel {
 	    return 0xFF000000 | R | G | B;
 	}
 	
-	public List<Float> loadModelDataFromPNG(File pngFile) {
+	private List<Float> loadModelDataFromPNG(String pngFile, String xmpFile) {
+		return loadModelDataFromPNG(new File(pngFile), new File(xmpFile));
+	}
+	
+	public List<Float> loadModelDataFromPNG(File pngFile, File xmpFile) {
 		try {
-			return loadModelDataFromBufferedImage(ImageIO.read(pngFile));
-		} catch (IOException e) {
+			
+			float min = STK.INIT_DEPTH;
+			float max = 6.0f;
+			
+			if (xmpFile.exists()) {
+				XMPMeta xmpMeta = XmpUtil.extractXMPMeta(xmpFile.getAbsolutePath());
+				min = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near").toString());
+				max = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far").toString());
+			} 
+			
+			return loadModelDataFromBufferedImage(ImageIO.read(pngFile), min, max);
+		} catch (IOException | XMPException e) {
 			SeeneToolkit.log("Could not load depthmap from " + pngFile.getAbsolutePath(),LogLevel.error);
 		}
 		return null;
 	}
 	
-	private List<Float> loadModelDataFromBufferedImage(BufferedImage depthmap) {
+	private List<Float> loadModelDataFromBufferedImage(BufferedImage depthmap, float min, float max) {
 		mDepthWidth = depthmap.getHeight();
 		mDepthHeight = depthmap.getWidth();
 		maxFloat = -1;
@@ -134,7 +152,8 @@ public class SeeneModel {
 		for (int x=0;x<mDepthHeight;x++) {
 			for (int y=0;y<mDepthWidth;y++) {
 				Color col = new Color(depthmap.getRGB(mDepthHeight - 1 - x, y));
-				float f = (float) ( col.getRed() * (6.0f - STK.INIT_DEPTH) ) / 255 + STK.INIT_DEPTH;
+				//float f = (float) ( col.getRed() * (max - min) ) / 255 + min;
+				float f = (float) ( col.getRed() * (max) ) / 255;
 				//System.out.println("R:" + col.getRed() + " - G:" + col.getGreen() + " - B:" + col.getBlue() + " - f:" + f);
 				if (f > maxFloat) maxFloat = f;
 		    	if (f < minFloat) minFloat = f;
@@ -223,9 +242,9 @@ public class SeeneModel {
 		    // if depthmap is larger than WORK_WIDTH or WORK_HEIGHT it will be resized to WORK_WIDTH / WORK_HEIGHT
 		    if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) {
 		    	System.out.println(mFile.getPath());
-		    	File pFile = new File(mFile.getAbsolutePath().substring(0,mFile.getAbsolutePath().lastIndexOf(File.separator)) + File.separator + "poster_depth.png");
-		    	saveModelDataToPNG(pFile);
-		    	loadModelDataFromPNG(pFile);
+		    	String savePath = new String(mFile.getAbsolutePath().substring(0,mFile.getAbsolutePath().lastIndexOf(File.separator)));
+		    	SeeneToolkit.generateXMP(savePath);
+		    	loadModelDataFromPNG(savePath + File.separator + STK.XMP_DEPTH_PNG, savePath + File.separator + STK.XMP_COMBINED_JPG);
 		    }
 		    	
 		    SeeneToolkit.log("minimum float: " + minFloat,LogLevel.debug);
@@ -237,6 +256,7 @@ public class SeeneModel {
 		
 		return mFloats; 
 	}
+	
 	
 	// Writing floats as BIG ENDIAN bytes.
 	private static void putFloatAtCurPos(DataOutputStream out,float f) {

@@ -250,7 +250,7 @@ public class SeeneAPI {
 		return response;
 	}
 	
-	public Boolean uploadSeene(SeeneObject sO, String bearer) throws Exception {
+	public Boolean uploadSeene(SeeneObject sO, String bearer, File uploadsLocalDir) throws Exception {
 		
 		Boolean success = false;
 		
@@ -271,7 +271,24 @@ public class SeeneAPI {
 		awsMeta.setAcl((String)upload_fields.get("acl"));
 		awsMeta.setKey((String)upload_fields.get("key"));
 		awsMeta.setPolicy((String)upload_fields.get("policy"));
+		sO.setAwsMeta(awsMeta);
 		
+		// Store Model and Texture in the upload folder and generate a XMP enhanced JPG for the upload
+		String folderName = SeeneStorage.generateSeeneFolderName(sO, null);
+		
+		File savePath = new File(uploadsLocalDir.getAbsolutePath() + File.separator + folderName);
+		savePath.mkdirs();
+		
+		File mFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_MODEL);
+		File pFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_TEXTURE);
+		sO.getModel().saveModelDataToFile(mFile);
+		sO.getPoster().saveTextureToFile(pFile);
+		Helper.createFolderIcon(savePath, null);
+		
+		SeeneToolkit.generateXMP(savePath.getAbsolutePath());
+		File xFile = new File(savePath.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG);
+		
+		// Upload the XMP to the AWS Server
 		String boundary = "----WebKitFormBoundary" + Long.toHexString(System.currentTimeMillis());
 		
 		SeeneToolkit.log("Uploading Seene: " + uuid, LogLevel.info);
@@ -330,7 +347,7 @@ public class SeeneAPI {
     	
     	writer.flush();
     	
-    	FileInputStream inputStream = new FileInputStream(sO.getXMP_combined());
+    	FileInputStream inputStream = new FileInputStream(xFile);
         byte[] buffer = new byte[4096];
         int bytesRead = -1;
         while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -584,7 +601,7 @@ public class SeeneAPI {
 		awsMeta.setPoster_dir((String)awsmeta.get("poster_dir"));
 		awsMeta.setSession_token((String)awsmeta.get("session_token"));
 		awsMeta.setSecret_access_key((String)awsmeta.get("secret_access_key"));
-		sO.setAWSmeta(awsMeta);
+		sO.setAWSmetaOldMethod(awsMeta);
 		sO.setIdentifier(UUID.fromString((String)scenemeta.get("identifier")));
 		sO.setShortCode((String)scenemeta.get("short_code"));
 		sO.setUserinfo(username);
