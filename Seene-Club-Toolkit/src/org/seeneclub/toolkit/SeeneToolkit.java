@@ -11,6 +11,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.MouseInfo;
@@ -34,6 +35,8 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -146,6 +149,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     static String seeneAuthorizationCode = new String("");
     static String seeneBearerToken = new String("");
     static ProxyData pd = new ProxyData(null, 0);
+    
+    // Authorization Dialog
+    JDialog authorizationDialog = new JDialog();
 	
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("retrieve my public seenes");
@@ -650,6 +656,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskRemove.setIcon(Helper.iconFromImageResource("masknothing.png", 16));
         maskInvert.setIcon(Helper.iconFromImageResource("maskinvert.png", 16));
         maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
+        maskDivideByTwo.setIcon(Helper.iconFromImageResource("maskdividedby2.png", 16));
+        maskDivideByThree.setIcon(Helper.iconFromImageResource("maskdividedby3.png", 16));
         
         maskAll.addActionListener(this);
         maskRemove.addActionListener(this);
@@ -666,7 +674,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.addSeparator();
         maskMenu.add(maskDivideByTwo);
         maskMenu.add(maskDivideByThree);
-        
         
         JMenu testMenu = new JMenu("Tests");
         testSomething.addActionListener(this);
@@ -963,7 +970,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 		mainFrame.setLocationByPlatform(true);
         mainFrame.setVisible(true);
-        
 	}
 	
 	public static void generateXMP(String seenePath) {
@@ -1040,6 +1046,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		sO.setModel(inlaySeeneModel(sO.getModel(), inlayModel, divisor, position));
 	    sO.setPoster(inlaySeenePoster(sO.getPoster(), inlayPoster, divisor, position));
+	    
 		return sO;
 	}
 	
@@ -1111,8 +1118,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	public SeeneModel findModelExtema(SeeneModel mO) {
-		float max = mO.getMaxFloat();
-		float min = mO.getMinFloat();
+		float max = -1;
+		float min = 1000;
 		int floatCount = mO.getDepthWidth() * mO.getDepthHeight();
 		float f;
 		for(int i = 0; i<floatCount;i++) {
@@ -1238,7 +1245,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			if ((surl != null) && (surl.length() > 0)) {
 				Thread dlThread = new Thread() {
 					public void run() {
-						doTaskBackupByURL(storage.getOthersDir(),surl);		
+						doTaskBackupByURL(storage.getOthersDir(),surl);	
+						parsePool(storage.getOthersDir());
+	            		btPoolOtherSeenes.getModel().setSelected(true);
 					}
 				};
 				dlThread.start();
@@ -1284,12 +1293,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	} // if (modelDisplay.isMasked())
 	    } else if(arg0.getSource() == this.maskDivideByTwo) {
 	    	if (modelDisplay.isMasked()) {
-	    		// TODO
+	    		modelDisplay.doDivideBy(2.0f);
+	    		modelDisplay.repaintLastChoice();
 	    	}
 	    	
 	    } else if(arg0.getSource() == this.maskDivideByThree) {
 	    	if (modelDisplay.isMasked()) {
-	    		// TODO
+	    		modelDisplay.doDivideBy(3.0f);
+	    		modelDisplay.repaintLastChoice();
 	    	}
 	    }
 	}
@@ -1315,8 +1326,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, true);
 					seeneBearerToken = (String)response.get("access_token");
 					seeneAuthorizationCode = (String)response.get("refresh_token");
-					replaceConfigParameter(configFile, "api_token", seeneBearerToken);
-					replaceConfigParameter(configFile, "auth_code", seeneAuthorizationCode);
+					insertOrReplaceConfigParameter(configFile, "api_token", seeneBearerToken);
+					insertOrReplaceConfigParameter(configFile, "auth_code", seeneAuthorizationCode);
 					
 					return seeneBearerToken;
 				}
@@ -1330,8 +1341,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
 				seeneBearerToken = (String)response.get("access_token");
 				seeneAuthorizationCode = (String)response.get("refresh_token");
-				replaceConfigParameter(configFile, "api_token", seeneBearerToken);
-				replaceConfigParameter(configFile, "auth_code", seeneAuthorizationCode);
+				insertOrReplaceConfigParameter(configFile, "api_token", seeneBearerToken);
+				insertOrReplaceConfigParameter(configFile, "auth_code", seeneAuthorizationCode);
 				
 				return seeneBearerToken;
 				
@@ -1339,7 +1350,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				// NO authorization code AND NO bearer token available!
 				log("Seene-Toolkit seems not to be authorized to use the Seene API.",LogLevel.warn);
 				log("Please visit: " + STK.AUTHORIZE_URL, LogLevel.info);
-				// TODO: total fail! Pop up dialog for AUTHORIZATION CODE!
+				showAuthorizationDialog();
 			} 
 		}
 		
@@ -1362,7 +1373,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	
-	private void replaceConfigParameter(File cf, String param, String newValue) {
+	private void insertOrReplaceConfigParameter(File cf, String param, String newValue) {
 		String paramEq = new String(param + "=");
 		if(cf.exists() && !cf.isDirectory()) {
 			BufferedReader br;
@@ -1372,7 +1383,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				String newConf = "";
 				Boolean replaced = false;
     			while ((line = br.readLine()) != null) {
-    				if (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq)) {
+    				if ((line.length()>paramEq.length()) && (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq))) {
     					newConf += paramEq + newValue + '\n';
     					log("replaced " + param + " in " + cf.getAbsolutePath(),LogLevel.info);
     					replaced = true;
@@ -1653,7 +1664,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    						int n = mx * w + my;
 	    						float f = model.getFloats().get(n);
 	    						float cf = floatGreyScale(f, max);
-		        	        	log("\nx: " + mx +  " - y: " + my + "\nfloat number: " + n + "\nfloat value: " + f + "\ncolor value: " + cf,LogLevel.info);
+		        	        	log("\nPOSITION: x: " + mx +  " - y: " + my + " (float number: " + n + ")\nCOLOR: " + cf + "\nDEPTH: " + f,LogLevel.info);
 		        	        	setRememberedFloat(f);
 	        	        	}
 	        	        }
@@ -1709,7 +1720,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	}
 			});
 	    }
-
 
 		public void paint(Graphics g){
 	    	paintModel(g,model);
@@ -1851,6 +1861,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	}
 		}
 	    
+	    public void doDivideBy(float div) {
+	    	if (model!=null) {
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) model.getFloats().set(n, model.getFloats().get(n) / div);
+	    		}
+	    		model=findModelExtema(model);
+	    	}
+		}
+	    
 	    public Boolean isMasked() {
 	    	if (model!=null) {
 	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
@@ -1869,7 +1888,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			this.seeneObject = seeneObject;
 			setModel(seeneObject.getModel());
 			setPoster(seeneObject.getPoster());
-			repaintGraphics();
+			repaintLastChoice();
 		}
 	    public SeeneModel getModel() {
 			return model;
@@ -1998,6 +2017,88 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 	}
 	
+	private void showAuthorizationDialog() {
+		
+		authorizationDialog.setTitle("Authorize Seene-Toolkit for your account!");
+		authorizationDialog.setSize(640,280);
+		authorizationDialog.setLocationRelativeTo(mainFrame);
+		authorizationDialog.setModal(true);
+
+		JPanel gridPanel = new JPanel();
+    	gridPanel.setLayout(new java.awt.GridLayout(10,1));
+    	
+    	JLabel labelHint1 = new JLabel("If you want to use the upload feature, you have to authorize seene-toolkit to do uploads to your Seene account!");
+    	JLabel labelHint2 = new JLabel("Please start the authorization process by pressing the button below.");
+    	JLabel labelHint3 = new JLabel("(Your webbrowser will open. Login to Seene and copy the authorization code that you will get in the input field below)");
+    	JButton startAuthButton = new JButton("start autorization");
+        JLabel labelAuthCode = new JLabel("Insert Seene Authorization Code below:");
+        JTextField tfAuthCode = new JTextField();
+        JButton buttonOK = new JButton("OK");
+        JButton buttonCancel = new JButton("cancel");
+        
+        startAuthButton.addActionListener(new java.awt.event.ActionListener() {
+			public void actionPerformed(java.awt.event.ActionEvent e) {
+				try {
+					Helper.openWebpage(new URL(STK.AUTHORIZE_URL));
+				} catch (MalformedURLException ex) {
+					// TODO Auto-generated catch block
+					ex.printStackTrace();
+				}
+            }
+    	});
+        
+        buttonOK.addActionListener(new java.awt.event.ActionListener() {
+			public void actionPerformed(java.awt.event.ActionEvent e) {
+				if (tfAuthCode.getText().length()>40) {
+					insertOrReplaceConfigParameter(configFile, "auth_code", tfAuthCode.getText());
+					authorizationDialog.remove(gridPanel);
+	            	authorizationDialog.dispose();
+				}
+            }
+    	});
+    	
+    	buttonCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+            	authorizationDialog.remove(gridPanel);
+            	authorizationDialog.dispose();
+            }
+        });
+        
+    	labelHint1.setHorizontalAlignment(JLabel.CENTER);
+    	labelHint2.setHorizontalAlignment(JLabel.CENTER);
+    	labelHint3.setHorizontalAlignment(JLabel.CENTER);
+    	labelAuthCode.setHorizontalAlignment(JLabel.CENTER);
+    	
+    	JPanel gridAuthButton = new JPanel();
+    	gridAuthButton.setLayout(new java.awt.GridLayout(1,3));
+    	
+    	gridAuthButton.add(new JLabel(""));
+    	gridAuthButton.add(startAuthButton);
+    	gridAuthButton.add(new JLabel(""));
+    	
+    	JPanel gridOKCancel = new JPanel();
+    	gridOKCancel.setLayout(new java.awt.GridLayout(1,4));
+    	
+    	gridOKCancel.add(new JLabel(""));
+    	gridOKCancel.add(buttonOK);
+    	gridOKCancel.add(buttonCancel);
+    	gridOKCancel.add(new JLabel(""));
+    	
+    	gridPanel.add(labelHint1);
+    	gridPanel.add(labelHint2);
+    	gridPanel.add(labelHint3);
+    	gridPanel.add(new JLabel(""));
+    	gridPanel.add(gridAuthButton);
+    	gridPanel.add(new JLabel(""));
+    	gridPanel.add(labelAuthCode);
+    	gridPanel.add(tfAuthCode);
+    	gridPanel.add(new JLabel(""));
+    	gridPanel.add(gridOKCancel);
+
+    	authorizationDialog.add(gridPanel);
+    	authorizationDialog.setVisible(true);
+	}
+	
 	private void showSettingsDialog() {
 		
 		readConfiguration(configFile);
@@ -2115,7 +2216,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				br = new BufferedReader(new FileReader(cf));
 				String line;
     			while ((line = br.readLine()) != null) {
-    				if (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq)) {
+    				if ((line.length()>paramEq.length()) && (line.substring(0, paramEq.length()).equalsIgnoreCase(paramEq))) {
     					log("configured " + paramEq + " is: " + line.substring(paramEq.length()),LogLevel.debug);
     					br.close();
     					return line.substring(paramEq.length());
