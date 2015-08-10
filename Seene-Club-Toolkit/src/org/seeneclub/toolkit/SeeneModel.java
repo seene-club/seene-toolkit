@@ -147,7 +147,7 @@ public class SeeneModel {
 			float max = 6.0f;
 			
 			// We'll get a better result if we have min- and maxDepth values. So perhaps there's a XMP File to read the values.
-			if (xmpFile.exists()) {
+			if ((xmpFile!=null) && (xmpFile.exists())) {
 				XMPMeta xmpMeta = XmpUtil.extractXMPMeta(xmpFile.getAbsolutePath());
 				min = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near").toString());
 				max = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far").toString());

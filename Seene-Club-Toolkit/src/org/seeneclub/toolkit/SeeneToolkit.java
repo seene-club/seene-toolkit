@@ -89,7 +89,7 @@ import com.android.camera.util.XmpUtil;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
@@ -1055,7 +1055,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		JOptionPane.showMessageDialog(mainFrame,  "There's no Seene in the editor!\n" + 
 				"Please double click a Seene from the list on the left side.\n\n" + 
 				"No, Seenes there?\n" +
-				"Please use the 'task' menu to retrieve some!" , title, JOptionPane.WARNING_MESSAGE);
+				"Please use the 'Tasks' menu to retrieve some!" , title, JOptionPane.WARNING_MESSAGE);
 	}
 	
 	public SeeneObject inlaySeene(SeeneObject sO, String inlayPath, int divisor, int position) {
@@ -1530,6 +1530,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		File mf = currentSeene.getModelFile();
 		File tf = currentSeene.getPosterFile();
 		File xf = currentSeene.getXMP_combined();
+		File df = currentSeene.getXMP_depthpng();
+		File of = currentSeene.getXMP_original();
 		
 		String loadmode = "unloadable: image and depthmap missing";
 		
@@ -1540,6 +1542,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		if ((mf.exists())  && (tf.exists())  && (!xf.exists())) loadmode="model:proprietary,image:proprietary";
 		if ((mf.exists()) && (!tf.exists())  && (!xf.exists())) loadmode="unloadable: image missing";
 		if ((!mf.exists()) && (tf.exists())  && (!xf.exists())) loadmode="unloadable: depthmap missing";
+		
+		if (loadmode.indexOf("unloadable")>=0) {
+			if ((df.exists()) && (of.exists())) loadmode="model:png,image:original";
+		}
 		
 		if (loadmode.indexOf("model:decision")>=0) {
 			Object[] options = {"scene.oemodel", "XMP model", "cancel"};
@@ -1581,6 +1587,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			if (loadmode.indexOf("unloadable")>=0) {
 				log(loadmode,LogLevel.error);
 			} else {
+				if (loadmode.indexOf("model:png")>=0) {
+					log("Loading PNG-Image as Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
+					currentSeene.getModel().loadModelDataFromPNG(df, null);
+				}
+				if (loadmode.indexOf("image:original")>=0) {
+					log("Loading original JPG Image: " + of.getAbsolutePath() ,LogLevel.info);
+					 try {
+						BufferedImage textureImage = ImageIO.read(of);
+						SeeneTexture poster = new SeeneTexture(
+								Helper.rotateAndResizeImage(textureImage, textureImage.getWidth(), textureImage.getHeight(), 270));
+						currentSeene.setPoster(poster);
+					} catch (IOException e) {
+						SeeneToolkit.log(e.getMessage(),LogLevel.error);
+					}
+				}
 				if (loadmode.indexOf("model:proprietary")>=0) {
 					log("Loading proprietary Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
 					currentSeene.getModel().loadModelDataFromFile();
@@ -1604,9 +1625,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					
 					else log("There is no Depthmap in file " + xmpFilepath, LogLevel.warn);
 				}
+				
 				if (loadmode.indexOf("image:xmp")>=0) {
-					String xmpFilepath = xf.getAbsolutePath();
-					log("Loading XMP Image: " + xmpFilepath ,LogLevel.info);
+					log("Loading XMP Image: " + xf.getAbsolutePath() ,LogLevel.info);
 					 try {
 						BufferedImage textureImage = ImageIO.read(xf);
 						SeeneTexture poster = new SeeneTexture(
@@ -1615,7 +1636,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					} catch (IOException e) {
 						SeeneToolkit.log(e.getMessage(),LogLevel.error);
 					}
-					
 				}
 				
 				log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
