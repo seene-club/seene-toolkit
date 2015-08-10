@@ -87,19 +87,32 @@ public class SeeneModel {
 	}
 	
 	public void saveModelDataToPNG(File pngFile) {
+		saveModelDataToPNGwithFar(pngFile, getMaxFloat());
+	}
+	
+	// Save PNG with ability to override far. 
+	public void saveModelDataToPNGwithFar(File pngFile, float far) {
 		BufferedImage pngImage = new BufferedImage(mDepthWidth, mDepthHeight, BufferedImage.TYPE_INT_ARGB);
 		int c = 0;
-		float f;
-		float max = getMaxFloat();
+		float d;
+		float dn;
+		float near = getMinFloat();
+		
 		for (int x=0;x<mDepthHeight;x++) {
 			for (int y=0;y<mDepthWidth;y++) {
-				f = mFloats.get(c);
-        		pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(f/max,f/max,f/max));
+				d = mFloats.get(c);
+				
+				//https://developers.google.com/depthmap-metadata/encoding
+				dn = ((far * (d - near)) / (d * (far - near)));
+				pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(dn, dn, dn));
+				
+        		//pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(d/far,d/far,d/far));
 				c++;
 			}
 		}
 		try {
 			ImageIO.write(pngImage,"PNG",pngFile);
+			SeeneToolkit.log("PNG: " + pngFile.getAbsolutePath() + " written!",LogLevel.info);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -152,14 +165,20 @@ public class SeeneModel {
 		mDepthHeight = depthmap.getWidth();
 		maxFloat = -1;
 		minFloat = 1000;
+		float f;
 		mFloats.clear();
 		SeeneToolkit.log("PNG depthmap size is h:" + mDepthWidth + " -  w:" + mDepthHeight,LogLevel.info);
 		if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) depthmap = resizeDepthmapPNG(depthmap);
 		for (int x=0;x<mDepthHeight;x++) {
 			for (int y=0;y<mDepthWidth;y++) {
 				Color col = new Color(depthmap.getRGB(mDepthHeight - 1 - x, y));
-				//float f = (float) ( col.getRed() * (max - min) ) / 255 + min;
-				float f = (float) ( col.getRed() * (max) ) / 255;
+				
+				//f = (float) ( col.getRed() * (max - min) ) / 255 + min;
+				f = (float) ( col.getRed() * (max) ) / 255;
+				
+				//https://developers.google.com/depthmap-metadata/encoding
+				//f = (max * min) / (max - (col.getRed()/255.0f) * (max - min));  
+			
 				//System.out.println("R:" + col.getRed() + " - G:" + col.getGreen() + " - B:" + col.getBlue() + " - f:" + f);
 				if (f > maxFloat) maxFloat = f;
 		    	if (f < minFloat) minFloat = f;

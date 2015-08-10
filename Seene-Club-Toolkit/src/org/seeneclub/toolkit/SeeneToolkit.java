@@ -11,7 +11,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Insets;
 import java.awt.MouseInfo;
@@ -90,14 +89,14 @@ import com.android.camera.util.XmpUtil;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static String programVersion = "0.3b"; 
+	static String programVersion = "0.4b"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -556,12 +555,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	@Override
 	public void run() {
 		
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		}catch(Exception ex) {
+			ex.printStackTrace();
+		}
+		
 		// first run. User should select where to store the Seenes.
 		if(!configFile.exists()) {
 			// Show dialog for directory browsing
 			JFileChooser chooser = new JFileChooser();
 			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			int fileChooserReturnValue = chooser.showDialog(null,"select directory to store your backuped seenes");
+			int fileChooserReturnValue = chooser.showDialog(null,"Select directory to store your Seenes");
 	        
 	        // Check if chosen or canceled
 	        if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
@@ -575,6 +580,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    			log("new configuration file " + configFile.getPath() + " written!",LogLevel.info);
 	    			
 	        		showSettingsDialog();
+	        		showAuthorizationDialog();
 	        		
 				} catch (FileNotFoundException e) {
 					// TODO Auto-generated catch block
@@ -650,7 +656,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         taskMenu.add(taskBackupOther);
         taskMenu.add(taskBackupByURL);
         
-        JMenu maskMenu = new JMenu("Mask operations");
+        JMenu maskMenu = new JMenu("Mask");
         
         maskAll.setIcon(Helper.iconFromImageResource("maskall.png", 16));
         maskRemove.setIcon(Helper.iconFromImageResource("masknothing.png", 16));
@@ -972,6 +978,30 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         mainFrame.setVisible(true);
 	}
 	
+	public static void generateXMPwithFar(String seenePath, float far) {
+		
+		// Load proprietary Seene Files 
+		File mFile = new File(seenePath + File.separator + STK.SEENE_MODEL);
+		File tFile = new File(seenePath + File.separator + STK.SEENE_TEXTURE);
+		
+		SeeneModel mO = new SeeneModel(mFile);
+		SeeneTexture tO = new SeeneTexture(tFile);
+		
+		mO.loadModelDataFromFile();
+		tO.loadTextureFromFile();
+		
+		// Save XMP components from proprietary Seene
+		File pFile = new File(seenePath + File.separator + STK.XMP_DEPTH_PNG);
+		File oFile = new File(seenePath + File.separator + STK.XMP_ORIGINAL_JPG);
+		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
+		
+		tO.saveTextureRotatedToFile(oFile, 90);
+		tO.saveTextureRotatedToFile(xFile, 90);
+		mO.saveModelDataToPNGwithFar(pFile, far);
+		
+		injectDepthmapXMP(mO, pFile, xFile, far);
+	}
+	
 	public static void generateXMP(String seenePath) {
 		
 		// Load proprietary Seene Files 
@@ -993,6 +1023,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		tO.saveTextureRotatedToFile(xFile, 90);
 		mO.saveModelDataToPNG(pFile);
 		
+		injectDepthmapXMP(mO, pFile, xFile,mO.getMaxDepth());
+	}
+
+
+	private static void injectDepthmapXMP(SeeneModel mO, File pFile, File xFile, float far) {
 		// Inject XMP Metadata into the XMP JPG
 		JPEG image = new JPEG(xFile.getAbsolutePath());
 		byte[] depthmap = image.getDepthMap(pFile.getAbsolutePath());
@@ -1003,7 +1038,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		try {
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Mime", "image/png");
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Format", "RangeInverse");
-			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", mO.getMaxDepth());
+			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far", far);
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near", mO.getMinDepth());
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageWidth", STK.WORK_WIDTH);
 			xmpMeta.setProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:ImageHeight", STK.WORK_HEIGHT);
