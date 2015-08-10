@@ -68,10 +68,10 @@ LEFT MOUSE BUTTON to draw the mask
 
 RIGHT MOUSE BUTTON to erase the mask
 
-MIDDLE MOUSE BUTTEN or WHEEL CLICK shows you the depth information of point
+MIDDLE MOUSE BUTTON or WHEEL CLICK shows you the depth information of point
 
 
-To change the model underneath the mask use "Mask operations" Menu.
+To change the model underneath the mask use "Mask" Menu.
 
 to be continued ...
 
