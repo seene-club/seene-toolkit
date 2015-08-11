@@ -285,8 +285,12 @@ public class SeeneAPI {
 		sO.getPoster().saveTextureToFile(pFile);
 		Helper.createFolderIcon(savePath, null);
 		
-		SeeneToolkit.generateXMPwithFar(savePath.getAbsolutePath(),11.0f);
-		//SeeneToolkit.generateXMP(savePath.getAbsolutePath());
+		// TODO !!!! EXPERIMENTAL !!!
+		//SeeneToolkit.generateXMP(savePath.getAbsolutePath(), 11.0f, STK.CALCULATION_METHOD_GOOGLE_RANGELINEAR);
+		//SeeneToolkit.generateXMP(savePath.getAbsolutePath(), 11.0f, STK.CALCULATION_METHOD_STK_PRESERVE);
+		SeeneToolkit.generateXMP(savePath.getAbsolutePath(),STK.CALCULATION_METHOD_GOOGLE_RANGELINEAR);
+		//SeeneToolkit.generateXMP(savePath.getAbsolutePath(),STK.CALCULATION_METHOD_STK_PRESERVE);
+		
 		File xFile = new File(savePath.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG);
 		
 		// Upload the XMP to the AWS Server

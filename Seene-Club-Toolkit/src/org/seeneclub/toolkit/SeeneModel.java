@@ -87,11 +87,15 @@ public class SeeneModel {
 	}
 	
 	public void saveModelDataToPNG(File pngFile) {
-		saveModelDataToPNGwithFar(pngFile, getMaxFloat());
+		saveModelDataToPNGwithFar(pngFile, getMaxFloat(),STK.CALCULATION_METHOD_STK_PRESERVE);
+	}
+	
+	public void saveModelDataToPNG(File pngFile, int calculationMethod) {
+		saveModelDataToPNGwithFar(pngFile, getMaxFloat(),calculationMethod);
 	}
 	
 	// Save PNG with ability to override far. 
-	public void saveModelDataToPNGwithFar(File pngFile, float far) {
+	public void saveModelDataToPNGwithFar(File pngFile, float far, int calculationMethod) {
 		BufferedImage pngImage = new BufferedImage(mDepthWidth, mDepthHeight, BufferedImage.TYPE_INT_ARGB);
 		int c = 0;
 		float d;
@@ -102,11 +106,16 @@ public class SeeneModel {
 			for (int y=0;y<mDepthWidth;y++) {
 				d = mFloats.get(c);
 				
-				//https://developers.google.com/depthmap-metadata/encoding
-				dn = ((far * (d - near)) / (d * (far - near)));
-				pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(dn, dn, dn));
+				if (calculationMethod == STK.CALCULATION_METHOD_STK_PRESERVE) {
+					pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(d/far,d/far,d/far));
+				}
 				
-        		//pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(d/far,d/far,d/far));
+				//https://developers.google.com/depthmap-metadata/encoding
+				if (calculationMethod == STK.CALCULATION_METHOD_GOOGLE_RANGELINEAR) {
+					dn = ((far * (d - near)) / (d * (far - near)));
+					pngImage.setRGB(mDepthHeight - 1 - x, y, getIntFromColor(dn, dn, dn));
+				}
+				
 				c++;
 			}
 		}
@@ -168,7 +177,7 @@ public class SeeneModel {
 		float f;
 		mFloats.clear();
 		SeeneToolkit.log("PNG depthmap size is h:" + mDepthWidth + " -  w:" + mDepthHeight,LogLevel.info);
-		if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) depthmap = resizeDepthmapPNG(depthmap);
+		if ((mDepthWidth != STK.WORK_WIDTH) || (mDepthHeight != STK.WORK_HEIGHT)) depthmap = resizeDepthmapPNG(depthmap);
 		for (int x=0;x<mDepthHeight;x++) {
 			for (int y=0;y<mDepthWidth;y++) {
 				Color col = new Color(depthmap.getRGB(mDepthHeight - 1 - x, y));
@@ -265,7 +274,7 @@ public class SeeneModel {
 		    in.close();
 		    
 		    // if depthmap is larger than WORK_WIDTH or WORK_HEIGHT it will be resized to WORK_WIDTH / WORK_HEIGHT
-		    if ((mDepthWidth > STK.WORK_WIDTH) || (mDepthHeight > STK.WORK_HEIGHT)) {
+		    if ((mDepthWidth != STK.WORK_WIDTH) || (mDepthHeight != STK.WORK_HEIGHT)) {
 		    	SeeneToolkit.log("original depthmap: " + mDepthWidth + " x " + mDepthHeight + " will be resized to " + STK.WORK_WIDTH + " x " + STK.WORK_HEIGHT, LogLevel.info);
 		    	File pFile = new File(mFile.getAbsolutePath().substring(0,mFile.getAbsolutePath().lastIndexOf(File.separator)) + File.separator + "poster_depth.png");
 		    	saveModelDataToPNG(pFile);

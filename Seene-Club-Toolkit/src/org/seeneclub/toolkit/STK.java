@@ -6,6 +6,9 @@ public interface STK {
 	public static final int WORK_HEIGHT = 240;
 	public static final float INIT_DEPTH = 0.4f;
 	
+	public static final int CALCULATION_METHOD_STK_PRESERVE = 1;
+	public static final int CALCULATION_METHOD_GOOGLE_RANGELINEAR = 2;
+	
 	public static final String SEENE_MODEL = "scene.oemodel";
 	public static final String SEENE_TEXTURE = "poster.jpg";
 	
@@ -13,7 +16,13 @@ public interface STK {
 	public static final String XMP_DEPTH_PNG = "poster_depth.png";
 	public static final String XMP_COMBINED_JPG = "poster_xmp.jpg";
 	
-	public static final int GENERATE_XMP_MENU_POSITION = 3;
+	public static final int POPUP_POSITION_GENERATE_XMP = 3;
+	public static final int POPUP_POSITION_LOAD_TEXTURE_POSTER = 5;
+	public static final int POPUP_POSITION_LOAD_TEXTURE_POSTER_ORIGINAL = 6;
+	public static final int POPUP_POSITION_LOAD_TEXTURE_XMP = 7;
+	public static final int POPUP_POSITION_LOAD_MODEL_OEMODEL = 8;
+	public static final int POPUP_POSITION_LOAD_MODEL_PNG = 9;
+	public static final int POPUP_POSITION_LOAD_MODEL_XMP = 10;
 	
 	public static final String CONFIG_API_ID_HINT = "<insert Seene API ID here>";
 	public static final String CONFIG_AUTH_CODE_HINT = "<insert Seene Authorization Code here>";
@@ -26,5 +35,7 @@ public interface STK {
 	public static final String AUTHORIZE_URL = "https://api.seene.co/oauth/authorize?client_id=" + API_CLIENT_ID + "&redirect_uri=" + API_REDIRECT + "&response_type=code&scope=public+write";
 	
 	public static final String LINE_FEED = "\r\n";
+	
+	
 	
 }

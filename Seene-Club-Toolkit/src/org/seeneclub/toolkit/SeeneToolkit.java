@@ -89,7 +89,7 @@ import com.android.camera.util.XmpUtil;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
-	public static final String APPLICATION_LOG_MODE = LogLevel.debug + 
+	public static final String APPLICATION_LOG_MODE = //LogLevel.debug + 
 													  LogLevel.info +
 													  LogLevel.warn +
 													  LogLevel.error +
@@ -764,9 +764,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         
         // Other Menu Items for right click on Seene folder
         JMenuItem miGenerateXMP = new JMenuItem("generate XMP (JPG with depthmap)");
+        JMenuItem miLoadTextureFromPoster = new JMenuItem("load texture from Seene " + STK.SEENE_TEXTURE);
+        JMenuItem miLoadTextureFromPosterOriginal = new JMenuItem("load texture from " + STK.XMP_ORIGINAL_JPG);
+        JMenuItem miLoadTextureFromXMPCombined = new JMenuItem("load texture from " + STK.XMP_COMBINED_JPG);
+        JMenuItem miLoadModelFromOEmodel = new JMenuItem("load model from " + STK.SEENE_MODEL);
+        JMenuItem miLoadModelFromPNG = new JMenuItem("load model from " + STK.XMP_DEPTH_PNG);
+        JMenuItem miLoadModelFromXMPCombined = new JMenuItem("load model from " + STK.XMP_COMBINED_JPG);
         JMenuItem miShowInFS = new JMenuItem("show in file explorer");
         JMenuItem miDeleteFS = new JMenuItem("delete from local file system");
         miGenerateXMP.setIcon(Helper.iconFromImageResource("xmp.png", 16));
+        miLoadTextureFromPoster.setIcon(Helper.iconFromImageResource("texture.png", 16));
+        miLoadTextureFromPosterOriginal.setIcon(Helper.iconFromImageResource("texture.png", 16));
+        miLoadTextureFromXMPCombined.setIcon(Helper.iconFromImageResource("texture.png", 16));
+        miLoadModelFromOEmodel.setIcon(Helper.iconFromImageResource("model.png", 16));
+        miLoadModelFromPNG.setIcon(Helper.iconFromImageResource("model.png", 16));
+        miLoadModelFromXMPCombined.setIcon(Helper.iconFromImageResource("model.png", 16));
         miShowInFS.setIcon(Helper.iconFromImageResource("show.png", 16));
         miDeleteFS.setIcon(Helper.iconFromImageResource("delete.png", 16));
         
@@ -827,6 +839,36 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
               if(event.getSource() == miGenerateXMP) {
             	  generateXMP(currentSelection.getToolTipText());
               }
+              if(event.getSource() == miLoadTextureFromPoster) {
+            	  currentSeene.setPoster(loadProprietaryPoster(currentSelection.getToolTipText()));
+            	  modelDisplay.setPoster(currentSeene.getPoster());
+            	  modelDisplay.repaintPosterOnly();
+              }
+              if(event.getSource() == miLoadTextureFromPosterOriginal) {
+            	  currentSeene.setPoster(loadXMPOriginalPoster(currentSelection.getToolTipText()));
+            	  modelDisplay.setPoster(currentSeene.getPoster());
+            	  modelDisplay.repaintPosterOnly();
+              }
+              if(event.getSource() == miLoadTextureFromXMPCombined) {
+            	  currentSeene.setPoster(loadXMPCombinedPoster(currentSelection.getToolTipText()));
+            	  modelDisplay.setPoster(currentSeene.getPoster());
+            	  modelDisplay.repaintPosterOnly();
+              }
+              if(event.getSource() == miLoadModelFromOEmodel) {
+            	 currentSeene.setModel(loadProprietaryModel(currentSelection.getToolTipText()));
+            	 modelDisplay.setModel(currentSeene.getModel());
+            	 modelDisplay.repaintModelOnly();
+              }
+              if(event.getSource() == miLoadModelFromPNG) {
+            	  currentSeene.setModel(loadXMPDepthPNGModel(currentSelection.getToolTipText()));
+            	  modelDisplay.setModel(currentSeene.getModel());
+             	  modelDisplay.repaintModelOnly();
+              }
+              if(event.getSource() == miLoadModelFromXMPCombined) {
+            	  currentSeene.setModel(loadXMPCombinedModel(currentSelection.getToolTipText()));
+            	  modelDisplay.setModel(currentSeene.getModel());
+             	  modelDisplay.repaintModelOnly();
+              }
               if(event.getSource() == miShowInFS) {
             	  try {
             		  Desktop.getDesktop().open(new File(currentSelection.getToolTipText()));
@@ -881,13 +923,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         threeXthreeSubmenu.add(tXtBottomRight);
         
         miGenerateXMP.addActionListener(popupListener);
+        miLoadTextureFromPoster.addActionListener(popupListener);
+        miLoadTextureFromPosterOriginal.addActionListener(popupListener);
+        miLoadTextureFromXMPCombined.addActionListener(popupListener);
+        miLoadModelFromOEmodel.addActionListener(popupListener);
+        miLoadModelFromPNG.addActionListener(popupListener);
+        miLoadModelFromXMPCombined.addActionListener(popupListener);
         miShowInFS.addActionListener(popupListener);
         miDeleteFS.addActionListener(popupListener);
         
         rClickPopup.add(twoXtwoSubmenu);
         rClickPopup.add(threeXthreeSubmenu);
         rClickPopup.addSeparator();
-        rClickPopup.add(miGenerateXMP,STK.GENERATE_XMP_MENU_POSITION);
+        rClickPopup.add(miGenerateXMP,STK.POPUP_POSITION_GENERATE_XMP);
+        rClickPopup.addSeparator();
+        rClickPopup.add(miLoadTextureFromPoster,STK.POPUP_POSITION_LOAD_TEXTURE_POSTER);
+        rClickPopup.add(miLoadTextureFromPosterOriginal,STK.POPUP_POSITION_LOAD_TEXTURE_POSTER_ORIGINAL);
+        rClickPopup.add(miLoadTextureFromXMPCombined,STK.POPUP_POSITION_LOAD_TEXTURE_XMP);
+        rClickPopup.add(miLoadModelFromOEmodel,STK.POPUP_POSITION_LOAD_MODEL_OEMODEL);
+        rClickPopup.add(miLoadModelFromPNG,STK.POPUP_POSITION_LOAD_MODEL_PNG);
+        rClickPopup.add(miLoadModelFromXMPCombined,STK.POPUP_POSITION_LOAD_MODEL_XMP);
         rClickPopup.addSeparator();
         rClickPopup.add(miShowInFS);
         rClickPopup.add(miDeleteFS);
@@ -978,41 +1033,90 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         mainFrame.setVisible(true);
 	}
 	
-	public static void generateXMPwithFar(String seenePath, float far) {
-		
-		// Load proprietary Seene Files 
-		File mFile = new File(seenePath + File.separator + STK.SEENE_MODEL);
-		File tFile = new File(seenePath + File.separator + STK.SEENE_TEXTURE);
-		
-		SeeneModel mO = new SeeneModel(mFile);
-		SeeneTexture tO = new SeeneTexture(tFile);
-		
-		mO.loadModelDataFromFile();
-		tO.loadTextureFromFile();
-		
-		// Save XMP components from proprietary Seene
-		File pFile = new File(seenePath + File.separator + STK.XMP_DEPTH_PNG);
-		File oFile = new File(seenePath + File.separator + STK.XMP_ORIGINAL_JPG);
+	public static SeeneModel loadXMPDepthPNGModel(String seenePath) {
 		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
+		File pFile = new File(seenePath + File.separator + STK.XMP_DEPTH_PNG);
+		SeeneModel mO = new SeeneModel();
+		mO.loadModelDataFromPNG(pFile, xFile);
+		return mO;
+	}
+
+	public static SeeneModel loadXMPCombinedModel(String seenePath) {
+		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
+		String xmpFilepath = xFile.getAbsolutePath();
+		SeeneModel mO = new SeeneModel();
 		
-		tO.saveTextureRotatedToFile(oFile, 90);
-		tO.saveTextureRotatedToFile(xFile, 90);
-		mO.saveModelDataToPNGwithFar(pFile, far);
+		JPEG image = new JPEG(xmpFilepath);
+		// Trying to extract the depthmap from the XMP enhanced JPG
+		if (image.exportDepthMap()) {
+			log("Depthmap extracted for file " + xmpFilepath, LogLevel.info);
+			String depthmapFilePath = xmpFilepath.substring(0, xmpFilepath.length()-8) + "_depth.png";
+			mO.loadModelDataFromPNG(new File(depthmapFilePath), xFile);
+		} else log("There is no Depthmap in file " + xmpFilepath, LogLevel.warn);
 		
-		injectDepthmapXMP(mO, pFile, xFile, far);
+		return mO;
+	}
+
+
+	public static SeeneTexture loadXMPCombinedPoster(String seenePath) {
+		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
+		return loadVerticalOrientedPoster(xFile);
+	}
+	
+	public static SeeneTexture loadXMPOriginalPoster(String seenePath) {
+		File oFile = new File(seenePath + File.separator + STK.XMP_ORIGINAL_JPG);
+		return loadVerticalOrientedPoster(oFile);
+	}
+
+
+	private static SeeneTexture loadVerticalOrientedPoster(File vopFile) {
+		BufferedImage textureImage = null;
+		SeeneTexture tO = null;
+		
+		try {
+			textureImage = ImageIO.read(vopFile);
+			tO = new SeeneTexture(Helper.rotateAndResizeImage(textureImage, textureImage.getWidth(), textureImage.getHeight(), 270));
+		} catch (IOException e) {
+			log("Could not open: " + vopFile.getAbsolutePath(),LogLevel.error);
+		}
+		 
+		return tO;
+	}
+
+	public static SeeneModel loadProprietaryModel(String seenePath) {
+		File mFile = new File(seenePath + File.separator + STK.SEENE_MODEL);
+		SeeneModel mO = new SeeneModel(mFile);
+		mO.loadModelDataFromFile();
+		return mO;
+	}
+
+	public static SeeneTexture loadProprietaryPoster(String seenePath) {
+		File tFile = new File(seenePath + File.separator + STK.SEENE_TEXTURE);
+		SeeneTexture tO = new SeeneTexture(tFile);
+		tO.loadTextureFromFile();
+		return tO;
+	}
+	
+	public static void generateXMP(String seenePath, float far) {
+		generateXMP(seenePath, far, STK.CALCULATION_METHOD_STK_PRESERVE);
 	}
 	
 	public static void generateXMP(String seenePath) {
-		
+		// Load proprietary Seene Model for MaxDepth 
+		SeeneModel mO = loadProprietaryModel(seenePath);
+		generateXMP(seenePath, mO.getMaxDepth());
+	}
+	
+	public static void generateXMP(String seenePath, int calculationMethod) {
+		// Load proprietary Seene Model for MaxDepth 
+		SeeneModel mO = loadProprietaryModel(seenePath);
+		generateXMP(seenePath, mO.getMaxDepth(), calculationMethod);
+	}
+	
+	public static void generateXMP(String seenePath, float far, int calculationMethod) {
 		// Load proprietary Seene Files 
-		File mFile = new File(seenePath + File.separator + STK.SEENE_MODEL);
-		File tFile = new File(seenePath + File.separator + STK.SEENE_TEXTURE);
-		
-		SeeneModel mO = new SeeneModel(mFile);
-		SeeneTexture tO = new SeeneTexture(tFile);
-		
-		mO.loadModelDataFromFile();
-		tO.loadTextureFromFile();
+		SeeneModel mO = loadProprietaryModel(seenePath);
+		SeeneTexture tO = loadProprietaryPoster(seenePath);
 		
 		// Save XMP components from proprietary Seene
 		File pFile = new File(seenePath + File.separator + STK.XMP_DEPTH_PNG);
@@ -1021,9 +1125,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		tO.saveTextureRotatedToFile(oFile, 90);
 		tO.saveTextureRotatedToFile(xFile, 90);
-		mO.saveModelDataToPNG(pFile);
+		mO.saveModelDataToPNGwithFar(pFile, far, calculationMethod);
 		
-		injectDepthmapXMP(mO, pFile, xFile,mO.getMaxDepth());
+		injectDepthmapXMP(mO, pFile, xFile, far);
 	}
 
 
@@ -1072,7 +1176,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		//Just testing here ...
 		//inlayModel = normalizer.normalizeModelToFarthest(inlayModel);
-		//inlayModel = normalizer.normalizeModelToClosest(inlayModel);
+		inlayModel = normalizer.normalizeModelToClosest(inlayModel);
 		
 		
 		log("Loading Inlay Poster: " +  inlayObject.getPosterFile().getAbsolutePath(),LogLevel.info);
@@ -1486,10 +1590,30 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		if (mevent.getClickCount() == 1) {
 			currentSelection=(JLabel)mevent.getSource();
 			if(SwingUtilities.isRightMouseButton(mevent)){
-				// check if "Generate XMP" should be enabled
-				File xmpF = new File(currentSelection.getToolTipText() + File.separator + STK.XMP_COMBINED_JPG);
-				if (xmpF.exists())  rClickPopup.getComponent(STK.GENERATE_XMP_MENU_POSITION).setEnabled(false);
-				else rClickPopup.getComponent(STK.GENERATE_XMP_MENU_POSITION).setEnabled(true);
+				// check which files exist and which menu items are enabled therefore
+				File mf = new File(currentSelection.getToolTipText() + File.separator + STK.SEENE_MODEL);
+				File tf = new File(currentSelection.getToolTipText() + File.separator + STK.SEENE_TEXTURE);
+				File xf = new File(currentSelection.getToolTipText() + File.separator + STK.XMP_COMBINED_JPG);
+				File of = new File(currentSelection.getToolTipText() + File.separator + STK.XMP_ORIGINAL_JPG);
+				File pf = new File(currentSelection.getToolTipText() + File.separator + STK.XMP_DEPTH_PNG);
+				if (mf.exists()) rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_MODEL_OEMODEL).setEnabled(true);
+				else rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_MODEL_OEMODEL).setEnabled(false);
+				if (tf.exists()) rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_TEXTURE_POSTER).setEnabled(true);
+				else rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_TEXTURE_POSTER).setEnabled(false);
+				if (of.exists()) rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_TEXTURE_POSTER_ORIGINAL).setEnabled(true);
+				else rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_TEXTURE_POSTER_ORIGINAL).setEnabled(false);
+				if (pf.exists()) rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_MODEL_PNG).setEnabled(true);
+				else rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_MODEL_PNG).setEnabled(false);
+				if (xf.exists()) {
+					rClickPopup.getComponent(STK.POPUP_POSITION_GENERATE_XMP).setEnabled(false);
+					rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_TEXTURE_XMP).setEnabled(true);
+					rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_MODEL_XMP).setEnabled(true);
+				}
+				else {
+					rClickPopup.getComponent(STK.POPUP_POSITION_GENERATE_XMP).setEnabled(true);
+					rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_TEXTURE_XMP).setEnabled(false);
+					rClickPopup.getComponent(STK.POPUP_POSITION_LOAD_MODEL_XMP).setEnabled(false);
+				}
 				// show the popup menu
 		        rClickPopup.show((Component)mevent.getSource(), mevent.getX(), mevent.getY());
 		    }
@@ -1533,119 +1657,58 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		File df = currentSeene.getXMP_depthpng();
 		File of = currentSeene.getXMP_original();
 		
-		String loadmode = "unloadable: image and depthmap missing";
+		String loadmode = "unloadable: no loadable model/texture combination found";
 		
-		if ((mf.exists())  && (tf.exists())  && (xf.exists()))  loadmode="model:decision,image:decision";
-		if ((!mf.exists()) && (tf.exists())  && (xf.exists()))  loadmode="model:xmp,image:decision";
-		if ((mf.exists())  && (!tf.exists()) && (xf.exists()))  loadmode="model:decision,image:xmp";
-		if ((!mf.exists()) && (!tf.exists()) && (xf.exists()))  loadmode="model:xmp,image:xmp";
-		if ((mf.exists())  && (tf.exists())  && (!xf.exists())) loadmode="model:proprietary,image:proprietary";
-		if ((mf.exists()) && (!tf.exists())  && (!xf.exists())) loadmode="unloadable: image missing";
-		if ((!mf.exists()) && (tf.exists())  && (!xf.exists())) loadmode="unloadable: depthmap missing";
+		// Trying to find a loadable combo
+		// Prio 5 - MIX: we have depthmap PNG and a proprietary Seene poster.
+		if ((df.exists()) && (tf.exists())) loadmode="model:png,image:proprietary";
+		// Prio 4 - MIX: we have proprietary Seene Model and a vertical oriented poster.
+		if ((mf.exists()) && (of.exists())) loadmode="model:proprietary,image:original";
+		// Prio 3 - we have a XMP (Model and Texture in one file).
+		if (xf.exists()) loadmode="model:xmp,image:xmp";
+		// Prio 2 - we have depthmap PNG and a vertical oriented poster.
+		if ((df.exists()) && (of.exists())) loadmode="model:png,image:original";
+		// Prio 1 - we have original proprietary Seene files.
+		if ((mf.exists()) && (tf.exists())) loadmode="model:proprietary,image:proprietary";
+		
+		log("loadmode: " + loadmode,LogLevel.info);
 		
 		if (loadmode.indexOf("unloadable")>=0) {
-			if ((df.exists()) && (of.exists())) loadmode="model:png,image:original";
-		}
-		
-		if (loadmode.indexOf("model:decision")>=0) {
-			Object[] options = {"scene.oemodel", "XMP model", "cancel"};
-			int n = JOptionPane.showOptionDialog(mainFrame,
-				    "Found two models in this Seene folder!\nWhich model do you want to load?\n"
-				    + "scene.oemodel is the proprietary seene depthmap\n" 
-			        + "XMP model is a JPG which contains the depthmap",
-				    "Choose a depthmap",
-				    JOptionPane.YES_NO_CANCEL_OPTION,
-				    JOptionPane.QUESTION_MESSAGE,
-				    null,
-				    options,
-				    options[0]);
-			if (n==0) loadmode = loadmode.replace("model:decision", "model:proprietary");
-			if (n==1) loadmode = loadmode.replace("model:decision", "model:xmp");
-			if (n==2) loadmode = "canceled";
-		}
-		
-		if (loadmode.indexOf("image:decision")>=0) {
-			Object[] options = {"Seene poster", "XMP image", "cancel"};
-			int n = JOptionPane.showOptionDialog(mainFrame,
-				    "Found two textures in this Seene folder!\nWhich texture do you want to load?\n"
-				    + "Seene poster is the proprietary Seene poster\n" 
-			        + "XMP image is the JPG which contains a depthmap",
-				    "Choose a image",
-				    JOptionPane.YES_NO_CANCEL_OPTION,
-				    JOptionPane.QUESTION_MESSAGE,
-				    null,
-				    options,
-				    options[0]);
-			if (n==0) loadmode = loadmode.replace("image:decision", "image:proprietary");
-			if (n==1) loadmode = loadmode.replace("image:decision", "image:xmp");
-			if (n==2) loadmode = "canceled";
-		}
-		
-		log("loadmode: " + loadmode,LogLevel.debug);
-		
-		if (!loadmode.equals("canceled")) {
-			if (loadmode.indexOf("unloadable")>=0) {
-				log(loadmode,LogLevel.error);
-			} else {
-				if (loadmode.indexOf("model:png")>=0) {
-					log("Loading PNG-Image as Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
-					currentSeene.getModel().loadModelDataFromPNG(df, null);
-				}
-				if (loadmode.indexOf("image:original")>=0) {
-					log("Loading original JPG Image: " + of.getAbsolutePath() ,LogLevel.info);
-					 try {
-						BufferedImage textureImage = ImageIO.read(of);
-						SeeneTexture poster = new SeeneTexture(
-								Helper.rotateAndResizeImage(textureImage, textureImage.getWidth(), textureImage.getHeight(), 270));
-						currentSeene.setPoster(poster);
-					} catch (IOException e) {
-						SeeneToolkit.log(e.getMessage(),LogLevel.error);
-					}
-				}
-				if (loadmode.indexOf("model:proprietary")>=0) {
-					log("Loading proprietary Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
-					currentSeene.getModel().loadModelDataFromFile();
-				}
-				if (loadmode.indexOf("image:proprietary")>=0) {
-					log("Loading proprietary Seene Texture: " +  tf.getAbsolutePath(),LogLevel.info);
-					currentSeene.getPoster().loadTextureFromFile();
-				}
-				if (loadmode.indexOf("model:xmp")>=0) {
-					String xmpFilepath = xf.getAbsolutePath();
-					log("Loading XMP Model: " + xmpFilepath ,LogLevel.info);
-					
-					JPEG image = new JPEG(xmpFilepath);
-					// Trying to extract the depthmap from the XMP enhanced JPG
-					if (image.exportDepthMap()) {
-						log("Depthmap extracted for file " + xmpFilepath, LogLevel.info);
-						String depthmapFilePath = xmpFilepath.substring(0, xmpFilepath.length()-8) + "_depth.png";
-						currentSeene.setXMP_depthpng(new File(depthmapFilePath));
-						currentSeene.setModelfromXMP_depthpng();
-					}
-					
-					else log("There is no Depthmap in file " + xmpFilepath, LogLevel.warn);
-				}
-				
-				if (loadmode.indexOf("image:xmp")>=0) {
-					log("Loading XMP Image: " + xf.getAbsolutePath() ,LogLevel.info);
-					 try {
-						BufferedImage textureImage = ImageIO.read(xf);
-						SeeneTexture poster = new SeeneTexture(
-								Helper.rotateAndResizeImage(textureImage, textureImage.getWidth(), textureImage.getHeight(), 270));
-						currentSeene.setPoster(poster);
-					} catch (IOException e) {
-						SeeneToolkit.log(e.getMessage(),LogLevel.error);
-					}
-				}
-				
-				log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
-				log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
-				normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
-				normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
-				modelDisplay.setModel(currentSeene.getModel());
-				modelDisplay.setPoster(currentSeene.getPoster());
+			log(loadmode,LogLevel.error);
+		} else {
+			if (loadmode.indexOf("model:png")>=0) {
+				log("Loading PNG-Image as Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
+				currentSeene.getModel().loadModelDataFromPNG(df, xf);
 			}
-		} // if (!loadmode.equals("canceled")) ...
+			if (loadmode.indexOf("image:original")>=0) {
+				log("Loading original JPG Image: " + of.getAbsolutePath() ,LogLevel.info);
+				currentSeene.setPoster(loadXMPOriginalPoster(seenePath));
+			}
+			if (loadmode.indexOf("model:proprietary")>=0) {
+				log("Loading proprietary Seene Model: " +  mf.getAbsolutePath(),LogLevel.info);
+				currentSeene.getModel().loadModelDataFromFile();
+			}
+			if (loadmode.indexOf("image:proprietary")>=0) {
+				log("Loading proprietary Seene Texture: " +  tf.getAbsolutePath(),LogLevel.info);
+				currentSeene.getPoster().loadTextureFromFile();
+			}
+			if (loadmode.indexOf("model:xmp")>=0) {
+				log("Loading XMP Model: " + xf.getAbsolutePath() ,LogLevel.info);
+				currentSeene.setModel(loadXMPCombinedModel(seenePath));
+			}
+			if (loadmode.indexOf("image:xmp")>=0) {
+				log("Loading XMP Image: " + xf.getAbsolutePath() ,LogLevel.info);
+				currentSeene.setPoster(loadXMPCombinedPoster(seenePath));
+			}
+			
+			log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
+			log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
+			normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
+			normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
+			modelDisplay.setModel(currentSeene.getModel());
+			modelDisplay.setPoster(currentSeene.getPoster());
+		}
+		
 	}
 	
 	
@@ -2362,8 +2425,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			//TODO: writing to logfile
 		}
 	}
-
-
 
 }
 

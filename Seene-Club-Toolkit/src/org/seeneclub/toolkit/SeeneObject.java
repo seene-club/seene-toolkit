@@ -63,7 +63,7 @@ public class SeeneObject {
 	
 	// Getter and Setter
 	
-	public void setModelfromXMP_depthpng() {
+	public void loadModelfromXMP_depthpng() {
 		model.loadModelDataFromPNG(XMP_depthpng, XMP_combined);
 	}
 
