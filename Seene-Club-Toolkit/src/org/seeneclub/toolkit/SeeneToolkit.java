@@ -460,8 +460,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	try {
 			myAPI.uploadSeene(sO, getValidBearerToken(), storage.getUploadsDir());
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log("UPLOAD FAILED: " + e.getMessage(),LogLevel.error);
 		}
     }
     
