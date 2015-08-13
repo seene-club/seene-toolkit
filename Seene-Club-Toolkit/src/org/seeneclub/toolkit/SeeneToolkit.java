@@ -29,6 +29,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -72,6 +73,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -617,25 +619,36 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		// menu bar
         JMenuBar bar = new JMenuBar();
-        JMenu fileMenu = new JMenu("Seene-Club");
+        JMenu fileMenu = new JMenu("File");
         
-        JMenuItem itemSettings = new JMenuItem("Settings");
-        itemSettings.setIcon(Helper.iconFromImageResource("settings.png", 16));
-        itemSettings.addActionListener(new java.awt.event.ActionListener() {
+        JMenuItem itemOpenImage = new JMenuItem("Open image");
+        JMenuItem itemOpenDepthmap = new JMenuItem("Open depthmap");
+        JMenuItem itemExit = new JMenuItem("Exit");
+        
+        itemOpenImage.setIcon(Helper.iconFromImageResource("texture.png", 16));
+        itemOpenDepthmap.setIcon(Helper.iconFromImageResource("model.png", 16));
+        itemExit.setIcon(Helper.iconFromImageResource("exit.png", 16));
+        
+        itemOpenImage.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                showSettingsDialog();
+                showOpenAnyImageDialog();
             }
         });
-        
-        JMenuItem itemExit = new JMenuItem("Exit");
-        itemExit.setIcon(Helper.iconFromImageResource("exit.png", 16));
+        itemOpenDepthmap.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+            	showOpenAnyDepthmapDialog();
+            }
+        });
         itemExit.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 System.exit(0);
             }
         });
         
-        fileMenu.add(itemSettings);
+        
+        fileMenu.add(itemOpenImage);
+        fileMenu.add(itemOpenDepthmap);
+        fileMenu.addSeparator();
         fileMenu.add(itemExit);
         
         JMenu taskMenu = new JMenu("Tasks");
@@ -680,6 +693,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskDivideByTwo);
         maskMenu.add(maskDivideByThree);
         
+        JMenu clubMenu = new JMenu("Seene Club");
+        
+        JMenuItem itemSettings = new JMenuItem("Settings");
+        itemSettings.setIcon(Helper.iconFromImageResource("settings.png", 16));
+        itemSettings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                showSettingsDialog();
+            }
+        });
+        
+        clubMenu.add(itemSettings);
+        
         JMenu testMenu = new JMenu("Tests");
         testSomething.addActionListener(this);
         
@@ -688,6 +713,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         bar.add(fileMenu);
         bar.add(taskMenu);
         bar.add(maskMenu);
+        bar.add(clubMenu);
         //bar.add(testMenu);
         
         mainFrame.setJMenuBar(bar);
@@ -1032,6 +1058,94 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         mainFrame.setVisible(true);
 	}
 	
+	protected void showOpenAnyDepthmapDialog() {
+		JFileChooser chooser = new JFileChooser();
+		FileNameExtensionFilter filter = new FileNameExtensionFilter("Depthmaps","png", "oemodel");
+		
+		chooser.setFileFilter(filter);
+		
+		int fileChooserReturnValue = chooser.showDialog(null,"open image");
+
+		if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
+        	File dFile = chooser.getSelectedFile();
+        	SeeneModel mO = new SeeneModel();
+        	String fn = dFile.getName();
+        	if (Helper.getFileExtension(fn).equalsIgnoreCase("png")) {
+        		log("opening depthmap from PNG: " + dFile.getPath(),LogLevel.info);
+        		mO.loadModelDataFromPNG(dFile, null);
+        	}
+        	if (Helper.getFileExtension(fn).equalsIgnoreCase("oemodel")) {
+        		log("opening proprietary scene.oemodel: " + dFile.getPath(),LogLevel.info);
+        		mO.loadModelDataFromFile(dFile);
+        	}
+        	
+        	currentSeene.setModel(mO);
+        	modelDisplay.setModel(mO);
+        	modelDisplay.repaintModelOnly();
+		}
+	}
+
+
+	protected void showOpenAnyImageDialog() {
+		JFileChooser chooser = new JFileChooser();
+		FileNameExtensionFilter filter = new FileNameExtensionFilter("JPG File","jpg");
+		chooser.setFileFilter(filter);
+		
+		int fileChooserReturnValue = chooser.showDialog(null,"open image");
+        
+        // Check if chosen or canceled
+        if(fileChooserReturnValue == JFileChooser.APPROVE_OPTION) {
+        	File iFile = chooser.getSelectedFile();
+        	log("opening image: " + iFile.getPath(),LogLevel.info);
+    		BufferedImage textureImage = null;
+    		SeeneTexture tO = new SeeneTexture();
+    		SeeneModel mO = new SeeneModel();
+    		if ((currentSeene == null) ||(modelDisplay.getModel() == null)) {
+    			currentSeene = new SeeneObject();
+    			currentSeene.setModel(mO);
+    			modelDisplay.setSeeneObject(currentSeene);
+    		}
+    		
+			try {
+				textureImage = ImageIO.read(iFile);
+				int h = textureImage.getHeight();
+				int w = textureImage.getWidth();
+				if (w > h) textureImage = textureImage.getSubimage((w/2) - (h/2) ,0 , h, h);
+				if (h > w) textureImage = textureImage.getSubimage(0, (h/2) - (w/2), w, w);
+				tO = new SeeneTexture(Helper.rotateAndResizeImage(textureImage, textureImage.getWidth(), textureImage.getHeight(), 270));
+				currentSeene.setPoster(tO);
+				modelDisplay.setPoster(currentSeene.getPoster());
+				modelDisplay.repaintPosterOnly();
+				
+				JPEG image = new JPEG(iFile.getAbsolutePath());
+				
+				if (image.hasDepthMap()) {
+					
+					Object[] options = {"yes, load this depthmap", "no, leave my model unchanged"};
+					int n = JOptionPane.showOptionDialog(mainFrame,
+						    "The image you have selected contains a depthmap!\nDo you want to load depthmap too?\n\n",
+						    "Depthmap found!",
+						    JOptionPane.YES_NO_CANCEL_OPTION,
+						    JOptionPane.QUESTION_MESSAGE,
+						    null,
+						    options,
+						    options[0]);
+					if (n==0) {
+						mO.loadModelDataFromXMPenhancedJPG(iFile);
+						currentSeene.setModel(mO);
+						modelDisplay.setModel(mO);
+						modelDisplay.repaintModelOnly();
+					}
+				}
+				
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+	}
+
+
 	public static SeeneModel loadXMPDepthPNGModel(String seenePath) {
 		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
 		File pFile = new File(seenePath + File.separator + STK.XMP_DEPTH_PNG);
@@ -1046,16 +1160,13 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		SeeneModel mO = new SeeneModel();
 		
 		JPEG image = new JPEG(xmpFilepath);
+		
 		// Trying to extract the depthmap from the XMP enhanced JPG
-		if (image.exportDepthMap()) {
-			log("Depthmap extracted for file " + xmpFilepath, LogLevel.info);
-			String depthmapFilePath = xmpFilepath.substring(0, xmpFilepath.length()-8) + "_depth.png";
-			mO.loadModelDataFromPNG(new File(depthmapFilePath), xFile);
-		} else log("There is no Depthmap in file " + xmpFilepath, LogLevel.warn);
+		if (image.hasDepthMap()) mO.loadModelDataFromXMPenhancedJPG(xFile);
+		else log("There is no Depthmap in file " + xmpFilepath, LogLevel.warn);
 		
 		return mO;
 	}
-
 
 	public static SeeneTexture loadXMPCombinedPoster(String seenePath) {
 		File xFile = new File(seenePath + File.separator + STK.XMP_COMBINED_JPG);
@@ -1066,7 +1177,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		File oFile = new File(seenePath + File.separator + STK.XMP_ORIGINAL_JPG);
 		return loadVerticalOrientedPoster(oFile);
 	}
-
 
 	private static SeeneTexture loadVerticalOrientedPoster(File vopFile) {
 		BufferedImage textureImage = null;
@@ -1133,7 +1243,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	private static void injectDepthmapXMP(SeeneModel mO, File pFile, File xFile, float far) {
 		// Inject XMP Metadata into the XMP JPG
 		JPEG image = new JPEG(xFile.getAbsolutePath());
-		byte[] depthmap = image.getDepthMap(pFile.getAbsolutePath());
+		byte[] depthmap = image.getDepthMapFromFile(pFile.getAbsolutePath());
 		byte[] depthmap_base64 = image.base64_decode(depthmap);
 		  
 		XMPMeta xmpMeta = XmpUtil.extractOrCreateXMPMeta(xFile.getAbsolutePath());

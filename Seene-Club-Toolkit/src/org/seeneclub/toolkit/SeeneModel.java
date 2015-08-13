@@ -20,6 +20,7 @@ import java.util.List;
 import javax.imageio.ImageIO;
 
 import org.seeneclub.domainvalues.LogLevel;
+import org.vanitasvitae.depthmapneedle.JPEG;
 
 import com.adobe.xmp.XMPException;
 import com.adobe.xmp.XMPMeta;
@@ -49,6 +50,8 @@ public class SeeneModel {
 		setDepthWidth(STK.WORK_WIDTH);
 		setDepthHeight(STK.WORK_HEIGHT);
 		mFloats = new ArrayList<Float>(Collections.nCopies(getDepthWidth()*getDepthHeight(), STK.INIT_DEPTH));
+		setMaxFloat(STK.INIT_DEPTH);
+		setMinFloat(STK.INIT_DEPTH);
 	}
 	SeeneModel(File sFile) {
 	     this.modelFile = sFile;
@@ -96,6 +99,17 @@ public class SeeneModel {
 	
 	// Save PNG with ability to override far. 
 	public void saveModelDataToPNGwithFar(File pngFile, float far, int calculationMethod) {
+		BufferedImage pngImage = generateBufferedImageFromModel(far, calculationMethod);
+		try {
+			ImageIO.write(pngImage,"PNG",pngFile);
+			SeeneToolkit.log("PNG: " + pngFile.getAbsolutePath() + " written!",LogLevel.info);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public BufferedImage generateBufferedImageFromModel(float far, int calculationMethod) {
 		BufferedImage pngImage = new BufferedImage(mDepthWidth, mDepthHeight, BufferedImage.TYPE_INT_ARGB);
 		int c = 0;
 		float d;
@@ -119,13 +133,7 @@ public class SeeneModel {
 				c++;
 			}
 		}
-		try {
-			ImageIO.write(pngImage,"PNG",pngFile);
-			SeeneToolkit.log("PNG: " + pngFile.getAbsolutePath() + " written!",LogLevel.info);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		return pngImage;
 	}
 	
 	public int getIntFromColor(float Red, float Green, float Blue){
@@ -160,6 +168,7 @@ public class SeeneModel {
 				XMPMeta xmpMeta = XmpUtil.extractXMPMeta(xmpFile.getAbsolutePath());
 				min = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near").toString());
 				max = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far").toString());
+				SeeneToolkit.log("Found XMP with GDepth:Near = " + min + "  and  GDepth:Far = " + max, LogLevel.info);
 			} 
 			
 			return loadModelDataFromBufferedImage(ImageIO.read(pngFile), min, max);
@@ -169,7 +178,26 @@ public class SeeneModel {
 		return null;
 	}
 	
-	private List<Float> loadModelDataFromBufferedImage(BufferedImage depthmap, float min, float max) {
+	public List<Float> loadModelDataFromXMPenhancedJPG(File xmpFile) {
+		try {
+			XMPMeta xmpMeta = XmpUtil.extractXMPMeta(xmpFile.getAbsolutePath());
+		
+			float min = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Near").toString());
+			float max = Float.parseFloat(xmpMeta.getProperty(XmpUtil.GOOGLE_DEPTH_NAMESPACE, "GDepth:Far").toString());
+			SeeneToolkit.log("Found XMP with GDepth:Near = " + min + "  and  GDepth:Far = " + max, LogLevel.info);
+			
+			JPEG image = new JPEG(xmpFile.getAbsolutePath());
+			BufferedImage depthmapImage = Helper.createImageFromBytes(image.getDepthMapByteArrayForImages());
+			
+			return loadModelDataFromBufferedImage(depthmapImage, min, max); 
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public List<Float> loadModelDataFromBufferedImage(BufferedImage depthmap, float min, float max) {
 		mDepthWidth = depthmap.getHeight();
 		mDepthHeight = depthmap.getWidth();
 		maxFloat = -1;
@@ -211,7 +239,7 @@ public class SeeneModel {
 	}
 	
 	// Origin of this method is https://github.com/BenVanCitters/SeeneLib---Processing-Library
-	private List<Float> loadModelDataFromFile(File mFile) {
+	public List<Float> loadModelDataFromFile(File mFile) {
 		try {
 			DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(mFile)));
 			

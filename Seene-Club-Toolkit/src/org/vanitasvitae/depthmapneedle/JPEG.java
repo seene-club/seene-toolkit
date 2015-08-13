@@ -74,7 +74,8 @@ public class JPEG extends Const
 			@Override
 			public byte[] decode(byte[] data)
 			{
-				return Base64.getDecoder().decode(data);
+				if (data != null) return Base64.getDecoder().decode(data);
+				return null;
 			}
 
 			@Override
@@ -119,13 +120,22 @@ public class JPEG extends Const
 	 */
 	public boolean exportDepthMap(String file)
 	{
-		byte[] b64 = ArrayUtils.unsign(extractDepthMap());
-		byte[] depth = base64.decode(b64);
+		byte[] depth = getDepthMapByteArrayForImages();
 		if (depth != null)
 		{
 			IO.write(depth, file);
 			return true;
 		} else return false;
+	}
+	
+	public boolean hasDepthMap() {
+		if (getDepthMapByteArrayForImages() != null ) return true;
+		return false;
+	}
+	
+	public byte[] getDepthMapByteArrayForImages() {
+		byte[] b64 = ArrayUtils.unsign(extractDepthMap());
+		return base64.decode(b64);
 	}
 	
 	public byte[] base64_encode(byte[] depthmap) {
@@ -334,7 +344,7 @@ public class JPEG extends Const
         }
 	}
 	
-	public byte[] getDepthMap(String filename) {
+	public byte[] getDepthMapFromFile(String filename) {
 		return base64.encode(IO.read(new File(filename)));
 	}
 	

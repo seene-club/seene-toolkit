@@ -7,6 +7,7 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -186,6 +187,30 @@ public class Helper {
             }
         }
         return(directory.delete());
+    }
+    
+    public static String getFileExtension(String fileName) {
+    	String extension = "";
+
+    	int i = fileName.lastIndexOf('.');
+    	int p = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
+
+    	if (i > p) {
+    	    extension = fileName.substring(i+1);
+    	}
+    	
+    	return extension;
+    }
+    
+    public static BufferedImage createImageFromBytes(byte[] imageData) {
+        ByteArrayInputStream bais = new ByteArrayInputStream(imageData);
+        try {
+            return ImageIO.read(bais);
+        } catch (IOException e) {
+        	// TODO Auto-generated catch block
+        	e.printStackTrace();
+        }
+        return null;
     }
     
     public static BufferedImage resizeImage(Image origImage, int new_width, int new_height) {
