@@ -1082,6 +1082,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         	currentSeene.setModel(mO);
         	modelDisplay.setModel(mO);
         	modelDisplay.repaintModelOnly();
+        	normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
+			normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
 		}
 	}
 
@@ -1135,6 +1137,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						currentSeene.setModel(mO);
 						modelDisplay.setModel(mO);
 						modelDisplay.repaintModelOnly();
+						normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
+						normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
 					}
 				}
 				
@@ -1281,6 +1285,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		SeeneModel inlayModel = inlayObject.getModel();
 		log("Inlay Model width: " +  inlayModel.getDepthWidth(),LogLevel.info);
 		log("Inlay Model height: " +  inlayModel.getDepthHeight() ,LogLevel.info);
+		log("Inlay Min: " +  inlayModel.getMinFloat(),LogLevel.info);
+		log("Inlay Max: " +  inlayModel.getMaxFloat(),LogLevel.info);
 		
 		
 		//Just testing here ...
@@ -1375,9 +1381,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			if (f > max) max = f;
 			if (f < min) min = f;
 		}
-		log("new extrema: min: " + min + " - max: " + max,LogLevel.debug);
+		log("new extrema: min: " + min + " - max: " + max,LogLevel.info);
 		mO.setMinFloat(min);
 		mO.setMaxFloat(max);
+		normalizer.setNormMaxFloat(mO.getMaxFloat());
+		normalizer.setNormMinFloat(mO.getMinFloat());
 		return mO;
 	}
 
@@ -1810,8 +1818,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				currentSeene.setPoster(loadXMPCombinedPoster(seenePath));
 			}
 			
+
 			log("Model width: " +  currentSeene.getModel().getDepthWidth(),LogLevel.info);
 			log("Model height: " +  currentSeene.getModel().getDepthHeight() ,LogLevel.info);
+			log("Model min: " +  currentSeene.getModel().getMinFloat(),LogLevel.info);
+			log("Model max: " +  currentSeene.getModel().getMaxFloat(),LogLevel.info);
 			normalizer.setNormMaxFloat(currentSeene.getModel().getMaxFloat());
 			normalizer.setNormMinFloat(currentSeene.getModel().getMinFloat());
 			modelDisplay.setModel(currentSeene.getModel());
