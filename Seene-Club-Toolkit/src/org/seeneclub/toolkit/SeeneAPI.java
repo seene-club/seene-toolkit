@@ -15,7 +15,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.URL;
@@ -28,12 +27,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -48,13 +44,11 @@ import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
@@ -72,44 +66,9 @@ public class SeeneAPI {
 		this.proxyData = proxyData;
 	}
 
-	public static class Token {
-		public String api_id;
-		
-		public String api_token;
-		public Date api_token_expires_at;
-		
-		public Token() {
-			api_token = "(null)";
-		}
-	}
-	
-	/// can be cached until expires; if expires is null, cached forever.
-	public Token login(String apiId, String username, String password) throws Exception {
-		
-		if ((apiId.length() == 0) || (apiId.equals(STK.CONFIG_API_ID_HINT))) {
-			//SeeneToolkit.log("API-ID not configured!\nTrying to retrieve from remote service...",LogLevel.info);
-			apiId = getSeeneKeyFromRemoteServer(username, password,STK.API_ID_KEY);
-			//SeeneToolkit.log(apiId,LogLevel.debug);
-		}
-		
-		if (apiId.length() != 40) throw new Exception("API-ID format exception!");
-
-		Token result = new Token();
-		result.api_id = apiId;
-
-		Map<String,String> params = new HashMap<String,String>();
-		params.put("username", username);
-		params.put("password", password);
-		Map map = request(result, "POST", 
-				new URL("https://oecamera.herokuapp.com/api/users/authenticate"),params);
-		result.api_token = (String) map.get("api_token");
-		result.api_token_expires_at = parseISO8601((String)map.get("api_token_expires_at"));
-		return result;
-	}
-	
 	// Retrieves a key with the key_id from a WebService. Keys are only returned for experienced users with valid credentials
 	private String getSeeneKeyFromRemoteServer(String username, String password, String key_id) throws IOException, NoSuchAlgorithmException, KeyManagementException {
-		URL url = new URL("https://54.243.113.182/actions/" + key_id);
+		URL url = new URL("https://" + STK.AWS_INSTANCE_IP_ADDRESS + "/actions/" + key_id);
         Map<String,Object> params = new LinkedHashMap<>();
         params.put("username", username);
         params.put("password", password);
@@ -143,7 +102,7 @@ public class SeeneAPI {
        	// Create host name verifier that trusts IP 54.243.113.182
       	HostnameVerifier myHostValid = new HostnameVerifier() {
       	    public boolean verify(String hostname, SSLSession session) {
-      	    	if (hostname.equals("54.243.113.182"))
+      	    	if (hostname.equals(STK.AWS_INSTANCE_IP_ADDRESS))
                    return true;
                 return false;
     	    }
@@ -187,9 +146,8 @@ public class SeeneAPI {
 	    return result.toString();
 	}
 	
-	public Map requestUserInfo(String uID, String bearer) throws Exception {
-
-		HttpURLConnection conn = proxyGate(new URL("https://api.seene.co/users/" + uID));
+	private HttpURLConnection openOAuthRequestConnection(String request_url, String request_method, String bearer) throws Exception {
+		HttpURLConnection conn = proxyGate(new URL(request_url));
 		
 		conn.setReadTimeout(20000);
 		conn.setConnectTimeout(15000);
@@ -199,38 +157,58 @@ public class SeeneAPI {
 	    conn.setRequestProperty("Authorization", "Bearer " + bearer);
 	    conn.setRequestProperty("Accept", "application/vnd.seene.v1+json");
 	    conn.setRequestProperty("Content-Type", "application/json");
-	    //conn.setRequestProperty("Accept-Encoding", "gzip");
 	    conn.setRequestProperty("Cache-Control", "no-cache");
-		
 	    conn.setDoInput(true);
 	    
-	    // create JSON object from response
+	    return conn;
+	}
+	
+	public String requestUserID(String username, String bearer) throws Exception {
+		String r_url =  new String("https://api.seene.co/users/@" + username);
+		SeeneToolkit.log("Requesting User-ID from " + r_url, LogLevel.info);
+
+		HttpURLConnection conn = openOAuthRequestConnection(r_url, "GET", bearer);
+	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+		
+		return response.get("id").toString();
+	}
+	
+	public String requestUserIDfromOldAPI(String username) throws Exception {
+		Map map = requestNonOAuth("GET", new URL("http://seene.co/api/seene/-/users/@" + username), null);
+		return map.get("id").toString();
+	}
+	
+	public Map requestUserInfo(String uID, String bearer) throws Exception {
+		
+		String r_url =  new String("https://api.seene.co/users/" + uID);
+		SeeneToolkit.log("Requesting User Info from " + r_url, LogLevel.info);
+
+		HttpURLConnection conn = openOAuthRequestConnection(r_url, "GET", bearer);
 	    Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 	    
 		return response;
 	}
 	
+	public List<SeeneObject> requestUserSeenes(String userID, int count, String privat, String bearer) throws Exception {
+		
+		String r_url =  new String("https://api.seene.co/users/" + userID + "/seenes?count=" + count + "&private=" + privat);
+		SeeneToolkit.log("Requesting Seenes from " + r_url, LogLevel.info);
+		
+		HttpURLConnection conn = openOAuthRequestConnection(r_url, "GET", bearer);
+		Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+		
+	    return createSeeneListFromResponse(response);   
+	}
+	
 	public Map requestNewSeene(SeeneObject sO, String bearer) throws Exception {
 		
 		String r_url =  new String("https://api.seene.co/seenes");
-		
 		SeeneToolkit.log("Requesting new Seene on " + r_url, LogLevel.info);
 		
-		HttpURLConnection conn = proxyGate(new URL(r_url));
+		HttpURLConnection conn = openOAuthRequestConnection(r_url, "POST", bearer);
 		
-		conn.setReadTimeout(20000);
-		conn.setConnectTimeout(15000);
-	    conn.setRequestMethod("POST");
-	    
-	    conn.setRequestProperty("Host","https://api.seene.co");
-	    conn.setRequestProperty("Authorization", "Bearer " + bearer);
-	    conn.setRequestProperty("Accept", "application/vnd.seene.v1+json");
-	    conn.setRequestProperty("Content-Type", "application/json");
-	    //conn.setRequestProperty("Accept-Encoding", "gzip");
-	    conn.setRequestProperty("Cache-Control", "no-cache");
-		
+		// adding output to the OAuthRequestConnection
 	    conn.setDoOutput(true);
-	    conn.setDoInput(true);
 	    
 	    OutputStream os = conn.getOutputStream();
     	BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
@@ -285,11 +263,7 @@ public class SeeneAPI {
 		sO.getPoster().saveTextureToFile(pFile);
 		Helper.createFolderIcon(savePath, null);
 		
-		// TODO !!!! EXPERIMENTAL !!!
-		//SeeneToolkit.generateXMP(savePath.getAbsolutePath(), 11.0f, STK.CALCULATION_METHOD_GOOGLE_RANGELINEAR);
-		//SeeneToolkit.generateXMP(savePath.getAbsolutePath(), 11.0f, STK.CALCULATION_METHOD_STK_PRESERVE);
 		SeeneToolkit.generateXMP(savePath.getAbsolutePath(),STK.CALCULATION_METHOD_GOOGLE_RANGELINEAR);
-		//SeeneToolkit.generateXMP(savePath.getAbsolutePath(),STK.CALCULATION_METHOD_STK_PRESERVE);
 		
 		File xFile = new File(savePath.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG);
 		
@@ -422,6 +396,10 @@ public class SeeneAPI {
 	public Map requestBearerToken(String username, String password, String auth_or_refresh_code, Boolean isRefresh) throws Exception {
 		
 		String sclient = getSeeneKeyFromRemoteServer(username, password, STK.API_CLIENT_KEY);
+		SeeneToolkit.log(sclient,LogLevel.debug);
+
+		if (sclient.length() != 64) throw new Exception("Format exception! Invalid Key!");
+		
 		byte[] basicBytes = new String(STK.API_CLIENT_ID + ":" + sclient).getBytes();
 		String basicBase64 = new String(Base64.encodeBase64(basicBytes));
 		
@@ -465,7 +443,7 @@ public class SeeneAPI {
 		return response;
 	}
 	
-	private Map request(Token token, String method, URL url, Map<String,String> params) throws Exception {
+	private Map requestNonOAuth(String method, URL url, Map<String,String> params) throws Exception {
 		
 		SeeneToolkit.log("REQUEST.url: " + url.toString(),LogLevel.debug);
 		//if(params != null) SeeneToolkit.log("REQUEST.params: " + getQuery(params),LogLevel.debug);
@@ -475,12 +453,7 @@ public class SeeneAPI {
 		conn.setReadTimeout(20000);
 		conn.setConnectTimeout(15000);
 	    conn.setRequestMethod(method);
-	    if (token != null)
-		    conn.setRequestProperty("Authorization",
-		    		String.format("Seene api=%s,user=%s",
-		    				token.api_id,
-		    				token.api_token)
-		    		);
+	    
 	    conn.setRequestProperty("Accept", "application/vnd.seene.co; version=3,application/json");
 
 	    conn.setDoOutput(true);
@@ -537,18 +510,9 @@ public class SeeneAPI {
 		return conn;
 	}
 	
-	public  String usernameToId(String username) throws Exception {
-		Map map = request(null, "GET", 
-				new URL("http://seene.co/api/seene/-/users/@" + username), null);
-		return map.get("id").toString();
-	}
-	
-	
 	public static Date parseISO8601(String s) throws ParseException {
-		if (s == null)
-			return null;
-		
-		//Calendar calendar = GregorianCalendar.getInstance();
+		if (s == null) return null;
+
 		s = s.replace("Z", "+00:00");
 		try {
 		    s = s.substring(0, 22) + s.substring(23);  // to get rid of the ":"
@@ -557,141 +521,6 @@ public class SeeneAPI {
 		}
 		return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").parse(s);
     }
-	
-	public List<SeeneObject> getPublicSeenes(String userId, int last) throws Exception {
-		Map map = request(null, 
-				"GET", 
-				new URL(String.format("http://seene.co/api/seene/-/users/%s/scenes?count=%d", userId, last)), 
-				null);
-		
-		return createSeeneListFromResponse(map);    	
-	}
-
-	public List<SeeneObject> getPrivateSeenes(Token token, String userId, int last) throws Exception {
-		Map map = request(token, 
-				"GET", 
-				new URL(String.format("https://oecamera.herokuapp.com/api/users/%s/scenes?count=%d&only_private=1", userId, last)), 
-				null);
-		
-		return createSeeneListFromResponse(map);    	
-	}
-	
-	
-	@SuppressWarnings("deprecation")
-	public void uploadSeeneOldMethod(File uploadsLocalDir, SeeneObject sO, String username, Token token) throws MalformedURLException, Exception {
-		Map<String,String> params = new HashMap<String,String>();
-		
-		params.put("caption", sO.getCaption());
-		params.put("captured_at", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(sO.getCaptured_at()));
-		params.put("filter_code", sO.getFilter_code());
-		params.put("flash_level", Integer.toString(sO.getFlash_level()));
-		params.put("identifier", "");
-		params.put("orientation", Integer.toString(sO.getOrientation()));
-		params.put("shared", Integer.toString(sO.getShared()));
-		params.put("storage_version", Integer.toString(sO.getStorage_version()));
-		
-		SeeneToolkit.log("Preparing upload on Seene servers...",LogLevel.info);
-		
-		// PREPARING UPLOAD (CREATING ENTRY)
-		Map metamap = request(token, "POST", new URL("https://oecamera.herokuapp.com/api/scenes"), params);
-		
-		Map awsmeta = (Map)metamap.get("meta");
-		Map scenemeta = (Map)metamap.get("scene");
-		
-		SeeneAWSmetadataOldMethod awsMeta = new SeeneAWSmetadataOldMethod();
-		
-		awsMeta.setAccess_key_id((String)awsmeta.get("access_key_id"));
-		awsMeta.setBucket_name((String)awsmeta.get("bucket_name"));
-		awsMeta.setModel_dir((String)awsmeta.get("model_dir"));
-		awsMeta.setPoster_dir((String)awsmeta.get("poster_dir"));
-		awsMeta.setSession_token((String)awsmeta.get("session_token"));
-		awsMeta.setSecret_access_key((String)awsmeta.get("secret_access_key"));
-		sO.setAWSmetaOldMethod(awsMeta);
-		sO.setIdentifier(UUID.fromString((String)scenemeta.get("identifier")));
-		sO.setShortCode((String)scenemeta.get("short_code"));
-		sO.setUserinfo(username);
-		
-		SeeneToolkit.log("Starting file upload for new Seene " + sO.getShortCode(),LogLevel.info);
-		
-		String folderName = SeeneStorage.generateSeeneFolderName(sO, username);
-		
-		File savePath = new File(uploadsLocalDir.getAbsolutePath() + File.separator + folderName);
-		savePath.mkdirs();
-		
-		File mFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_MODEL);
-		File pFile = new File(savePath.getAbsoluteFile() + File.separator + STK.SEENE_TEXTURE);
-		sO.getModel().saveModelDataToFile(mFile);
-		sO.getPoster().saveTextureToFile(pFile);
-		Helper.createFolderIcon(savePath, null);
-		
-		// UPLOADING THE FILES
-		awsFileUploadOldMethod(awsMeta.getModel_dir(),mFile,"application/octet-stream",awsMeta);
-		awsFileUploadOldMethod(awsMeta.getPoster_dir(),pFile,"image/jpeg",awsMeta);
-		
-		// FINALIZING
-		URL patchURL = new URL("https://oecamera.herokuapp.com/api/scenes/" + sO.getIdentifier());
-		
-		SeeneToolkit.log("Finalizing new Seene " + sO.getShortCode(),LogLevel.info);
-		
-		// Unfortunately a HttpsURLConnection does not support method PATCH
-		// so we use Apache HttpComponents instead (https://hc.apache.org/)
-		HttpClient client = new DefaultHttpClient();
-		HttpPatch hp = new HttpPatch(patchURL.toURI());
-		hp.setHeader("Authorization", String.format("Seene api=%s,user=%s",token.api_id,token.api_token));
-		hp.setHeader("Accept", "application/vnd.seene.co; version=3,application/json");
-		List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-		nvps.add(new BasicNameValuePair("finalize", "1"));
-		hp.setEntity(new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
-		client.execute(hp);
-		
-		SeeneToolkit.log("Upload finished. Check your private seenes!",LogLevel.info);
-		
-	}
-	
-	private static void awsFileUploadOldMethod(String targetDir, File file, String mimeType, SeeneAWSmetadataOldMethod meta) {
-		try {
-			String dateHeader = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss Z",Locale.US).format(new Date());
-			String fileName = file.getName();
-			String resource  = "/" + meta.getBucket_name() + "/" + targetDir + "/" + fileName;
-			StringBuffer stringToSign = new StringBuffer("PUT\n\n");
-			stringToSign.append(mimeType + "\n");
-			stringToSign.append(dateHeader + "\n");
-			stringToSign.append("x-amz-acl:public-read\n");
-			stringToSign.append("x-amz-security-token:");
-			stringToSign.append(meta.getSession_token() + "\n");
-			stringToSign.append(resource);
-			String signature = SeeneAWSsignature.calculateRFC2104HMAC(stringToSign.toString(), meta.getSecret_access_key()); 
-			
-			URL url = new URL("https://" + meta.getBucket_name() + ".s3.amazonaws.com/" + targetDir + "/" + fileName);
-			
-			SeeneToolkit.log("Uploading " + fileName + " (" + mimeType + ")",LogLevel.info);
-			
-			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-			conn.setDoOutput(true);
-			conn.setDoInput(true);
-			conn.setUseCaches(false);
-			conn.setRequestMethod("PUT");
-			conn.setRequestProperty("Host", meta.getBucket_name() + ".s3.amazonaws.com");
-			conn.setRequestProperty("Authorization", "AWS " + meta.getAccess_key_id() + ":" + signature);
-			conn.setRequestProperty("x-amz-acl", "public-read");
-			conn.setRequestProperty("x-amz-security-token", meta.getSession_token());
-			conn.setRequestProperty("Date", dateHeader);
-			conn.setRequestProperty("Content-Type", mimeType);
-			
-			InputStream in = new FileInputStream(file.getAbsolutePath());
-		    OutputStream out = conn.getOutputStream();
-		    copyStream(in, conn.getOutputStream());
-		    out.flush();
-		    out.close();
-		    conn.getInputStream();
-		    in.close();
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-	}
 	
 	protected static long copyStream(InputStream input, OutputStream output) throws IOException {
 	    byte[] buffer = new byte[12288]; // 12K
@@ -704,15 +533,12 @@ public class SeeneAPI {
 	    return count;
 	}
 	
-	public List<SeeneObject> getPublicSeeneByURL(String surl) throws Exception {
+	public List<SeeneObject> getPublicSeeneByURLoldAPI(String surl) throws Exception {
 		 
 		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
 		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
 		
-		Map map = request(null, 
-				"GET", 
-				new URL(String.format("http://seene.co/api/seene/-/scenes/%s", shortkey)), 
-				null);
+		Map map = requestNonOAuth("GET", new URL(String.format("http://seene.co/api/seene/-/scenes/%s", shortkey)), null);
 		
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
 		result.add(createSeeneObjectFromMap(map));
@@ -720,24 +546,21 @@ public class SeeneAPI {
 		return result;
 	}
 
-	private static List<SeeneObject> createSeeneListFromResponse(Map map)
-			throws ParseException, MalformedURLException {
+	private static List<SeeneObject> createSeeneListFromResponse(Map map) throws Exception {
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
 
-		List scenes = (List)map.get("scenes");
-		for (Object o : scenes)
+		List seenes = (List)map.get("seenes");
+		for (Object o : seenes)
 			result.add(createSeeneObjectFromMap((Map)o));
 		
 		return result;
 	}
-
-	private static SeeneObject createSeeneObjectFromMap(Map j) throws ParseException,
-			MalformedURLException {
+	
+	private static SeeneObject createSeeneObjectFromMap(Map j) throws Exception {
 		SeeneObject s = new SeeneObject();
 		s.setCaptured_at(parseISO8601((String)j.get("captured_at")));
 		String caption = (String)j.get("caption");
-		if(caption == null)
-			caption = ""; // playing nice to £clients
+		if(caption == null) caption = ""; 
 		s.setCaption(EmojiParser.parseToAliases(caption));
 		s.setFilter_code((String)j.get("filter_code"));
 		s.setShortCode((String)j.get("short_code"));

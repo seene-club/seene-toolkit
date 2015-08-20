@@ -5,6 +5,11 @@ public interface STK {
 	public static final int WORK_WIDTH = 240;
 	public static final int WORK_HEIGHT = 240;
 	public static final float INIT_DEPTH = 0.4f;
+	public static final String DEFAULT_CAPTION = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
+	
+	public static final int NUMBER_OF_DOWNLOAD_THREADS = 4;
+	
+	public static final String AWS_INSTANCE_IP_ADDRESS = "54.243.113.182";
 	
 	public static final int CALCULATION_METHOD_STK_PRESERVE = 1;
 	public static final int CALCULATION_METHOD_GOOGLE_RANGELINEAR = 2;
@@ -29,13 +34,9 @@ public interface STK {
 	
 	public static final String API_CLIENT_ID = "d802e04485019c1c472d976ef2f2723a888f06332ff397dd73c68f738684b3ed";
 	public static final String API_REDIRECT = "urn:ietf:wg:oauth:2.0:oob";
-	public static final String API_ID_KEY = "sapi";
 	public static final String API_CLIENT_KEY = "sclient";
 	
 	public static final String AUTHORIZE_URL = "https://api.seene.co/oauth/authorize?client_id=" + API_CLIENT_ID + "&redirect_uri=" + API_REDIRECT + "&response_type=code&scope=public+write";
 	
 	public static final String LINE_FEED = "\r\n";
-	
-	
-	
 }

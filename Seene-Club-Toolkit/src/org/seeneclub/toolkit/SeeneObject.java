@@ -35,7 +35,7 @@ public class SeeneObject {
 	private SeeneAWSUploadMeta awsMeta;
 
 	SeeneObject() {
-		caption = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
+		caption = STK.DEFAULT_CAPTION;
 		captured_at = new Date();
 		filter_code = "none";
 		flash_level = 0;
@@ -68,8 +68,7 @@ public class SeeneObject {
 	}
 
 	public String getCaption() {
-		if ((caption==null) || (caption.length()==0)) 
-			caption = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
+		if ((caption==null) || (caption.length()==0)) caption = "";
 		return caption;
 	}
 	public void setCaption(String caption) {

@@ -29,7 +29,6 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -82,7 +81,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.seeneclub.domainvalues.LogLevel;
-import org.seeneclub.toolkit.SeeneAPI.Token;
 import org.vanitasvitae.depthmapneedle.JPEG;
 
 import com.adobe.xmp.XMPException;
@@ -98,7 +96,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static String programVersion = "0.5b"; 
+	static String programVersion = "0.7b"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -152,7 +150,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     static ProxyData pd = new ProxyData(null, 0);
     
     // Authorization Dialog
-    JDialog authorizationDialog = new JDialog();
+    static JDialog authorizationDialog = new JDialog();
 	
 	// Task Menu Items
     JMenuItem taskBackupPublic = new JMenuItem("retrieve my public seenes");
@@ -259,7 +257,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    		String targetDir = line.hasOption("output-target")
 		    			? line.getOptionValue("output-target")
 		    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-		    		doTaskBackupPublicSeenes(new File(targetDir),count);
+		    			doTaskBackupPublicSeenes(new File(targetDir),count);
 		    	} // handle private backup. Login IS required. 
 		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
 		    		if (line.hasOption("username")) {
@@ -310,7 +308,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			    			ulSeene.getPoster().loadTextureFromFile();
 			    			ulSeene.setCaption("uploaded with https://github.com/seene-club/seene-toolkit");
 			    			// uploading seene
-			    			doUploadSeeneOldMethod(tempUlDir, ulSeene);
+			    			//TODO doUploadSeeneOldMethod(tempUlDir, ulSeene);
 			    			// removing temp
 			    			Helper.deleteDirectory(tempUlDir);
 				    	} else {
@@ -364,21 +362,22 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
  
     
     // example: java -jar seene-club-toolkit.jar -b public -c 100 -uid paf
-    private static void doTaskBackupPublicSeenes(File targetDir, int last) {
+    private static void doTaskBackupPublicSeenes(File targetDir, int count) {
     	try {
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
 
     		SeeneAPI myAPI = new SeeneAPI(pd);
     	
     		log("Resolving name to id", LogLevel.info);
-			String userId = myAPI.usernameToId(seeneUser);
-			log("Seene user: " + userId, LogLevel.debug);
+			String userID = myAPI.requestUserID(seeneUser, getValidBearerToken());
+			
+			log("Seene user: " + userID, LogLevel.debug);
 
-			log("Getting index of last " + last + " public seenes", LogLevel.info);
-			List<SeeneObject> index = myAPI.getPublicSeenes(userId, last);
+			log("Getting index of last " + count + " public seenes", LogLevel.info);
+			List<SeeneObject> index = myAPI.requestUserSeenes(userID, count, "false", getValidBearerToken());
 			log("You have at least " + index.size() + " public seenes", LogLevel.info);
 			
-			downloadInThreads(index, targetDir, 4);
+			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
 			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -392,15 +391,17 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     		
     		SeeneAPI myAPI = new SeeneAPI(pd);
     	
-    		log("Resolving name to id", LogLevel.info);
-			String userId = myAPI.usernameToId(username);
-			log("Seene user: " + userId, LogLevel.debug);
+    		log("Resolving " + username + " to ID", LogLevel.info);
+			//String userID = myAPI.requestUserIDfromOldAPI(username);
+    		String userID = myAPI.requestUserID(username, getValidBearerToken());
+			log("Seene user: " + userID, LogLevel.debug);
 
 			log("Getting index of " + username + "'s last " + count + " public seenes", LogLevel.info);
-			List<SeeneObject> index = myAPI.getPublicSeenes(userId, count);
+
+			List<SeeneObject> index = myAPI.requestUserSeenes(userID, count, "false", getValidBearerToken());
 			log(username + " has at least " + index.size() + " public seenes", LogLevel.info);
 			
-			downloadInThreads(index, targetDir, 4);
+			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
 			
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -414,7 +415,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     		
     		SeeneAPI myAPI = new SeeneAPI(pd);
     		
-    		List<SeeneObject> index = myAPI.getPublicSeeneByURL(surl);
+    		List<SeeneObject> index = myAPI.getPublicSeeneByURLoldAPI(surl);
     		downloadInThreads(index, targetDir, 1);
 			
 		} catch (Exception e) {
@@ -432,21 +433,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         	SeeneAPI myAPI = new SeeneAPI(pd);
     	
         	log("Resolving name to id", LogLevel.info);
-			String userId = myAPI.usernameToId(seeneUser);
-			log("Seene user: " + userId, LogLevel.debug);
+			//String userId = myAPI.requestUserIDfromOldAPI(seeneUser);
+			String userID = myAPI.requestUserID(seeneUser, getValidBearerToken());
+			log("Seene user: " + userID, LogLevel.debug);
 
-			Token token;
-			{
-				// @TODO Mathias, we may cache the token someday
-				log("Logging in",LogLevel.info);
-				token = myAPI.login(seeneAPIid, seeneUser, seenePass);
-			}
-					
 			log("Getting index of last " + last + " private seenes",LogLevel.info);
-			List<SeeneObject> index = myAPI.getPrivateSeenes(token, userId, last);
+			//List<SeeneObject> index = myAPI.getPrivateSeenesOldMethod(token, userId, last);
+			List<SeeneObject> index = myAPI.requestUserSeenes(userID, last, "true", getValidBearerToken());
 			log("You have at least " + index.size() + " private seenes", LogLevel.info);
 			
-			downloadInThreads(index, targetDir, 4);
+			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
 			
 		} catch (Exception e) {
 			StringBuffer inform = new StringBuffer("The following error occured:\n");
@@ -466,17 +462,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
     }
     
-    private static void doUploadSeeneOldMethod(File uploadsLocalDir,SeeneObject sO) {
-    	try {
-    		SeeneAPI myAPI = new SeeneAPI(pd);
-			Token token = myAPI.login(seeneAPIid, seeneUser, seenePass);
-			myAPI.uploadSeeneOldMethod(uploadsLocalDir, sO, seeneUser, token);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    }
-    
+  
     
     // Downloading with more than one thread is faster for most internet connections
     private static void downloadInThreads(List<SeeneObject> seenesToDownload, File targetDir, int number_of_threads) {
@@ -619,7 +605,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		// menu bar
         JMenuBar bar = new JMenuBar();
-        JMenu fileMenu = new JMenu("File");
+        JMenu fileMenu = new JMenu("File  ");
         
         JMenuItem itemOpenImage = new JMenuItem("Open image");
         JMenuItem itemOpenDepthmap = new JMenuItem("Open depthmap");
@@ -651,7 +637,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         fileMenu.addSeparator();
         fileMenu.add(itemExit);
         
-        JMenu taskMenu = new JMenu("Tasks");
+        JMenu taskMenu = new JMenu("  Tasks  ");
         
         taskBackupPublic.setIcon(Helper.iconFromImageResource("download.png", 16));
         taskBackupPrivate.setIcon(Helper.iconFromImageResource("downloadp.png", 16));
@@ -668,7 +654,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         taskMenu.add(taskBackupOther);
         taskMenu.add(taskBackupByURL);
         
-        JMenu maskMenu = new JMenu("Mask");
+        JMenu maskMenu = new JMenu("  Mask  ");
         
         maskAll.setIcon(Helper.iconFromImageResource("maskall.png", 16));
         maskRemove.setIcon(Helper.iconFromImageResource("masknothing.png", 16));
@@ -693,7 +679,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskDivideByTwo);
         maskMenu.add(maskDivideByThree);
         
-        JMenu clubMenu = new JMenu("Seene Club");
+        JMenu clubMenu = new JMenu("  Seene Club");
         
         JMenuItem itemSettings = new JMenuItem("Settings");
         itemSettings.setIcon(Helper.iconFromImageResource("settings.png", 16));
@@ -1562,7 +1548,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	@SuppressWarnings("rawtypes")
-	private String getValidBearerToken() throws Exception {
+	private static String getValidBearerToken() throws Exception {
 		
 		SeeneAPI api = new SeeneAPI(pd);
 		
@@ -1572,10 +1558,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		// Step 2 - test the stored bearer token
 		if ((seeneBearerToken!=null) && (seeneBearerToken.length() > 0)) {
 			if (testBearerToken(seeneBearerToken)) {
-				log("stored bearer token still valid!", LogLevel.debug);
+				log("BEARER: stored bearer token still valid!", LogLevel.debug);
 				return seeneBearerToken;
 			} else { // Step 3 - if test fails, try to refresh bearer token
-				log("bearer token expired! trying to get new one...", LogLevel.debug);
+				log("BEARER: bearer token expired! trying to get new one...", LogLevel.debug);
 				seeneAuthorizationCode = getParameterFromConfiguration(configFile, "auth_code");
 				if (seeneAuthorizationCode.length() > 0) {
 					// try to get new bearer token with refresh_token from the seene API
@@ -1593,6 +1579,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			// try to read authorization code from config file
 			seeneAuthorizationCode = getParameterFromConfiguration(configFile, "auth_code");
 			if ((seeneAuthorizationCode!=null) && (seeneAuthorizationCode.length() > 0)) {
+				log("BEARER: no bearer token found. Trying to request bearer token!", LogLevel.debug);
 				// try to get bearer token from the seene API
 				Map response = api.requestBearerToken(seeneUser, seenePass, seeneAuthorizationCode, false);
 				seeneBearerToken = (String)response.get("access_token");
@@ -1614,11 +1601,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	@SuppressWarnings("rawtypes")
-	private Boolean testBearerToken(String token) {
+	private static Boolean testBearerToken(String token) {
 		SeeneAPI api = new SeeneAPI(pd);
 		try {
-			String userId = api.usernameToId(seeneUser);
-			Map response = api.requestUserInfo(userId, token);
+			String userID = api.requestUserIDfromOldAPI(seeneUser);
+			Map response = api.requestUserInfo(userID, token);
 			String username = (String)response.get("username");
 			if (username.equalsIgnoreCase(seeneUser)) return true;
 		} catch (Exception e) {
@@ -1629,7 +1616,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
 	
 	
-	private void insertOrReplaceConfigParameter(File cf, String param, String newValue) {
+	private static void insertOrReplaceConfigParameter(File cf, String param, String newValue) {
 		String paramEq = new String(param + "=");
 		if(cf.exists() && !cf.isDirectory()) {
 			BufferedReader br;
@@ -1943,7 +1930,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        						} else {
 	        							n = mx * w + my;
 	        							if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) mask.set(n, maskPaintMode);
-	        							System.out.println(my);
 	        						}
 	        						if (n!=last_n) {
 	        							repaintLastChoice();
@@ -2180,25 +2166,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	@Override
 	public void mousePressed(MouseEvent e) {
 		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
 		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void mouseEntered(MouseEvent e) {
 		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void mouseExited(MouseEvent e) {
 		// TODO Auto-generated method stub
-		
 	}
 	
 	private void showUploadDialog() {
@@ -2213,7 +2195,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	gridPanel.setLayout(new java.awt.GridLayout(4,2));
     	
     	JLabel labelCaption = new JLabel(" Caption: ");
-    	JTextArea tfCaption = new JTextArea(currentSeene.getCaption());
+    	
+    	String caption = currentSeene.getCaption();
+    	if ((caption==null) || (caption.length()==0)) caption = STK.DEFAULT_CAPTION;
+    	JTextArea tfCaption = new JTextArea(caption);
     	tfCaption.setLineWrap(true);
     	tfCaption.setBorder(BorderFactory.createEtchedBorder());
     	
@@ -2255,7 +2240,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 	}
 	
-	private void showAuthorizationDialog() {
+	private static void showAuthorizationDialog() {
 		
 		authorizationDialog.setTitle("Authorize Seene-Toolkit for your account!");
 		authorizationDialog.setSize(640,280);
