@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
@@ -135,6 +136,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JButton tbSaveLocal = new JButton("save local");
     JButton tbShowModel = new JButton("show model");
     JButton tbShowPoster = new JButton("show poster");
+    JButton tbSaveMask = new JButton("save mask");
     JButton tbUploadSeene = new JButton("upload");
     ModelGraphics modelDisplay = new ModelGraphics();
 	
@@ -172,6 +174,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     // Seene Object we are currently working on
     SeeneObject currentSeene = null;
     JLabel currentSelection = null;
+    String currentMaskName = new String("");
     SeeneNormalizer normalizer = new SeeneNormalizer();
     
     // method main - all begins with a thread!
@@ -990,6 +993,35 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             	  } else { showNoSeeneThereDialog("Can't save!"); }
             		  
               }
+              if(event.getSource() == tbSaveMask) {
+            	  if (modelDisplay.isMasked()) {
+            		  if ((currentSeene.getLocalname()!=null) && (currentSeene.getLocalname().length() > 0)) {
+            			  String maskname = (String)JOptionPane.showInputDialog(mainFrame, "Give the mask a name:",
+    	                          "Saving the mask", JOptionPane.PLAIN_MESSAGE, null, null, currentMaskName);
+            			  
+            			  if ((maskname != null) && (maskname.length() > 0)) {
+    	            		  File savePath = new File(storage.getOfflineDir().getAbsolutePath() + File.separator + currentSeene.getLocalname() + 
+    	            				  				   File.separator + "Masks" + File.separator + maskname + ".mask");
+
+    	            		  savePath.getParentFile().mkdirs();
+    	            		  modelDisplay.saveMask(savePath);
+    	            		  currentMaskName = maskname;
+    	            	  } else {
+    	            		  JOptionPane.showMessageDialog(mainFrame,  "Aborted. Mask not saved!", "Mask not saved.", JOptionPane.ERROR_MESSAGE);
+    	            	  }
+            			  
+            		  } else {
+            			  JOptionPane.showMessageDialog(mainFrame,  "Seene was not saved locally!\n" + 
+              					"You can only save masks for locally saved Seenes.\n" +
+            					"Please use [ save local ] before saving the mask!\n\n", 
+              					"Not a local Seene!", JOptionPane.WARNING_MESSAGE);
+            		  }
+            	  } else {
+            		  JOptionPane.showMessageDialog(mainFrame,  "There's no masked area in the editor!\n" + 
+            					"Please, draw the mask with your mouse while pressing the left mouse button.\n\n" , 
+            					"No mask!", JOptionPane.WARNING_MESSAGE);
+            	  }
+              }
               if(event.getSource() == tbShowModel) {
             	  if (modelDisplay.getModel()!=null) {
             		  modelDisplay.repaintModelOnly();
@@ -1011,11 +1043,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         tbSaveLocal.addActionListener(toolbarListener);
         tbShowModel.addActionListener(toolbarListener);
         tbShowPoster.addActionListener(toolbarListener);
+        tbSaveMask.addActionListener(toolbarListener);
         tbUploadSeene.addActionListener(toolbarListener);
         
         toolbar.add(tbSaveLocal);
+        toolbar.addSeparator();
         toolbar.add(tbShowModel);
         toolbar.add(tbShowPoster);
+        toolbar.addSeparator();
+        toolbar.add(tbSaveMask);
+        toolbar.addSeparator();
         toolbar.add(tbUploadSeene);
         
         mainToolbarPanel.setLayout(new BorderLayout());
@@ -2139,6 +2176,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	return false;
 		}
 	    
+	    public void saveMask(File maskFile) {
+	    	try {
+	    		PrintWriter writer = new PrintWriter(maskFile);
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) writer.print("1");
+	    			else writer.print("0");
+	    		} // for
+	    		writer.close();
+	    	} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} //try/catch
+	    }
 	    
 	    // Getter and Setter
 	    public SeeneObject getSeeneObject() {
