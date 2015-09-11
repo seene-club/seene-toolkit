@@ -96,7 +96,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static String programVersion = "0.7.1"; 
+	static String programVersion = "0.7.2"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -2007,10 +2007,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        
 	    	}
 	    }
-	    
-	    
-	    
-	    
 	    
 	    private void paintPoster(Graphics g, SeeneTexture poster) {
 	    	if (poster!=null) {
