@@ -395,7 +395,8 @@ public class SeeneAPI {
 	
 	public Map requestBearerToken(String username, String password, String auth_or_refresh_code, Boolean isRefresh) throws Exception {
 		
-		String sclient = getSeeneKeyFromRemoteServer(username, password, STK.API_CLIENT_KEY);
+		//String sclient = getSeeneKeyFromRemoteServer(username, password, STK.API_CLIENT_KEY);
+		String sclient = XOREncryption.xorIt(STK.API_CLIENT_PUBLIC_KEY);
 		SeeneToolkit.log(sclient,LogLevel.debug);
 
 		if (sclient.length() != 64) throw new Exception("Format exception! Invalid Key!");

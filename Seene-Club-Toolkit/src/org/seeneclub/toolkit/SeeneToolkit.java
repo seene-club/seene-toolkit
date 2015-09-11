@@ -96,7 +96,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static String programVersion = "0.7b"; 
+	static String programVersion = "0.7.1"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -1602,17 +1602,23 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	@SuppressWarnings("rawtypes")
 	private static Boolean testBearerToken(String token) {
+		//return true;
+		//TODO: new test!
+		
 		SeeneAPI api = new SeeneAPI(pd);
+		
 		try {
 			String userID = api.requestUserIDfromOldAPI(seeneUser);
+			log("TEST: userID " + userID,LogLevel.debug);
 			Map response = api.requestUserInfo(userID, token);
 			String username = (String)response.get("username");
+			log("TEST: username for ID " + username,LogLevel.debug);
 			if (username.equalsIgnoreCase(seeneUser)) return true;
 		} catch (Exception e) {
 			log("Test failed: " + e.getMessage(),LogLevel.warn);
 		}
 		
-		return false;
+		return false; 
 	}
 	
 	
@@ -1932,9 +1938,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        							if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) mask.set(n, maskPaintMode);
 	        						}
 	        						if (n!=last_n) {
-	        							repaintLastChoice();
+	        							
+	        							if (maskPaintMode) paintMaskPartially(getGraphics(), mx, my, maskBrushRadius);
+	        							else repaintLastChoice();
+	        							
 	        							last_n=n;
-	        						} else { repaintMaskOnly(); }
+	        						} 
 	        						
 	        	                } while (mouseDown);
 	        	                isRunning = false;
@@ -1948,10 +1957,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		public void paint(Graphics g){
 	    	paintModel(g,model);
 	    	paintPoster(g, poster);
-	    	paintMask(g);
+	    	paintMaskCompletely(g);
 	    }
 	    
-	    private void paintMask(Graphics g) {
+	    private void paintMaskCompletely(Graphics g) {
 	    	if (model!=null) {
 		    	Color mc = new Color(1f,0f,0f,.4f );
 		    	g.setColor(mc);
@@ -1971,6 +1980,37 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        } //  for x
 	    	}
 	    }
+	    
+	    // method to speed up mask drawing
+	    private void paintMaskPartially(Graphics g, int mx, int my, int rad) {
+	    	if (model!=null) {
+		    	Color mc = new Color(1f,0f,0f,.4f );
+		    	g.setColor(mc);
+	    		
+	    		int w = model.getDepthWidth();
+		        int h = model.getDepthHeight();
+		        int ndx = w * h;
+		        int p = getPointSize();
+		        int n;
+		        
+		        if (rad>0) {
+					for (int bx=0-rad;bx<rad;bx++) {
+						for (int by=0-rad;by<rad;by++) {
+							n = (mx + bx) * w + (my + by);
+							if ((n >= 0) && ( n < ndx) && ((my + by) < h) && ((my + by) >= 0)) g.fillRect((w-(mx+bx)-1)*p, (my+by)*p , p, p);
+						}
+					}
+				} else {
+					n = mx * w + my;
+					if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) g.fillRect((w-mx-1)*p, my*p , p, p);
+				}
+		        
+	    	}
+	    }
+	    
+	    
+	    
+	    
 	    
 	    private void paintPoster(Graphics g, SeeneTexture poster) {
 	    	if (poster!=null) {
@@ -2028,7 +2068,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    public void repaintMaskOnly() {
 	    	if (model!=null) {
 				Graphics g = getGraphics();
-				this.paintMask(g);
+				this.paintMaskCompletely(g);
 			}
 	    }
 	    
@@ -2038,7 +2078,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				Graphics g = getGraphics();
 				//setSize(model.getDepthWidth()*getPointSize(), model.getDepthHeight()*getPointSize());
 				this.paintModel(g, model);
-				this.paintMask(g);
+				this.paintMaskCompletely(g);
 			}
 	    }
 	    
@@ -2047,7 +2087,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		lastChoice="poster";
 				Graphics g = getGraphics();
 				this.paintPoster(g, poster);
-				this.paintMask(g);
+				this.paintMaskCompletely(g);
 			}
 	    }
 	    

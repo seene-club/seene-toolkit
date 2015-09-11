@@ -33,6 +33,7 @@ public interface STK {
 	public static final String CONFIG_AUTH_CODE_HINT = "<insert Seene Authorization Code here>";
 	
 	public static final String API_CLIENT_ID = "d802e04485019c1c472d976ef2f2723a888f06332ff397dd73c68f738684b3ed";
+	public static final String API_CLIENT_PUBLIC_KEY = "f 6xrfpew~as3ua{gsrcw3yrcrcu#2zg  f dpp5 6 qg'h'qkp1 vav4ws7{d#";
 	public static final String API_REDIRECT = "urn:ietf:wg:oauth:2.0:oob";
 	public static final String API_CLIENT_KEY = "sclient";
 	
