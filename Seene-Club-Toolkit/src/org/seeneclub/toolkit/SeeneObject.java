@@ -20,6 +20,7 @@ public class SeeneObject {
 	private String userinfo;
 	private URL avatarURL;
 	private String localname;
+	private String localpath;
 
     // model and poster
 	private SeeneModel model;
@@ -57,6 +58,7 @@ public class SeeneObject {
 	    		  setXMP_combined(new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG));
 	    		  setXMP_depthpng(new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_DEPTH_PNG));
 	    		  setXMP_original(new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_ORIGINAL_JPG));
+	    		  setLocalpath(seeneFolder.getAbsolutePath());
 	    	  }
 		}
 	}
@@ -213,5 +215,13 @@ public class SeeneObject {
 	}
 	public void setAwsMeta(SeeneAWSUploadMeta awsMeta) {
 		this.awsMeta = awsMeta;
+	}
+
+	public String getLocalpath() {
+		return localpath;
+	}
+
+	public void setLocalpath(String localpath) {
+		this.localpath = localpath;
 	}
 }

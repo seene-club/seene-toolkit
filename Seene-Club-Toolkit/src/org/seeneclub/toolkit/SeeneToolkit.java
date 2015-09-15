@@ -49,6 +49,7 @@ import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -137,6 +138,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JButton tbShowModel = new JButton("show model");
     JButton tbShowPoster = new JButton("show poster");
     JButton tbSaveMask = new JButton("save mask");
+    JLabel tbLoadMaskLabel = new JLabel(" load mask: ");
+    JComboBox<String> tbLoadMaskCombo = new JComboBox();
     JButton tbUploadSeene = new JButton("upload");
     ModelGraphics modelDisplay = new ModelGraphics();
 	
@@ -1006,6 +1009,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     	            		  savePath.getParentFile().mkdirs();
     	            		  modelDisplay.saveMask(savePath);
     	            		  currentMaskName = maskname;
+    	            		  reloadMaskLoadCombo(new File(currentSeene.getLocalpath()));
     	            	  } else {
     	            		  JOptionPane.showMessageDialog(mainFrame,  "Aborted. Mask not saved!", "Mask not saved.", JOptionPane.ERROR_MESSAGE);
     	            	  }
@@ -1020,6 +1024,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             		  JOptionPane.showMessageDialog(mainFrame,  "There's no masked area in the editor!\n" + 
             					"Please, draw the mask with your mouse while pressing the left mouse button.\n\n" , 
             					"No mask!", JOptionPane.WARNING_MESSAGE);
+            	  }
+              }
+              if(event.getSource() == tbLoadMaskCombo) {
+            	  if ((tbLoadMaskCombo.getSelectedItem() != null) && (tbLoadMaskCombo.getSelectedItem().toString().length() > 0)) {
+            		  File maskFile = new File(currentSeene.getLocalpath() 
+            				  					+ File.separator + "Masks" 
+            				  					+ File.separator +  tbLoadMaskCombo.getSelectedItem() + ".mask");
+            		  if (maskFile.exists()) modelDisplay.loadMask(maskFile);
             	  }
               }
               if(event.getSource() == tbShowModel) {
@@ -1044,7 +1056,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         tbShowModel.addActionListener(toolbarListener);
         tbShowPoster.addActionListener(toolbarListener);
         tbSaveMask.addActionListener(toolbarListener);
+        tbLoadMaskCombo.addActionListener(toolbarListener);
         tbUploadSeene.addActionListener(toolbarListener);
+        
+        tbLoadMaskCombo.setLightWeightPopupEnabled(false);
         
         toolbar.add(tbSaveLocal);
         toolbar.addSeparator();
@@ -1052,6 +1067,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         toolbar.add(tbShowPoster);
         toolbar.addSeparator();
         toolbar.add(tbSaveMask);
+        toolbar.add(tbLoadMaskLabel);
+        toolbar.add(tbLoadMaskCombo);
         toolbar.addSeparator();
         toolbar.add(tbUploadSeene);
         
@@ -1789,13 +1806,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	private void openSeene(File seeneFolder) {
 		currentSeene = new SeeneObject(seeneFolder);
+		tbLoadMaskCombo.removeAllItems(); 
 		
-		String seenePath = seeneFolder.getAbsolutePath();
+		String seenePath = currentSeene.getLocalpath();
 		String offlinePath = storage.getOfflineDir().getAbsolutePath();
 		
 		// Set Localname if Seene is loaded from the "Offline" pool
 		if (seenePath.toLowerCase().contains(offlinePath.toLowerCase())) {
 			currentSeene.setLocalname(seenePath.substring(offlinePath.length()+1));
+			// Trying to find stored masks
+			reloadMaskLoadCombo(seeneFolder);
 		}
 
 		File mf = currentSeene.getModelFile();
@@ -1861,7 +1881,28 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 	}
 	
+	private void reloadMaskLoadCombo(File seeneFolder) {
+		File masksDir = new File(seeneFolder.getAbsolutePath() + File.separator + "Masks");
+		tbLoadMaskCombo.removeAllItems(); 
+		tbLoadMaskCombo.addItem(new String("- select a mask -"));
+		int cnt = 0;
+		if (masksDir.exists()) {
+			File[] files = masksDir.listFiles();
+			Arrays.sort(files);
+			if (files != null) {
+				for (int i = files.length - 1; i > -1; i--) {
+					log(files[i].getAbsolutePath(),LogLevel.debug);
+					if ((!files[i].isDirectory()) && (files[i].getName().endsWith(".mask"))) {
+						tbLoadMaskCombo.addItem(files[i].getName().replaceFirst("[.][^.]+$", ""));
+						cnt++;
+					} // directory
+				} // for
+			} // if (files != null)
+		} // if (masksDir.exists())
+		if (cnt == 0) tbLoadMaskCombo.removeAllItems(); 
+	}
 	
+
 	@SuppressWarnings("serial")
 	class ModelGraphics extends Canvas {
 		
@@ -2188,6 +2229,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			} //try/catch
+	    }
+	    
+	    public void loadMask(File maskFile) {
+	       log("Loading Mask: " + maskFile.getAbsolutePath(),LogLevel.info);
+	       try {
+	    	   FileReader f = new FileReader(maskFile);
+	    	   int c;
+	    	   int n = 0;
+	    	   while((c = f.read()) != -1) { 
+	    		   if ((char)c == '0') mask.set(n, false);
+	    		   else mask.set(n, true);
+	    		   n++;
+	    	   }
+	    	   f.close();
+	    	   repaintLastChoice();
+	    	   repaintMaskOnly();
+	       } catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+	       }
 	    }
 	    
 	    // Getter and Setter
