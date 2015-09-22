@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
@@ -98,7 +97,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.fatal;
 	
 	static Boolean commandLineUsed = false;
-	static String programVersion = "0.7.2"; 
+	static String programVersion = "0.8"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -170,7 +169,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
     JMenuItem maskDivideByTwo = new JMenuItem("devide depth in masked area by 2");
     JMenuItem maskDivideByThree = new JMenuItem("devide depth in masked area by 3");
-        
+    JMenuItem maskGradientUpwards = new JMenuItem("depthmap gradient upwards");
+    JMenuItem maskGradientUpwardsToRight = new JMenuItem("depthmap gradient upwards to right");
+    JMenuItem maskGradientLeftToRight = new JMenuItem("depthmap gradient left to right");
+    JMenuItem maskGradientDownwardsToRight = new JMenuItem("depthmap gradient downwards to right");
+    JMenuItem maskGradientDownwards = new JMenuItem("depthmap gradient downwards");
+    JMenuItem maskGradientDownwardsToLeft = new JMenuItem("depthmap gradient downwards to left");
+    JMenuItem maskGradientRightToLeft = new JMenuItem("depthmap gradient right to left");
+    JMenuItem maskGradientUpwardsToLeft = new JMenuItem("depthmap gradient upwards to left");
+    
     // Tests Menu Items
     JMenuItem testSomething = new JMenuItem("Test Something");
     
@@ -591,6 +598,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		mainFrame.setSize(1024,768);
 		
 		// disabling lightweight rendering for PopUps and Tooltips (otherwise they are behind the canvas)
+		
 		JPopupMenu.setDefaultLightWeightPopupEnabled(false);
 		ToolTipManager.sharedInstance().setLightWeightPopupEnabled(false);
 		
@@ -611,7 +619,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 		// menu bar
         JMenuBar bar = new JMenuBar();
-        JMenu fileMenu = new JMenu("File  ");
+        JMenu fileMenu = new JMenu("File ");
         
         JMenuItem itemOpenImage = new JMenuItem("Open image");
         JMenuItem itemOpenDepthmap = new JMenuItem("Open depthmap");
@@ -643,7 +651,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         fileMenu.addSeparator();
         fileMenu.add(itemExit);
         
-        JMenu taskMenu = new JMenu("  Tasks  ");
+        JMenu taskMenu = new JMenu(" Tasks ");
         
         taskBackupPublic.setIcon(Helper.iconFromImageResource("download.png", 16));
         taskBackupPrivate.setIcon(Helper.iconFromImageResource("downloadp.png", 16));
@@ -660,7 +668,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         taskMenu.add(taskBackupOther);
         taskMenu.add(taskBackupByURL);
         
-        JMenu maskMenu = new JMenu("  Mask  ");
+        JMenu maskMenu = new JMenu(" Mask ");
         
         maskAll.setIcon(Helper.iconFromImageResource("maskall.png", 16));
         maskRemove.setIcon(Helper.iconFromImageResource("masknothing.png", 16));
@@ -668,6 +676,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
         maskDivideByTwo.setIcon(Helper.iconFromImageResource("maskdividedby2.png", 16));
         maskDivideByThree.setIcon(Helper.iconFromImageResource("maskdividedby3.png", 16));
+        maskGradientUpwards.setIcon(Helper.iconFromImageResource("maskGradient0.png", 16));
+        maskGradientUpwardsToRight.setIcon(Helper.iconFromImageResource("maskGradient45.png", 16));
+        maskGradientLeftToRight.setIcon(Helper.iconFromImageResource("maskGradient90.png", 16));
+        maskGradientDownwardsToRight.setIcon(Helper.iconFromImageResource("maskGradient135.png", 16));
+        maskGradientDownwards.setIcon(Helper.iconFromImageResource("maskGradient180.png", 16));
+        maskGradientDownwardsToLeft.setIcon(Helper.iconFromImageResource("maskGradient225.png", 16));
+        maskGradientRightToLeft.setIcon(Helper.iconFromImageResource("maskGradient270.png", 16));
+        maskGradientUpwardsToLeft.setIcon(Helper.iconFromImageResource("maskGradient315.png", 16));
         
         maskAll.addActionListener(this);
         maskRemove.addActionListener(this);
@@ -675,6 +691,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskSetDepth.addActionListener(this);
         maskDivideByTwo.addActionListener(this);
         maskDivideByThree.addActionListener(this);
+        maskGradientUpwards.addActionListener(this);
+        maskGradientUpwardsToRight.addActionListener(this);
+        maskGradientLeftToRight.addActionListener(this);
+        maskGradientDownwardsToRight.addActionListener(this);
+        maskGradientDownwards.addActionListener(this);
+        maskGradientDownwardsToLeft.addActionListener(this);
+        maskGradientRightToLeft.addActionListener(this);
+        maskGradientUpwardsToLeft.addActionListener(this);
         
         maskMenu.add(maskAll);
         maskMenu.add(maskRemove);
@@ -684,8 +708,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.addSeparator();
         maskMenu.add(maskDivideByTwo);
         maskMenu.add(maskDivideByThree);
+        maskMenu.addSeparator();
+        maskMenu.add(maskGradientUpwards);
+        maskMenu.add(maskGradientUpwardsToRight);
+        maskMenu.add(maskGradientLeftToRight);
+        maskMenu.add(maskGradientDownwardsToRight);
+        maskMenu.add(maskGradientDownwards);
+        maskMenu.add(maskGradientDownwardsToLeft);
+        maskMenu.add(maskGradientRightToLeft);
+        maskMenu.add(maskGradientUpwardsToLeft);
+ 
         
-        JMenu clubMenu = new JMenu("  Seene Club");
+        JMenu clubMenu = new JMenu(" Seene Club");
         
         JMenuItem itemSettings = new JMenuItem("Settings");
         itemSettings.setIcon(Helper.iconFromImageResource("settings.png", 16));
@@ -1598,7 +1632,44 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		modelDisplay.doDivideBy(3.0f);
 	    		modelDisplay.repaintLastChoice();
 	    	}
+	    } else if(arg0.getSource() == this.maskGradientUpwards) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientUpwards);
+	    } else if(arg0.getSource() == this.maskGradientUpwardsToRight) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientUpwardsToRight);
+	    } else if(arg0.getSource() == this.maskGradientLeftToRight) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientLeftToRight);
+	    } else if(arg0.getSource() == this.maskGradientDownwardsToRight) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientDownwardsToRight);
+	    } else if(arg0.getSource() == this.maskGradientDownwards) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientDownwards);
+	    } else if(arg0.getSource() == this.maskGradientDownwardsToLeft) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientDownwardsToLeft);
+	    } else if(arg0.getSource() == this.maskGradientRightToLeft) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientRightToLeft);
+	    } else if(arg0.getSource() == this.maskGradientUpwardsToLeft) {
+	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientUpwardsToLeft);
 	    }
+	}
+	
+	private void doMaskGradient(JMenuItem maskGradientDegreeItem) {
+		float sDep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Start depth:",
+				"At which depth should the gradient start?", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+		if (sDep > 0) {
+			float eDep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "End depth:",
+					"At which depth should the gradient end?", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+			if (eDep > 0) {
+				if (maskGradientDegreeItem == this.maskGradientUpwards) modelDisplay.doGradient(sDep,eDep,0);
+				if (maskGradientDegreeItem == this.maskGradientUpwardsToRight) modelDisplay.doGradient(sDep,eDep,45);
+				if (maskGradientDegreeItem == this.maskGradientLeftToRight) modelDisplay.doGradient(sDep,eDep,90);
+				if (maskGradientDegreeItem == this.maskGradientDownwardsToRight) modelDisplay.doGradient(sDep,eDep,135);
+				if (maskGradientDegreeItem == this.maskGradientDownwards) modelDisplay.doGradient(sDep,eDep,180);
+				if (maskGradientDegreeItem == this.maskGradientDownwardsToLeft) modelDisplay.doGradient(sDep,eDep,225);
+				if (maskGradientDegreeItem == this.maskGradientRightToLeft) modelDisplay.doGradient(sDep,eDep,270);
+				if (maskGradientDegreeItem == this.maskGradientUpwardsToLeft) modelDisplay.doGradient(sDep,eDep,315);
+						
+				modelDisplay.repaintLastChoice();
+			}
+		}
 	}
 	
 	@SuppressWarnings("rawtypes")
@@ -2032,6 +2103,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			});
 	    }
 
+
 		public void paint(Graphics g){
 	    	paintModel(g,model);
 	    	paintPoster(g, poster);
@@ -2206,6 +2278,63 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		}
 	    		model=findModelExtema(model);
 	    	}
+		}
+	    
+	    public void doGradient(float sDep, float eDep, int d) {
+	    	if (model!=null) {
+	    		int w = model.getDepthWidth();
+	        	int h = model.getDepthHeight();
+	        	int ndx = w * h;
+	        	int x = 0, y = 0;
+	        	int max_x = 0, min_x = w, max_y = 0, min_y = h;
+	        	
+	    		for (int n = 0; n < ndx; n++) {
+	    			if (mask.get(n)) {
+	    				y = n / w;
+	    				x = n - (w * y);
+	    				if (x > max_x) max_x = x;
+	    				if (x < min_x) min_x = x;
+	    				if (y > max_y) max_y = y;
+	    				if (y < min_y) min_y = y;
+	    				System.out.println("x: " + x + " - y:" + y);
+	    			}
+	    		}
+	    		System.out.println("max x: " + max_x + " - min x:" + min_x);
+	    		System.out.println("max y: " + max_y + " - min y:" + min_y);
+	    		
+	    		float dDiff = eDep - sDep;
+	    		int lxDiff = max_x - min_x;
+	    		int lyDiff = max_y - min_y;
+	    		
+	    		float stx = dDiff / lxDiff;
+	    		float sty = dDiff / lyDiff;
+	    		
+	    		System.out.println("depthdifference: " + dDiff + " - distance X: " + lxDiff + " - step X: " + stx);
+	    		System.out.println("depthdifference: " + dDiff + " - distance Y: " + lyDiff + " - step Y: " + sty);
+	    		
+	    		float newDepth = 0.0f;
+	    		
+	    		for (int n = 0; n < ndx; n++) {
+	    			if (mask.get(n)) {
+	    				y = n / w;
+	    				x = n - (w * y);
+	    				
+	    				if (d ==   0) newDepth = sDep + ((max_x - x) * stx); 	// upwards			= 0°
+	    				if (d ==  90) newDepth = sDep + ((max_y - y) * sty); 	// left to right    = 90°
+	    				if (d == 180) newDepth = sDep + ((x - min_x) * stx); 	// downwards		= 180°
+	    				if (d == 270) newDepth = sDep + ((y - min_y) * sty); 	// right to left	= 270°
+	    				if (d ==  45) newDepth = sDep + ((((max_y - y) * sty) + ((max_x - x) * stx)) / 2); // upwards to right		= 45°
+	    				if (d == 135) newDepth = sDep + ((((max_y - y) * sty) + ((x - min_x) * stx)) / 2); // downwards to right	= 135°
+	    				if (d == 225) newDepth = sDep + ((((y - min_y) * sty) + ((x - min_x) * stx)) / 2); // downwards to left		= 225°
+	    				if (d == 315) newDepth = sDep + ((((y - min_y) * sty) + ((max_x - x) * stx)) / 2); // upwards to left		= 315° 
+	    				
+	    				model.getFloats().set(n, newDepth);
+	    			}
+	    		}
+	    		
+	    		model=findModelExtema(model);
+	    		
+	    	} //if (model!=null)
 		}
 	    
 	    public Boolean isMasked() {
