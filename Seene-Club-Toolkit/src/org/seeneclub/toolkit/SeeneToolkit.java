@@ -138,7 +138,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JButton tbShowPoster = new JButton("show poster");
     JButton tbSaveMask = new JButton("save mask");
     JLabel tbLoadMaskLabel = new JLabel(" load mask: ");
-    JComboBox<String> tbLoadMaskCombo = new JComboBox();
+    JComboBox<String> tbLoadMaskCombo = new JComboBox<String>();
     JButton tbUploadSeene = new JButton("upload");
     ModelGraphics modelDisplay = new ModelGraphics();
 	
@@ -163,6 +163,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem taskBackupByURL = new JMenuItem("retrieve public seene by URL");
     
     // Mask Menu Items
+    JMenuItem maskUndo = new JMenuItem("undo");
+    JMenuItem maskRedo = new JMenuItem("redo");
     JMenuItem maskAll = new JMenuItem("mask all");
     JMenuItem maskRemove = new JMenuItem("remove mask");
     JMenuItem maskInvert = new JMenuItem("invert mask");
@@ -685,6 +687,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskGradientRightToLeft.setIcon(Helper.iconFromImageResource("maskGradient270.png", 16));
         maskGradientUpwardsToLeft.setIcon(Helper.iconFromImageResource("maskGradient315.png", 16));
         
+        maskUndo.addActionListener(this);
+        maskRedo.addActionListener(this);
         maskAll.addActionListener(this);
         maskRemove.addActionListener(this);
         maskInvert.addActionListener(this);
@@ -700,14 +704,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskGradientRightToLeft.addActionListener(this);
         maskGradientUpwardsToLeft.addActionListener(this);
         
+        maskMenu.add(maskUndo);
+        maskMenu.add(maskRedo);
+        maskMenu.addSeparator();
         maskMenu.add(maskAll);
         maskMenu.add(maskRemove);
         maskMenu.add(maskInvert);
         maskMenu.addSeparator();
         maskMenu.add(maskSetDepth);
-        maskMenu.addSeparator();
-        maskMenu.add(maskDivideByTwo);
-        maskMenu.add(maskDivideByThree);
         maskMenu.addSeparator();
         maskMenu.add(maskGradientUpwards);
         maskMenu.add(maskGradientUpwardsToRight);
@@ -717,7 +721,12 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskGradientDownwardsToLeft);
         maskMenu.add(maskGradientRightToLeft);
         maskMenu.add(maskGradientUpwardsToLeft);
- 
+        maskMenu.addSeparator();
+        maskMenu.add(maskDivideByTwo);
+        maskMenu.add(maskDivideByThree);
+        
+        maskUndo.setEnabled(false);
+        maskRedo.setEnabled(false);
         
         JMenu clubMenu = new JMenu(" Seene Club");
         
@@ -1599,7 +1608,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    } else if (arg0.getSource() == this.btPoolLocalSeenes) {
 	    	parsePool(storage.getOfflineDir());	    	
 	    } /* MASK Menu */ 
-	      else if(arg0.getSource() == this.maskAll) {
+	     else if(arg0.getSource() == this.maskUndo) {
+	    	 modelDisplay.doUndo();
+	    } else if(arg0.getSource() == this.maskRedo) {
+	    	modelDisplay.doRedo();
+	    } else if(arg0.getSource() == this.maskAll) {
 	    	 modelDisplay.doMaskAll();
 	    	 modelDisplay.repaintLastChoice();
 	    } else if(arg0.getSource() == this.maskRemove) {
@@ -1981,6 +1994,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		public SeeneModel model; 
 		public SeeneTexture poster;
 		private List<Boolean> mask = new ArrayList<Boolean>();
+		private int undomax = 10;
+		private List<Boolean>[] undomask = (ArrayList<Boolean>[])new ArrayList[undomax];
+		private List<Float>[] undomaps = (ArrayList<Float>[])new ArrayList[undomax];
+		private String[] undotext = new String[undomax];
+		private int undoStep = 0;
 		int maskBrushRadius = 2;
 		public String lastChoice = "";
 		float rememberedFloat = STK.INIT_DEPTH;
@@ -2057,6 +2075,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	        if (lastChoice=="model") repaintModelOnly();
 	        	        if (lastChoice=="poster") repaintPosterOnly();
 	        	    }
+	        		if (e.getButton() == MouseEvent.BUTTON1) saveUndoStep(mask, "mask paint");
+	        		if (e.getButton() == MouseEvent.BUTTON3) saveUndoStep(mask, "mask rubber");
 	        	}
 
 	        	volatile private boolean isRunning = false;
@@ -2102,6 +2122,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	}
 			});
 	    }
+
 
 
 		public void paint(Graphics g){
@@ -2245,13 +2266,140 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			setCursor(cu);
 		}
 	    
+	    public void initializeUndo() {
+	    	undoStep = 0;
+	    	for (int n=0;n<undomax;n++) {
+	    		undomask[n] = null;
+	    		undomaps[n] = null;
+	    		undotext[n] = null;
+	    	}
+	    	mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    	undomask[0] = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    	undomaps[0] = null;
+	    	undotext[0] = "-origin-";
+	    	
+	    	maskUndo.setText("undo");
+	    	maskRedo.setText("redo");
+			maskUndo.setEnabled(false);
+			maskRedo.setEnabled(false);
+			
+			undoStackInfo("leave: initializeUndo");
+		}
+	    
+	    private void saveUndoStep(List<Boolean> mask, String doing) {
+	    	undoStep++;
+	    	
+    		if (undoStep == undomax) undoStep = 1;
+	    	
+	    	if ((mask!=null) && (!mask.isEmpty())) {
+	    		// Initialize mask
+	    		undomask[undoStep] = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    		// Fill value-by-value to loose byRef
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			undomask[undoStep].set(n, mask.get(n));
+	    		}
+
+	    		undomaps[undoStep] = null;
+	    		undotext[undoStep] = doing;
+	    		maskUndo.setText("undo (" + doing + ")");
+    			maskUndo.setEnabled(true);
+	    	}
+	    	
+	    	undoStackInfo("leave: saveUndoStep");
+
+		}
+	    
+	    public void undoStackInfo(String txt) {
+	    	System.out.println(" =========== " + txt + " =========== " );
+	    	System.out.println("undomax: " + undomax);
+	    	System.out.println("undoStep: " + undoStep);
+	    	for (int n=0;n<undomax;n++) {
+	    		System.out.println(n + " - " + undotext[n] + " - undomask=null: " + new Boolean(undomask[n]==null) + " - undomaps=null: " + new Boolean(undomaps[n]==null));
+	    	}
+	    }
+	    
+	    
+	    public void doRedo() {
+	    	
+	    	undoStackInfo("enter: doRedo");
+	    	
+	    	undoStep++;
+	    	
+	    	for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+    			mask.set(n, undomask[undoStep].get(n));
+    		}
+	    	repaintLastChoice();
+	    	
+	    	// after a redo we, can always do an undo!
+	    	maskUndo.setText("undo (" + undotext[undoStep] + ")");
+			maskUndo.setEnabled(true);
+	    	
+	    	// but can we do another redo? check what comes next ...
+	    	int nextRedo = undoStep + 1;
+	    	if (nextRedo == undomax) nextRedo = 1;
+	    	
+	    	if (undotext[nextRedo]==null) {
+	    		maskRedo.setText("redo");
+				maskRedo.setEnabled(false);
+	    	} else {
+	    		maskRedo.setText("redo (" + undotext[nextRedo] + ")");
+	    		maskRedo.setEnabled(true);
+	    	}
+	    	
+	    	undoStackInfo("leave: doRedo");
+	    	
+	    }
+	    
+	    public void doUndo() {
+						
+	    	undoStackInfo("enter: doUndo");
+	    	
+	    	for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+    			mask.set(n, undomask[undoStep - 1].get(n));
+    		}
+			repaintLastChoice();
+			
+			// after an undo, we can always do an redo!
+			maskRedo.setText("redo (" + undotext[undoStep] + ")");
+			maskRedo.setEnabled(true);
+			
+			// but can we do another undo? check what comes previous ...
+			int prevUndo = undoStep - 1;
+	    	if (prevUndo == 0) prevUndo = undomax - 1;
+	    	
+	    	if (undotext[prevUndo]==null) {
+	    		maskUndo.setText("undo");
+				maskUndo.setEnabled(false);
+	    	} else {
+	    		maskUndo.setText("undo (" + undotext[prevUndo] + ")");
+	    		maskUndo.setEnabled(true);
+	    	}
+			
+			undoStep--;
+			if (undoStep < 0) undoStep = undomax -1;
+			
+			repaintLastChoice();
+			
+			undoStackInfo("leave: doUndo");
+		}
+	    
 	    // Mask Operation Methods
 	    public void doMaskAll() {
-	    	if (model!=null) mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), true));
+	    	if (model!=null) {
+	    		mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), true));
+	    		saveUndoStep(mask,"mask all");
+	    	}
 	    }
 	    
 	    public void doMaskRemove() {
-	    	if (model!=null) mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    	doMaskRemove(true);
+	    }
+	    
+		private void doMaskRemove(Boolean saveUndo) {
+	    	if (model!=null) {
+	    		mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    		if (saveUndo) saveUndoStep(mask, "remove mask");
+	    	}
 	    }
 	    
 	    public void doMaskInvert() {
@@ -2259,6 +2407,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
 	    			mask.set(n, !mask.get(n));
 	    		}
+	    		saveUndoStep(mask, "invert mask");
 	    	}
 	    }
 	    
@@ -2395,7 +2544,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		}
 		public void setModel(SeeneModel model) {
 			this.model = model;
-			doMaskRemove();
+			doMaskRemove(false);
+			initializeUndo();
 			repaintModelOnly();
 		}
 		public int getPointSize() {
