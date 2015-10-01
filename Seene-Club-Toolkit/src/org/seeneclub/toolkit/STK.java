@@ -8,6 +8,7 @@ public interface STK {
 	public static final String DEFAULT_CAPTION = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
 	
 	public static final int NUMBER_OF_DOWNLOAD_THREADS = 4;
+	public static final int UNDO_RINGBUFFER_SIZE = 15;
 	
 	public static final String AWS_INSTANCE_IP_ADDRESS = "54.243.113.182";
 	
