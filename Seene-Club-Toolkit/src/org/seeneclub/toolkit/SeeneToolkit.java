@@ -27,7 +27,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.Console;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -75,12 +74,6 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.GnuParser;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
 import org.seeneclub.domainvalues.LogLevel;
 import org.vanitasvitae.depthmapneedle.JPEG;
 
@@ -96,7 +89,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static Boolean commandLineUsed = false;
 	static String programVersion = "0.81"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
@@ -190,7 +182,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     SeeneNormalizer normalizer = new SeeneNormalizer();
     
     // method main - all begins with a thread!
-	@SuppressWarnings("static-access")
 	public static void main(String[] args) throws Exception {
 		
 		configDir = new File(System.getProperty("user.home") + File.separator + ".seene-club");
@@ -198,173 +189,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			configFile = new File(configDir + File.separator + "configuration");
 		}
 		
-		
-		// command line parsing (using Apache commons CLI)
-		CommandLineParser parser = new GnuParser();
-		
-		Options options = new Options();
-		
-		Option backupOption = OptionBuilder.withLongOpt("backup")
-										   .withDescription("backup public or private Seenes from Server")
-										   .hasArg()
-										   .withArgName("VISIBILITY")
-										   .create("b");
-		
-		Option uploadOption = OptionBuilder.withLongOpt("upload")
-										   .withDescription("upload to your private Seenes")
-										   .create("u");
-		
-		Option countOption = OptionBuilder.withLongOpt("count")
-				   						  .withDescription("number of seenes to retrieve")
-				   						  .hasArg()
-				   						  .withArgName("COUNT")
-				   						  .create("c");
-		
-		Option userOption   = OptionBuilder.withLongOpt("username")
-										   .withDescription("Seene Username")
-				   						   .hasArg()
-				   						   .withArgName("USERNAME")
-				   						   .create("uid");
-		
-		Option passOption   = OptionBuilder.withLongOpt("password")
-					 		 			   .withDescription("Seene Password")
-					 		 			   .hasArg()
-					 					   .withArgName("PASSWORD")
-					 					   .create("pwd");
-		
-		Option targetOption = OptionBuilder.withLongOpt("output-target")
-				 						   .withDescription("target directory for the backup")
-				 						   .hasArg()
-				 						   .withArgName("PATH")
-				 						   .create("o");
-		
-		options.addOption(backupOption);
-		options.addOption(uploadOption);
-		options.addOption(countOption);
-		options.addOption(userOption);
-		options.addOption(passOption);
-		options.addOption(targetOption);
-		
-		try {
-		    // parse the command line arguments
-		    CommandLine line = parser.parse( options, args );
-
-		    if (line.hasOption("backup")) {
-		    	commandLineUsed = true;
-		    	int count;
-		    	// handle public backup. No Login is required.
-		    	if (line.getOptionValue("backup").equalsIgnoreCase("public")) {
-		    		if (line.hasOption("username")) {
-		    			seeneUser = line.getOptionValue("username");
-		    		} else {
-		    			String errorText = new String("for public backup the Seene username is required!");
-		    			throw new org.apache.commons.cli.ParseException(errorText);
-		    		}
-		    		
-		    		if (line.hasOption("count")) {
-			    		count = Integer.parseInt(line.getOptionValue("count"));
-			    	} else {
-			    		count = 10;
-			    		log("retrieving the " + count + " last public seenes.",LogLevel.info);
-			    		log("if you want to download more use the --count option!",LogLevel.info);
-			    	}
-		    		
-		    		String targetDir = line.hasOption("output-target")
-		    			? line.getOptionValue("output-target")
-		    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-		    			doTaskBackupPublicSeenes(new File(targetDir),count);
-		    	} // handle private backup. Login IS required. 
-		    	else if (line.getOptionValue("backup").equalsIgnoreCase("private")) {
-		    		if (line.hasOption("username")) {
-		    			getCredentialsForConsole(line);
-	    				
-	    				if (line.hasOption("count")) {
-				    		count = Integer.parseInt(line.getOptionValue("count"));
-				    	} else {
-				    		count = 10;
-				    		log("retrieving the " + count + " last private seenes.",LogLevel.info);
-				    		log("if you want to download more use the --count option!",LogLevel.info);
-				    	}
-	    				
-			    		String targetDir = line.hasOption("output-target")
-				    			? line.getOptionValue("output-target")
-				    			: System.getProperty("user.dir"); // do the backup to current working dir, if no output-target is given.
-				    			doTaskBackupPrivateSeenes(new File(targetDir),count);
-		    		} else {
-		    			String errorText = new String("for private backup the Seene credentials are required!");
-		    			throw new org.apache.commons.cli.ParseException(errorText);
-		    		}
-		    		
-		    	} else {
-		    		StringBuffer errorText = new StringBuffer(line.getOptionValue("backup"));
-		    		errorText.append(" unknown backup option. Try \"private\" or \"public\"");
-		    		throw new org.apache.commons.cli.ParseException(errorText.toString());
-		    	}
-		    } // END OF BACKUP Options
-		    // Handle UPLOAD
-		    else if (line.hasOption("upload")) {
-		    	commandLineUsed = true;
-		    	// first we check if there's a model and poster file in the current working directory
-		    	String wd = System.getProperty("user.dir");
-		    	File mF = new File(wd + File.separator + STK.SEENE_MODEL);
-		    	File pF = new File(wd + File.separator + STK.SEENE_TEXTURE);
-		    	if (mF.exists()) {
-		    		if (pF.exists()) {
-		    			// username has to be set for upload
-				    	if (line.hasOption("username")) {
-			    			getCredentialsForConsole(line);
-			    			// preparing directories
-			    			File sourceDir = new File(wd);
-			    			File tempUlDir = new File(wd + File.separator + ".~upload~temp");
-			    			tempUlDir.mkdir();
-			    			// loading seene
-			    			SeeneObject ulSeene = new SeeneObject(sourceDir);
-			    			ulSeene.getModel().loadModelDataFromFile();
-			    			ulSeene.getPoster().loadTextureFromFile();
-			    			ulSeene.setCaption("uploaded with https://github.com/seene-club/seene-toolkit");
-			    			// uploading seene
-			    			//TODO doUploadSeeneOldMethod(tempUlDir, ulSeene);
-			    			// removing temp
-			    			Helper.deleteDirectory(tempUlDir);
-				    	} else {
-			    			String errorText = new String("to upload a Seene your credentials are required!");
-			    			throw new org.apache.commons.cli.ParseException(errorText);
-			    		} // if (line.hasOption("username"))
-		    		} else { 
-		    			log("no texture file to upload!\nmissing " + STK.SEENE_TEXTURE,LogLevel.error);
-		    		} // if (pF.exists()) 
-		    	} else {
-		    		log("no model file to upload!\nmissing " + STK.SEENE_MODEL,LogLevel.error);
-		    	} // if (mF.exists()) 
-		    } // if (line.hasOption("upload"))
-		} catch( org.apache.commons.cli.ParseException exp ) {
-			commandLineUsed = true;
-		    log("parameter exception: " + exp.getMessage() , LogLevel.error);
-		}
-
-		// Start GUI only if NO command line argument is used!
-		if (!commandLineUsed) new Thread(new SeeneToolkit()).start();
+		new Thread(new SeeneToolkit()).start();
 	}
-
-
-	private static void getCredentialsForConsole(CommandLine line) {
-		seeneUser = line.getOptionValue("username");
-		if (line.hasOption("password")) {
-			seenePass = line.getOptionValue("password");
-		} else {
-			// no password given? -> fetch password from console.
-			Console c = System.console();
-			if (c == null) {
-		           log("No console.",LogLevel.fatal);
-		           System.exit(1);
-		    }
-			char consolePass[] = c.readPassword(seeneUser + "'s password: ");
-			seenePass = new String(consolePass);
-		}
-		// because we never put the Seene-API-ID in the code, we read from file!
-		seeneAPIid = getParameterFromConfiguration(configFile,"api_id");
-	}
-	
 
     
     public static Thread getThreadByName(String threadName) {
@@ -373,10 +199,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         }
         return null;
     }
-    
- 
-    
-    // example: java -jar seene-club-toolkit.jar -b public -c 100 -uid paf
+
     private static void doTaskBackupPublicSeenes(File targetDir, int count) {
     	try {
     		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
@@ -496,11 +319,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			if (toDownloadIndex.size()==0) {
 				log("All of them are already backupped. NOTHING TO DO!", LogLevel.info);
 			} else {
-			
-				if (!commandLineUsed) {
-					progressbar.setValue(0);
-					progressbar.setMaximum(toDownloadIndex.size());
-				}
+
+				progressbar.setValue(0);
+				progressbar.setMaximum(toDownloadIndex.size());
 				
 				log(toDownloadIndex.size() + " of them are not backupped.", LogLevel.info);
 			
@@ -517,9 +338,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						public void notifyOfThreadComplete(SeeneDownloader seeneDownloader) {
 							//log("DOWNLOAD COMPLETE: " + seeneDownloader.getSeeneObject().getCaption(),LogLevel.info);
 							//Thread t = getThreadByName(seeneDownloader.getSeeneObject().getShortCode());
-							if (!commandLineUsed) {
-								progressbar.setValue(progressbar.getValue()+1);
-							}
+							progressbar.setValue(progressbar.getValue()+1);
 						}
 					};
 					
@@ -600,7 +419,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		mainFrame.setSize(1024,768);
 		
 		// disabling lightweight rendering for PopUps and Tooltips (otherwise they are behind the canvas)
-		
 		JPopupMenu.setDefaultLightWeightPopupEnabled(false);
 		ToolTipManager.sharedInstance().setLightWeightPopupEnabled(false);
 		
@@ -1123,7 +941,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         currentSeene = new SeeneObject();
         
 		mainViewPanel.add(modelDisplay);
-        
                 
         // Region East-South: Log output window
         logOutput.setLineWrap(true);
@@ -2078,13 +1895,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	}
 	        	
 	        	public void mouseReleased(MouseEvent e) {
-	        		if ((e.getButton() == MouseEvent.BUTTON1) || (e.getButton() == MouseEvent.BUTTON3)) {
-	        	        mouseDown = false;
-	        	        if (lastChoice=="model") repaintModelOnly();
-	        	        if (lastChoice=="poster") repaintPosterOnly();
-	        	    }
-	        		if (e.getButton() == MouseEvent.BUTTON1) saveUndoStep(mask, "mask paint", model.getFloats(), true);
-	        		if (e.getButton() == MouseEvent.BUTTON3) saveUndoStep(mask, "mask rubber", model.getFloats(), true);
+	        		if (model!=null) {
+		        		if ((e.getButton() == MouseEvent.BUTTON1) || (e.getButton() == MouseEvent.BUTTON3)) {
+		        	        mouseDown = false;
+		        	        if (lastChoice=="model") repaintModelOnly();
+		        	        if (lastChoice=="poster") repaintPosterOnly();
+		        	    }
+		        		if (e.getButton() == MouseEvent.BUTTON1) saveUndoStep(mask, "mask paint", model.getFloats(), true);
+		        		if (e.getButton() == MouseEvent.BUTTON3) saveUndoStep(mask, "mask rubber", model.getFloats(), true);
+	        		}
 	        	}
 
 	        	volatile private boolean isRunning = false;
@@ -3004,15 +2823,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		} // if (f.exists()...
     	return storageOK;
     }
-	
-	
 
 	public static void log(String logLine, String LogLevelKey) {
 		if (APPLICATION_LOG_MODE.contains(LogLevelKey)) {
-			if (!commandLineUsed) {
-				logOutput.append(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine + "\n");
-				logOutput.setCaretPosition(logOutput.getDocument().getLength());
-			}
+			logOutput.append(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine + "\n");
+			logOutput.setCaretPosition(logOutput.getDocument().getLength());
 			System.out.println(LogLevel.getLogLevelText(LogLevelKey) + ": " + logLine);
 			//TODO: writing to logfile
 		}
