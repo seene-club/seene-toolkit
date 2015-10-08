@@ -89,7 +89,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static String programVersion = "0.81"; 
+	static String programVersion = "0.82"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -160,9 +160,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskAll = new JMenuItem("mask all");
     JMenuItem maskRemove = new JMenuItem("remove mask");
     JMenuItem maskInvert = new JMenuItem("invert mask");
+    JMenuItem maskSelectByDepth = new JMenuItem("select mask by depth value");
+    JMenuItem maskSelectByRange = new JMenuItem("select mask by depth range");
     JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
-    JMenuItem maskDivideByTwo = new JMenuItem("devide depth in masked area by 2");
-    JMenuItem maskDivideByThree = new JMenuItem("devide depth in masked area by 3");
     JMenuItem maskGradientUpwards = new JMenuItem("depthmap gradient upwards");
     JMenuItem maskGradientUpwardsToRight = new JMenuItem("depthmap gradient upwards to right");
     JMenuItem maskGradientLeftToRight = new JMenuItem("depthmap gradient left to right");
@@ -171,12 +171,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskGradientDownwardsToLeft = new JMenuItem("depthmap gradient downwards to left");
     JMenuItem maskGradientRightToLeft = new JMenuItem("depthmap gradient right to left");
     JMenuItem maskGradientUpwardsToLeft = new JMenuItem("depthmap gradient upwards to left");
+    JMenuItem maskRiseLower = new JMenuItem("rise or lower depth in masked area");
+    JMenuItem maskDivideByTwo = new JMenuItem("devide depth in masked area by 2");
+    JMenuItem maskDivideByThree = new JMenuItem("devide depth in masked area by 3");
     
     // Tests Menu Items
     JMenuItem testSomething = new JMenuItem("Test Something");
     
     // Seene Object we are currently working on
     SeeneObject currentSeene = null;
+    Boolean currentHasChanges = false;
     JLabel currentSelection = null;
     String currentMaskName = new String("");
     SeeneNormalizer normalizer = new SeeneNormalizer();
@@ -495,9 +499,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskAll.setIcon(Helper.iconFromImageResource("maskall.png", 16));
         maskRemove.setIcon(Helper.iconFromImageResource("masknothing.png", 16));
         maskInvert.setIcon(Helper.iconFromImageResource("maskinvert.png", 16));
+        maskSelectByDepth.setIcon(Helper.iconFromImageResource("maskByValue.png", 16));
+        maskSelectByRange.setIcon(Helper.iconFromImageResource("maskByRange.png", 16));
         maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
-        maskDivideByTwo.setIcon(Helper.iconFromImageResource("maskdividedby2.png", 16));
-        maskDivideByThree.setIcon(Helper.iconFromImageResource("maskdividedby3.png", 16));
         maskGradientUpwards.setIcon(Helper.iconFromImageResource("maskGradient0.png", 16));
         maskGradientUpwardsToRight.setIcon(Helper.iconFromImageResource("maskGradient45.png", 16));
         maskGradientLeftToRight.setIcon(Helper.iconFromImageResource("maskGradient90.png", 16));
@@ -506,15 +510,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskGradientDownwardsToLeft.setIcon(Helper.iconFromImageResource("maskGradient225.png", 16));
         maskGradientRightToLeft.setIcon(Helper.iconFromImageResource("maskGradient270.png", 16));
         maskGradientUpwardsToLeft.setIcon(Helper.iconFromImageResource("maskGradient315.png", 16));
+        maskRiseLower.setIcon(Helper.iconFromImageResource("maskLift.png", 16));
+        maskDivideByTwo.setIcon(Helper.iconFromImageResource("maskdividedby2.png", 16));
+        maskDivideByThree.setIcon(Helper.iconFromImageResource("maskdividedby3.png", 16));
         
         maskUndo.addActionListener(this);
         maskRedo.addActionListener(this);
         maskAll.addActionListener(this);
         maskRemove.addActionListener(this);
         maskInvert.addActionListener(this);
+        maskSelectByDepth.addActionListener(this);
+        maskSelectByRange.addActionListener(this);
         maskSetDepth.addActionListener(this);
-        maskDivideByTwo.addActionListener(this);
-        maskDivideByThree.addActionListener(this);
         maskGradientUpwards.addActionListener(this);
         maskGradientUpwardsToRight.addActionListener(this);
         maskGradientLeftToRight.addActionListener(this);
@@ -523,6 +530,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskGradientDownwardsToLeft.addActionListener(this);
         maskGradientRightToLeft.addActionListener(this);
         maskGradientUpwardsToLeft.addActionListener(this);
+        maskRiseLower.addActionListener(this);
+        maskDivideByTwo.addActionListener(this);
+        maskDivideByThree.addActionListener(this);
         
         maskMenu.add(maskUndo);
         maskMenu.add(maskRedo);
@@ -530,6 +540,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskAll);
         maskMenu.add(maskRemove);
         maskMenu.add(maskInvert);
+        maskMenu.add(maskSelectByDepth);
+        maskMenu.add(maskSelectByRange);
         maskMenu.addSeparator();
         maskMenu.add(maskSetDepth);
         maskMenu.addSeparator();
@@ -542,6 +554,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskGradientRightToLeft);
         maskMenu.add(maskGradientUpwardsToLeft);
         maskMenu.addSeparator();
+        maskMenu.add(maskRiseLower);
         maskMenu.add(maskDivideByTwo);
         maskMenu.add(maskDivideByThree);
         
@@ -666,55 +679,55 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             public void actionPerformed(ActionEvent event) {
               if(event.getSource() == twXtwUpperLeft) {
              	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,3);
-             	  modelDisplay.setSeeneObject(currentSeene);
+             	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay upper left");
               }
               if(event.getSource() == twXtwUpperRight) {
              	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,1);
-             	  modelDisplay.setSeeneObject(currentSeene);
+             	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay upper right");
               }
               if(event.getSource() == twXtwBottomLeft) {
              	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,4);
-             	  modelDisplay.setSeeneObject(currentSeene);
+             	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay bottom left");
               }
               if(event.getSource() == twXtwBottomRight) {
              	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),2,2);
-             	  modelDisplay.setSeeneObject(currentSeene);
+             	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay bottom right");
               }
               if(event.getSource() == tXtUpperLeft) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,7);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay upper left");
               }
               if(event.getSource() == tXtUpperCenter) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,4);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay upper center");
               }
               if(event.getSource() == tXtUpperRight) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,1);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay upper right");
               }
               if(event.getSource() == tXtMiddleLeft) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,8);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay middle left");
               }
               if(event.getSource() == tXtMiddleCenter) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,5);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay middle center");
               }
               if(event.getSource() == tXtMiddleRight) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,2);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay middle right");
               }
               if(event.getSource() == tXtBottomLeft) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,9);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay bottom left");
               }
               if(event.getSource() == tXtBottomCenter) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,6);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay bottom center");
               }
               if(event.getSource() == tXtBottomRight) {
             	  currentSeene = inlaySeene(currentSeene,currentSelection.getToolTipText(),3,3);
-            	  modelDisplay.setSeeneObject(currentSeene);
+            	  modelDisplay.setSeeneObjectWithUndo(currentSeene,"inlay bottom right");
               }
               if(event.getSource() == miGenerateXMP) {
             	  generateXMP(currentSelection.getToolTipText());
@@ -735,19 +748,25 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             	  modelDisplay.repaintPosterOnly();
               }
               if(event.getSource() == miLoadModelFromOEmodel) {
-            	 currentSeene.setModel(loadProprietaryModel(currentSelection.getToolTipText()));
-            	 modelDisplay.setModel(currentSeene.getModel());
-            	 modelDisplay.repaintModelOnly();
+            	  if (confirmedOverwrite("model")) {
+            		  currentSeene.setModel(loadProprietaryModel(currentSelection.getToolTipText()));
+            		  modelDisplay.setModel(currentSeene.getModel());
+            		  modelDisplay.repaintModelOnly();
+            	  }
               }
               if(event.getSource() == miLoadModelFromPNG) {
-            	  currentSeene.setModel(loadXMPDepthPNGModel(currentSelection.getToolTipText()));
-            	  modelDisplay.setModel(currentSeene.getModel());
-             	  modelDisplay.repaintModelOnly();
+            	  if (confirmedOverwrite("model")) {
+            		  currentSeene.setModel(loadXMPDepthPNGModel(currentSelection.getToolTipText()));
+            		  modelDisplay.setModel(currentSeene.getModel());
+            		  modelDisplay.repaintModelOnly();
+            	  }
               }
               if(event.getSource() == miLoadModelFromXMPCombined) {
-            	  currentSeene.setModel(loadXMPCombinedModel(currentSelection.getToolTipText()));
-            	  modelDisplay.setModel(currentSeene.getModel());
-             	  modelDisplay.repaintModelOnly();
+            	  if (confirmedOverwrite("model")) {
+            		  currentSeene.setModel(loadXMPCombinedModel(currentSelection.getToolTipText()));
+            		  modelDisplay.setModel(currentSeene.getModel());
+            		  modelDisplay.repaintModelOnly();
+            	  }
               }
               if(event.getSource() == miShowInFS) {
             	  try {
@@ -845,6 +864,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	            		  currentSeene.setLocalname(localname);
 	            		  currentSeene.getModel().saveModelDataToFile(mFile);
 	            		  currentSeene.getPoster().saveTextureToFile(tFile);
+	            		  currentSeene.setLocalpath(savePath.getAbsolutePath());
 	            		  
 	            		  // Save XMP components
 	            		  generateXMP(savePath.getAbsoluteFile().toString());
@@ -852,6 +872,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	            		  Helper.createFolderIcon(savePath, null);
 	            		  parsePool(storage.getOfflineDir());
 	            		  btPoolLocalSeenes.getModel().setSelected(true);
+	            		  currentHasChanges = false;
 	            		
 	            	  } else {
 	            		  JOptionPane.showMessageDialog(mainFrame,  "Aborted. Seene not saved!", "Seene not saved.", JOptionPane.ERROR_MESSAGE);
@@ -894,7 +915,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             		  File maskFile = new File(currentSeene.getLocalpath() 
             				  					+ File.separator + "Masks" 
             				  					+ File.separator +  tbLoadMaskCombo.getSelectedItem() + ".mask");
-            		  if (maskFile.exists()) modelDisplay.loadMask(maskFile);
+            		  if (maskFile.exists()) {
+            			  modelDisplay.loadMask(maskFile);
+            			  currentMaskName = maskFile.getName().substring(0, maskFile.getName().lastIndexOf('.'));
+            		  }
             	  }
               }
               if(event.getSource() == tbShowModel) {
@@ -1440,6 +1464,32 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    } else if(arg0.getSource() == this.maskInvert) {
 	    	 modelDisplay.doMaskInvert();
 	    	 modelDisplay.repaintLastChoice();
+	    } else if(arg0.getSource() == this.maskSelectByDepth) {
+	    	try {
+		    	 float dep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Depth to select:",
+							"Create mask for certain depth", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+		    	 if ((dep > 0)) {
+		    		 modelDisplay.doSelectMaskBy(dep);
+			    	 modelDisplay.repaintLastChoice();
+		    	 }
+	    	} catch (Exception ex) {
+	    		log(ex.toString(),LogLevel.debug);
+	    	} // try / catch
+	    } else if(arg0.getSource() == this.maskSelectByRange) {
+	    	try {
+		    	 float sdep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "select start depth:",
+							"Create mask for depth range", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+		    	 if ((sdep > 0)) {
+		    		 float edep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "select end depth:",
+								"Create mask for depth range", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+		    		 if ((edep > 0)) {
+		    			 modelDisplay.doSelectMaskByRange(sdep,edep);
+		    			 modelDisplay.repaintLastChoice();
+		    		 }
+		    	 }
+	    	} catch (Exception ex) {
+	    		log(ex.toString(),LogLevel.debug);
+	    	} // try / catch
 	    } else if(arg0.getSource() == this.maskSetDepth) {
 	    	if (modelDisplay.isMasked()) {
 		    	try {
@@ -1463,6 +1513,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	if (modelDisplay.isMasked()) {
 	    		modelDisplay.doDivideBy(3.0f);
 	    		modelDisplay.repaintLastChoice();
+	    	}
+	    } else if(arg0.getSource() == this.maskRiseLower) {
+	    	if (modelDisplay.isMasked()) {
+	    		float liftVal = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "+value = more depth, -value = less depth",
+						"rise or lower depth in masked area", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+	    		if ((liftVal != 0)) {
+	    			modelDisplay.doLift(liftVal);
+		    		modelDisplay.repaintLastChoice();	
+	    		}
 	    	}
 	    } else if(arg0.getSource() == this.maskGradientUpwards) {
 	    	if (modelDisplay.isMasked()) doMaskGradient(this.maskGradientUpwards);
@@ -1699,7 +1758,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			      File seeneFolder = new File(seeneFilePath);
 			      if(seeneFolder.exists()) {
 			    	  if (seeneFolder.isDirectory()) {
-			    		  openSeene(seeneFolder);
+			    		  if (confirmedOverwrite("Seene")) openSeene(seeneFolder);
 			    	  } // isDirectory
 			      } // exists
 			} // not null
@@ -1707,7 +1766,22 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		
 	}
 	
+	
+	private Boolean confirmedOverwrite(String kindTerm) {
+		if (!currentHasChanges) return true;
+		int an = JOptionPane.showConfirmDialog(mainFrame,
+			    "Thera are changes in the editor!\n"
+			    + "if you load/reload now the changes will be lost!\n"
+        		+ "Press YES to load the " + kindTerm + " anyway.\n"
+        		+ "Press NO to save your changes first.",
+			    "CAUTION: Changes will be lost!",
+			    JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE);
+		if (an == JOptionPane.YES_OPTION) return true;
+		return false;
+	}
+	
 	private void openSeene(File seeneFolder) {
+
 		currentSeene = new SeeneObject(seeneFolder);
 		tbLoadMaskCombo.removeAllItems(); 
 		
@@ -1950,8 +2024,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			});
 	    }
 
-
-
 		public void paint(Graphics g){
 	    	paintModel(g,model);
 	    	paintPoster(g, poster);
@@ -2115,6 +2187,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	maskRedo.setText("redo");
 			maskUndo.setEnabled(false);
 			maskRedo.setEnabled(false);
+			currentHasChanges = false;
 		}
 	    
 	    
@@ -2160,6 +2233,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	undotext[undoStep] = doing;
 	    	maskUndo.setText("undo (" + doing + ")");
     		maskUndo.setEnabled(true);
+    		currentHasChanges = true;
 		}
 	    
 	    private void saveRedoStep(List<Boolean> mask, String doing, List<Float> depthmap) {
@@ -2288,6 +2362,26 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	}
 	    }
 	    
+	    public void doSelectMaskBy(float dep) {
+	    	if (model!=null) {
+	    		mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (model.getFloats().get(n)==dep) mask.set(n, true);
+	    		}
+	    		saveUndoStep(mask, "select by value " + dep, model.getFloats(), true);
+	    	}
+		}
+	    
+	    public void doSelectMaskByRange(float sdep, float edep) {
+	    	if (model!=null) {
+	    		mask = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if ((model.getFloats().get(n)>=sdep) && (model.getFloats().get(n)<=edep))  mask.set(n, true);
+	    		}
+	    		saveUndoStep(mask, "select by range " + sdep + " - " + edep, model.getFloats(), true);
+	    	}
+		}
+	    
 	    public void doMaskSetDepth(float dep) {
 	    	if (model!=null) {
 	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
@@ -2295,6 +2389,20 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		}
 	    		model=findModelExtema(model);
 	    		saveUndoStep(mask, "set depth to " + dep, model.getFloats(), true);
+	    	}
+		}
+
+		public void doLift(float liftVal) {
+			if (model!=null) {
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) {
+	    				float newDepth = model.getFloats().get(n) + liftVal;
+	    				if (newDepth < 0 ) newDepth = 0.0f;
+	    				model.getFloats().set(n, newDepth);
+	    			}
+	    		}
+	    		model=findModelExtema(model);
+	    		saveUndoStep(mask, "lift depth " + liftVal, model.getFloats(), true);
 	    	}
 		}
 	    
@@ -2413,6 +2521,13 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    public SeeneObject getSeeneObject() {
 			return seeneObject;
 		}
+	    public void setSeeneObjectWithUndo(SeeneObject seeneObject, String undoText) {
+			this.seeneObject = seeneObject;
+			setModel(seeneObject.getModel(),false);
+			setPoster(seeneObject.getPoster());
+			repaintLastChoice();
+			saveUndoStep(mask, undoText, seeneObject.getModel().getFloats(), false);
+		}
 		public void setSeeneObject(SeeneObject seeneObject) {
 			this.seeneObject = seeneObject;
 			setModel(seeneObject.getModel());
@@ -2422,11 +2537,14 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    public SeeneModel getModel() {
 			return model;
 		}
-		public void setModel(SeeneModel model) {
-			this.model = model;
+	    public void setModel(SeeneModel model, Boolean undoInitialization) {
+	    	this.model = model;
 			doMaskRemove(false);
-			initializeUndo();
+			if (undoInitialization) initializeUndo();
 			repaintModelOnly();
+	    }
+		public void setModel(SeeneModel model) {
+			setModel(model,true);
 		}
 		public int getPointSize() {
 			return pointSize;
