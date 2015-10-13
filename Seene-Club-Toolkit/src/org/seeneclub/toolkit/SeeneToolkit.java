@@ -89,7 +89,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static String programVersion = "0.82"; 
+	static String programVersion = "0.83"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -162,7 +162,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskInvert = new JMenuItem("invert mask");
     JMenuItem maskSelectByDepth = new JMenuItem("select mask by depth value");
     JMenuItem maskSelectByRange = new JMenuItem("select mask by depth range");
-    JMenuItem maskSetDepth = new JMenuItem("set depth for masked area");
+    JMenuItem maskSetDepthSmooth = new JMenuItem("set depth (smooth edges)");
+    JMenuItem maskSetDepth = new JMenuItem("set depth (hard edges)");
     JMenuItem maskGradientUpwards = new JMenuItem("depthmap gradient upwards");
     JMenuItem maskGradientUpwardsToRight = new JMenuItem("depthmap gradient upwards to right");
     JMenuItem maskGradientLeftToRight = new JMenuItem("depthmap gradient left to right");
@@ -502,6 +503,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskSelectByDepth.setIcon(Helper.iconFromImageResource("maskByValue.png", 16));
         maskSelectByRange.setIcon(Helper.iconFromImageResource("maskByRange.png", 16));
         maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
+        maskSetDepthSmooth.setIcon(Helper.iconFromImageResource("maskSmooth.png", 16));
         maskGradientUpwards.setIcon(Helper.iconFromImageResource("maskGradient0.png", 16));
         maskGradientUpwardsToRight.setIcon(Helper.iconFromImageResource("maskGradient45.png", 16));
         maskGradientLeftToRight.setIcon(Helper.iconFromImageResource("maskGradient90.png", 16));
@@ -521,6 +523,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskInvert.addActionListener(this);
         maskSelectByDepth.addActionListener(this);
         maskSelectByRange.addActionListener(this);
+        maskSetDepthSmooth.addActionListener(this);
         maskSetDepth.addActionListener(this);
         maskGradientUpwards.addActionListener(this);
         maskGradientUpwardsToRight.addActionListener(this);
@@ -543,6 +546,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.add(maskSelectByDepth);
         maskMenu.add(maskSelectByRange);
         maskMenu.addSeparator();
+        maskMenu.add(maskSetDepthSmooth);
         maskMenu.add(maskSetDepth);
         maskMenu.addSeparator();
         maskMenu.add(maskGradientUpwards);
@@ -1317,10 +1321,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 
 
 	// create all JSplitPanes for the GUI
+	@SuppressWarnings("serial")
 	private JSplitPane createSplitPanels() {
 		
 		// Split the Pool Selection and the Seene Folders View
-		JSplitPane splitWestNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		JSplitPane splitWestNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT) {
+			 private final int location = 35;
+			    { setDividerLocation( location ); }
+			    @Override
+			    public int getDividerLocation() { return location ; }
+			    @Override
+			    public int getLastDividerLocation() { return location ; }
+		};
 		splitWestNorthSouth.setTopComponent(panelWestNorth);
 		splitWestNorthSouth.setBottomComponent(scrollWestSouth);
 		splitWestNorthSouth.setDividerSize(2);
@@ -1334,25 +1346,47 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitEastSouthPanel.setTopComponent(panelLogOutput);
 		splitEastSouthPanel.setBottomComponent(panelProgressbar);
 		splitEastSouthPanel.setDividerSize(0);
-		splitEastSouthPanel.setDividerLocation(170);
-		splitEastSouthPanel.setResizeWeight(0.5);
+		splitEastSouthPanel.setDividerLocation(160);
+		splitEastSouthPanel.setResizeWeight(1.0);
 		
-		JSplitPane splitMainViewPanel = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		JSplitPane splitMainViewPanel = new JSplitPane(JSplitPane.VERTICAL_SPLIT) {
+			 private final int location = 35;
+			    { setDividerLocation( location ); }
+			    @Override
+			    public int getDividerLocation() { return location ; }
+			    @Override
+			    public int getLastDividerLocation() { return location ; }
+		};
 		splitMainViewPanel.setTopComponent(mainToolbarPanel);
 		splitMainViewPanel.setBottomComponent(mainViewPanel);
 		splitMainViewPanel.setDividerSize(2);
 		splitMainViewPanel.setDividerLocation(35);
 		splitMainViewPanel.setResizeWeight(0.5);
 		
-		JSplitPane splitEastNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		
+		JSplitPane splitEastNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT) {
+			 private final int location = 768 - 240;
+			    { setDividerLocation( location ); }
+			    @Override
+			    public int getDividerLocation() { return location ; }
+			    @Override
+			    public int getLastDividerLocation() { return location ; }
+		};
 		splitEastNorthSouth.setTopComponent(splitMainViewPanel);
 		splitEastNorthSouth.setBottomComponent(splitEastSouthPanel);
 		splitEastNorthSouth.setDividerSize(2);
-		splitEastNorthSouth.setDividerLocation(768-250);
+		splitEastNorthSouth.setDividerLocation(768-240);
 		splitEastNorthSouth.setResizeWeight(0.5);
 		
 		// Split Navigation Area and Display Area
-		JSplitPane splitWestEast = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+		JSplitPane splitWestEast = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT) {
+			 private final int location = 250;
+			    { setDividerLocation( location ); }
+			    @Override
+			    public int getDividerLocation() { return location ; }
+			    @Override
+			    public int getLastDividerLocation() { return location ; }
+		};
 		splitWestEast.setLeftComponent(splitWestNorthSouth);
 		splitWestEast.setRightComponent(splitEastNorthSouth);
 		splitWestEast.setOneTouchExpandable(true);
@@ -1497,6 +1531,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 								"Setting a fixed depth for masked area", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
 			    	 if ((dep > 0)) {
 			    		 modelDisplay.doMaskSetDepth(dep);
+				    	 modelDisplay.repaintLastChoice();
+			    	 }
+		    	} catch (Exception ex) {
+		    		log(ex.toString(),LogLevel.debug);
+		    	} // try / catch
+	    	} // if (modelDisplay.isMasked())
+	    } else if(arg0.getSource() == this.maskSetDepthSmooth) {
+	    	if (modelDisplay.isMasked()) {
+		    	try {
+			    	 float dep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Depth to set:",
+								"Setting a fixed depth for masked area", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
+			    	 if ((dep > 0)) {
+			    		 modelDisplay.doMaskSetDepthSmooth(dep);
 				    	 modelDisplay.repaintLastChoice();
 			    	 }
 		    	} catch (Exception ex) {
@@ -1958,7 +2005,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        	        	float max = model.getMaxFloat();
 		        	        	int mx = w - e.getX() / pointSize - 1;
 	    						int my = e.getY() / pointSize;
-	    						int n = mx * w + my;
+	    						int n = positionFromCoords(mx, my);
 	    						float f = model.getFloats().get(n);
 	    						float cf = floatGreyScale(f, max);
 		        	        	log("\nPOSITION: x: " + mx +  " - y: " + my + " (float number: " + n + ")\nCOLOR: " + cf + "\nDEPTH: " + f,LogLevel.info);
@@ -2004,7 +2051,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        								}
 	        							}
 	        						} else {
-	        							n = mx * w + my;
+	        							n = positionFromCoords(mx, my);
 	        							if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) mask.set(n, maskPaintMode);
 	        						}
 	        						if (n!=last_n) {
@@ -2071,11 +2118,23 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 						}
 					}
 				} else {
-					n = mx * w + my;
+					n = positionFromCoords(mx, my);
 					if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) g.fillRect((w-mx-1)*p, my*p , p, p);
 				}
 		        
 	    	}
+	    }
+	    
+	    private int positionFromCoords(int x_pos, int y_pos) {
+	    	return x_pos * model.getDepthWidth() + y_pos;
+	    }
+	    
+	    private int yCoordFromPosition(int n){
+	    	return n / model.getDepthWidth();
+	    }
+	    
+	    private int xCoordFromPosition(int n){
+	    	return n - (model.getDepthWidth() * yCoordFromPosition(n));
 	    }
 	    
 	    private void paintPoster(Graphics g, SeeneTexture poster) {
@@ -2391,6 +2450,57 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		saveUndoStep(mask, "set depth to " + dep, model.getFloats(), true);
 	    	}
 		}
+	    
+	    public void doMaskSetDepthSmooth(float dep) {
+	    	if (model!=null) {
+	    		List<Boolean> maskInsideBorder = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    		List<Boolean> maskOutsideBorder = new ArrayList<Boolean>(Collections.nCopies(model.getDepthWidth()*model.getDepthHeight(), false));
+	    		// run #1 find and mark borders of mask
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) markBorders(xCoordFromPosition(n), yCoordFromPosition(n), maskInsideBorder, maskOutsideBorder);
+	    		}
+	    		// run #2 set smooth transition depths for border areas
+	    		for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if ((mask.get(n)) && (!maskInsideBorder.get(n))) model.getFloats().set(n, dep);
+	    			if (maskOutsideBorder.get(n)) {
+	    				float out_val = model.getFloats().get(n);
+	    				float stepd = (dep - out_val) / 3;
+	    				model.getFloats().set(n, out_val + stepd);
+	    				setInsideBorderDepth(xCoordFromPosition(n), yCoordFromPosition(n),dep - stepd, maskInsideBorder);
+	    			}
+	    		}
+	    		model=findModelExtema(model);
+	    		saveUndoStep(mask, "set depth smooth " + dep, model.getFloats(), true);
+	    	}
+		}
+	    
+	    // give x to y and y to x, because depthmap is rotated 90 degrees
+	    private void setInsideBorderDepth(int y, int x, float depth, List<Boolean> iB) {
+	    	if ((x-1 >= 0) && (iB.get(positionFromCoords(x-1, y)))) model.getFloats().set(positionFromCoords(x-1, y), depth);
+	    	if ((x+1 < model.getDepthWidth()) && (iB.get(positionFromCoords(x+1, y)))) model.getFloats().set(positionFromCoords(x+1, y), depth);
+	    	if ((y-1 >= 0) && (iB.get(positionFromCoords(x, y-1)))) model.getFloats().set(positionFromCoords(x, y-1), depth);
+	    	if ((y+1 < model.getDepthHeight()) && (iB.get(positionFromCoords(x, y+1)))) model.getFloats().set(positionFromCoords(x, y+1), depth);
+		}
+
+	    // give x to y and y to x, because depthmap is rotated 90 degrees
+		public void  markBorders(int y, int x, List<Boolean> iB, List<Boolean> oB) {
+	    	if ((x-1 >= 0) && (!mask.get(positionFromCoords(x-1, y)))) {
+	    		iB.set(positionFromCoords(x, y), true);
+	    		oB.set(positionFromCoords(x-1, y), true);
+	    	}
+	    	if ((x+1 < model.getDepthWidth()) && (!mask.get(positionFromCoords(x+1, y)))) {
+	    		iB.set(positionFromCoords(x, y), true);
+	    		oB.set(positionFromCoords(x+1, y), true);
+	    	}
+	    	if ((y-1 >= 0) && (!mask.get(positionFromCoords(x, y-1)))) {
+	    		iB.set(positionFromCoords(x, y), true);
+	    		oB.set(positionFromCoords(x, y-1), true);
+	    	}
+	    	if ((y+1 < model.getDepthHeight()) && (!mask.get(positionFromCoords(x, y+1)))) {
+	    		iB.set(positionFromCoords(x, y), true);
+	    		oB.set(positionFromCoords(x, y+1), true);
+	    	}
+	    }
 
 		public void doLift(float liftVal) {
 			if (model!=null) {
