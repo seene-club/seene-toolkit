@@ -89,7 +89,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static String programVersion = "0.83"; 
+	static String programVersion = "0.84"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -506,8 +506,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskSelectByRange.setIcon(Helper.iconFromImageResource("maskByRange.png", 16));
         maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
         maskSetDepthSmooth.setIcon(Helper.iconFromImageResource("maskSmooth.png", 16));
-        //maskSetHemisphere.
-        //maskSetHemisphereConcave.
+        maskSetHemisphere.setIcon(Helper.iconFromImageResource("maskSphereConvex.png", 16));
+        maskSetHemisphereConcave.setIcon(Helper.iconFromImageResource("maskSphereConcave.png", 16));
         maskGradientUpwards.setIcon(Helper.iconFromImageResource("maskGradient0.png", 16));
         maskGradientUpwardsToRight.setIcon(Helper.iconFromImageResource("maskGradient45.png", 16));
         maskGradientLeftToRight.setIcon(Helper.iconFromImageResource("maskGradient90.png", 16));
@@ -2554,7 +2554,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				int hr = (xr + yr) / 2;
 				int xm = x_min + xr;
 				int ym = y_min + yr;
-				System.out.println("xr: " + xr + " - yr: " + yr + " - hr: " + hr + " - xm: " + xm + " - ym: " + ym);
+				//System.out.println("xr: " + xr + " - yr: " + yr + " - hr: " + hr + " - xm: " + xm + " - ym: " + ym);
 				int x,y,hx,hy;
 				double c,d;
 				float hd;
