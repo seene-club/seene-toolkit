@@ -164,6 +164,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskSelectByRange = new JMenuItem("select mask by depth range");
     JMenuItem maskSetDepthSmooth = new JMenuItem("set depth (smooth edges)");
     JMenuItem maskSetDepth = new JMenuItem("set depth (hard edges)");
+    JMenuItem maskSetHemisphere = new JMenuItem("hemisphere convex");
+    JMenuItem maskSetHemisphereConcave = new JMenuItem("hemisphere concave");
     JMenuItem maskGradientUpwards = new JMenuItem("depthmap gradient upwards");
     JMenuItem maskGradientUpwardsToRight = new JMenuItem("depthmap gradient upwards to right");
     JMenuItem maskGradientLeftToRight = new JMenuItem("depthmap gradient left to right");
@@ -504,6 +506,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskSelectByRange.setIcon(Helper.iconFromImageResource("maskByRange.png", 16));
         maskSetDepth.setIcon(Helper.iconFromImageResource("masksetvalue.png", 16));
         maskSetDepthSmooth.setIcon(Helper.iconFromImageResource("maskSmooth.png", 16));
+        //maskSetHemisphere.
+        //maskSetHemisphereConcave.
         maskGradientUpwards.setIcon(Helper.iconFromImageResource("maskGradient0.png", 16));
         maskGradientUpwardsToRight.setIcon(Helper.iconFromImageResource("maskGradient45.png", 16));
         maskGradientLeftToRight.setIcon(Helper.iconFromImageResource("maskGradient90.png", 16));
@@ -525,6 +529,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskSelectByRange.addActionListener(this);
         maskSetDepthSmooth.addActionListener(this);
         maskSetDepth.addActionListener(this);
+        maskSetHemisphere.addActionListener(this);
+        maskSetHemisphereConcave.addActionListener(this);
         maskGradientUpwards.addActionListener(this);
         maskGradientUpwardsToRight.addActionListener(this);
         maskGradientLeftToRight.addActionListener(this);
@@ -548,6 +554,9 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         maskMenu.addSeparator();
         maskMenu.add(maskSetDepthSmooth);
         maskMenu.add(maskSetDepth);
+        maskMenu.addSeparator();
+        maskMenu.add(maskSetHemisphere);
+        maskMenu.add(maskSetHemisphereConcave);
         maskMenu.addSeparator();
         maskMenu.add(maskGradientUpwards);
         maskMenu.add(maskGradientUpwardsToRight);
@@ -1337,7 +1346,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitWestNorthSouth.setBottomComponent(scrollWestSouth);
 		splitWestNorthSouth.setDividerSize(2);
 		splitWestNorthSouth.setDividerLocation(35);
-		splitWestNorthSouth.setResizeWeight(0.5);
+		splitWestNorthSouth.setResizeWeight(0.0);
 		
 		Dimension minimumSize = new Dimension(250, 500);
 		splitWestNorthSouth.setMinimumSize(minimumSize);
@@ -1361,7 +1370,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitMainViewPanel.setBottomComponent(mainViewPanel);
 		splitMainViewPanel.setDividerSize(2);
 		splitMainViewPanel.setDividerLocation(35);
-		splitMainViewPanel.setResizeWeight(0.5);
+		splitMainViewPanel.setResizeWeight(0.0);
 		
 		
 		JSplitPane splitEastNorthSouth = new JSplitPane(JSplitPane.VERTICAL_SPLIT) {
@@ -1376,7 +1385,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitEastNorthSouth.setBottomComponent(splitEastSouthPanel);
 		splitEastNorthSouth.setDividerSize(2);
 		splitEastNorthSouth.setDividerLocation(768-240);
-		splitEastNorthSouth.setResizeWeight(0.5);
+		splitEastNorthSouth.setResizeWeight(1.0);
 		
 		// Split Navigation Area and Display Area
 		JSplitPane splitWestEast = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT) {
@@ -1392,7 +1401,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		splitWestEast.setOneTouchExpandable(true);
 		splitWestEast.setDividerSize(2);
 		splitWestEast.setDividerLocation(250);
-		splitWestEast.setResizeWeight(0.5);
+		splitWestEast.setResizeWeight(0.0);
 		
 		return splitWestEast;
 	}
@@ -1550,12 +1559,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		    		log(ex.toString(),LogLevel.debug);
 		    	} // try / catch
 	    	} // if (modelDisplay.isMasked())
+	    } else if(arg0.getSource() == this.maskSetHemisphere) {
+	    	if (modelDisplay.isMasked()) {
+	    		modelDisplay.doHemisphere(false);
+	    		modelDisplay.repaintLastChoice();
+	    	}
+	    } else if(arg0.getSource() == this.maskSetHemisphereConcave) {
+	    	if (modelDisplay.isMasked()) {
+	    		modelDisplay.doHemisphere(true);
+	    		modelDisplay.repaintLastChoice();
+	    	}
 	    } else if(arg0.getSource() == this.maskDivideByTwo) {
 	    	if (modelDisplay.isMasked()) {
 	    		modelDisplay.doDivideBy(2.0f);
 	    		modelDisplay.repaintLastChoice();
 	    	}
-	    	
 	    } else if(arg0.getSource() == this.maskDivideByThree) {
 	    	if (modelDisplay.isMasked()) {
 	    		modelDisplay.doDivideBy(3.0f);
@@ -2514,6 +2532,54 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    		model=findModelExtema(model);
 	    		saveUndoStep(mask, "lift depth " + liftVal, model.getFloats(), true);
 	    	}
+		}
+		
+		@SuppressWarnings("unused")
+		public void doHemisphere(boolean concave) {
+			if (model!=null) {
+				int x_max = 0;
+				int x_min = model.getDepthWidth();
+				int y_max = 0;
+				int y_min = model.getDepthHeight();
+				for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+	    			if (mask.get(n)) {
+	    				if (xCoordFromPosition(n) > x_max) x_max = xCoordFromPosition(n);
+	    				if (xCoordFromPosition(n) < x_min) x_min = xCoordFromPosition(n);
+	    				if (yCoordFromPosition(n) > y_max) y_max = yCoordFromPosition(n);
+	    				if (yCoordFromPosition(n) < y_min) y_min = yCoordFromPosition(n);
+	    			}
+	    		}
+				int xr = (x_max - x_min) / 2;
+				int yr = (y_max - y_min) / 2;
+				int hr = (xr + yr) / 2;
+				int xm = x_min + xr;
+				int ym = y_min + yr;
+				System.out.println("xr: " + xr + " - yr: " + yr + " - hr: " + hr + " - xm: " + xm + " - ym: " + ym);
+				int x,y,hx,hy;
+				double c,d;
+				float hd;
+				for (int n = 0; n < model.getDepthWidth()*model.getDepthHeight(); n++) {
+					if (mask.get(n)) {
+						x = xCoordFromPosition(n);
+						y = yCoordFromPosition(n);
+						hx = x - xm;
+						hy = y - ym;
+						c = Math.sqrt((hx*hx)+(hy*hy));
+						if (c<=hr) {
+							d = Math.sqrt((hr*hr)-(c*c)) / 240; 
+							//System.out.println("x: " + x + " - y: " + y + " - hx: " + hx + " - hy: " + hy + " - c: " + c + " - d: " + d );
+							if (concave) hd = (float) (model.getFloats().get(n) + d);
+							else  hd = (float) (model.getFloats().get(n) - d);	
+							if (hd<0) hd=0;
+							model.getFloats().set(n, hd);
+						}
+					}
+				}
+				model=findModelExtema(model);
+				if (concave) saveUndoStep(mask, "hemisphere concave", model.getFloats(), true);
+				else saveUndoStep(mask, "hemisphere convex", model.getFloats(), true);
+					
+			}
 		}
 	    
 	    public void doDivideBy(float div) {
