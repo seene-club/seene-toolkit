@@ -128,6 +128,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JButton tbSaveLocal = new JButton("save local");
     JButton tbShowModel = new JButton("show model");
     JButton tbShowPoster = new JButton("show poster");
+    JButton tbShow3D = new JButton("show 3D");
     JButton tbSaveMask = new JButton("save mask");
     JLabel tbLoadMaskLabel = new JLabel(" load mask: ");
     JComboBox<String> tbLoadMaskCombo = new JComboBox<String>();
@@ -944,6 +945,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
             		  modelDisplay.repaintPosterOnly();
             	  } else { showNoSeeneThereDialog("Can't show poster!"); }
               }
+              if(event.getSource() == tbShow3D) {
+            	  if (modelDisplay.getModel()!=null) {
+            		  modelDisplay.repaint3DOnly();
+            	  } else { showNoSeeneThereDialog("Can't show 3D!"); }
+              }
               if(event.getSource() == tbUploadSeene) {
             	  if (modelDisplay.getModel()!=null) {
             		  showUploadDialog();
@@ -955,6 +961,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         tbSaveLocal.addActionListener(toolbarListener);
         tbShowModel.addActionListener(toolbarListener);
         tbShowPoster.addActionListener(toolbarListener);
+        tbShow3D.addActionListener(toolbarListener);
         tbSaveMask.addActionListener(toolbarListener);
         tbLoadMaskCombo.addActionListener(toolbarListener);
         tbUploadSeene.addActionListener(toolbarListener);
@@ -965,6 +972,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         toolbar.addSeparator();
         toolbar.add(tbShowModel);
         toolbar.add(tbShowPoster);
+        toolbar.add(tbShow3D);
         toolbar.addSeparator();
         toolbar.add(tbSaveMask);
         toolbar.add(tbLoadMaskLabel);
@@ -2089,6 +2097,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			});
 	    }
 
+
 		public void paint(Graphics g){
 	    	paintModel(g,model);
 	    	paintPoster(g, poster);
@@ -2190,6 +2199,52 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	} // if (model!=null)
 	    }
 	    
+	    private void paint3D(Graphics g, SeeneTexture poster, SeeneModel model) {
+	    	g.setColor(Color.BLACK);
+	    	g.fillRect(0, 0, canvasSize*getPointSize(), canvasSize*getPointSize());
+	    	Image texture = poster.getTextureImage();
+    		int new_width = canvasSize*getPointSize();
+    		int new_height = canvasSize*getPointSize();
+	    	BufferedImage textureTransformed = Helper.rotateAndResizeImage(texture, new_width/2, new_height/2, 90);
+	
+	    	if (model!=null) {
+		        
+		        int c=0;
+		        float f;
+		        float max = model.getMaxFloat();
+		        int w = model.getDepthWidth();
+		        int h = model.getDepthHeight();
+		        int p = getPointSize();
+		        float cf;
+		        
+		        
+		        for (int x=0;x<w;x++) {
+		        	float ox=0.0f;	
+		        	for (int y=0;y<h;y++) {
+		        		f = model.getFloats().get(c);
+		        		cf = floatGreyScale(f, max);
+		        		//Color newColor = new Color(cf,cf,cf);
+		        		Color newColor = colorFromTexture(textureTransformed, w-x-1, y);
+		        		g.setColor(newColor);
+		        		ox+=0.4f;
+		        		//g.fillRect(Math.round((w-x-1) * 1.5f + ox), Math.round(y * 1.5f + (cf * 0)), 1, Math.round(cf * 50));
+		        		g.fillRect(Math.round((w-x-1) * 1.5f + ox), Math.round(y * 1.5f + (cf * 50)), 1, 1);
+		        		c++;
+		        		
+		        	} // for y
+		        } //  for x
+	    	} // if (model!=null)
+			
+		}
+	    
+	    private Color colorFromTexture(BufferedImage texture, int x, int y) {
+	    	  int  clr   =  texture.getRGB(x,y); 
+	    	  int  red   = (clr & 0x00ff0000) >> 16;
+	    	  int  green = (clr & 0x0000ff00) >> 8;
+	    	  int  blue  =  clr & 0x000000ff;
+	    	  return new Color(red,green,blue);
+	    }
+	    
 	    private float floatGreyScale(float value, float maximum) {
 	    	if (inverted) return value/maximum;
 	    	return 1 - value/maximum;
@@ -2234,7 +2289,16 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			}
 	    }
 	    
-	    private void setMaskCursorWithSize(int radius) {
+	    public void repaint3DOnly() {
+	    	if ((model!=null) && (poster!=null)) {
+	    		lastChoice="3D";
+				Graphics g = getGraphics();
+				this.paint3D(g, poster, model);
+	    	}
+		}
+	    
+	    
+		private void setMaskCursorWithSize(int radius) {
 			//TODO recreate cursors as 32x32 pics!
 			Toolkit toolkit = java.awt.Toolkit.getDefaultToolkit();
 			Image image = toolkit.getImage(SeeneToolkit.class.getResource("/images/cursor" + radius + ".png"));
