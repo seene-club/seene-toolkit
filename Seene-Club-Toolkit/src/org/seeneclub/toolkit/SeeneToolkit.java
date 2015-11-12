@@ -2002,13 +2002,19 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	int ndx = 0;
 	        	int mOffX = 0;
 	        	int mOffY = 0;
+	        	int downX = 0;
+	        	int downY = 0;
 	        	int last_n = 0;
+	        	int last_mx = 0;
+	        	int last_my = 0;
+	        	BufferedImage textureTransformed = null;
 	        	Boolean maskPaintMode;
 	        	
 	        	volatile private boolean mouseDown = false;
 	        	
 	        	public void mouseEntered(MouseEvent e) {
-    	        	setMaskCursorWithSize(maskBrushRadius);
+	        		if ((lastChoice=="model") || (lastChoice=="poster")) setMaskCursorWithSize(maskBrushRadius);
+	        		if (lastChoice=="3D") setMousePointerHand();
 	        	}
 	        	
 	        	public void mousePressed(MouseEvent e) {
@@ -2022,20 +2028,34 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	        	w = model.getDepthWidth();
 	        	        	h = model.getDepthHeight();
 	        	        	ndx = w * h;
-	        	        	mOffX = MouseInfo.getPointerInfo().getLocation().x - e.getX();
-	        	        	mOffY = MouseInfo.getPointerInfo().getLocation().y - e.getY();
+	        	        	downX = e.getX();
+	        	        	downY = e.getY();
+	        	        	mOffX = MouseInfo.getPointerInfo().getLocation().x - downX;
+	        	        	mOffY = MouseInfo.getPointerInfo().getLocation().y - downY;
 	        	        	// DepthPoint Info
 	        	        	if (e.getButton() != MouseEvent.BUTTON2) {
-	        	        		initMaskPaintThread();
+	        	        		if ((lastChoice=="model") || (lastChoice=="poster")) initMaskPaintThread();
+	        	        		if (lastChoice=="3D") {
+	        	        			getGraphics().setColor(Color.BLACK);
+	        	        	    	getGraphics().fillRect(0, 0, canvasSize*getPointSize(), canvasSize*getPointSize());
+	        	        	    	Image texture = poster.getTextureImage();
+	        	            		int new_width = canvasSize*getPointSize();
+	        	            		int new_height = canvasSize*getPointSize();
+	        	        	    	textureTransformed = Helper.rotateAndResizeImage(texture, new_width/2, new_height/2, 90);
+	        	        	    	drawPointCloud3D(getGraphics(),textureTransformed,model,1,0,0);
+	        	        			init3DCloudRotationThread();
+	        	        		}
 	        	        	} else {
-		        	        	float max = model.getMaxFloat();
-		        	        	int mx = w - e.getX() / pointSize - 1;
-	    						int my = e.getY() / pointSize;
-	    						int n = positionFromCoords(mx, my);
-	    						float f = model.getFloats().get(n);
-	    						float cf = floatGreyScale(f, max);
-		        	        	log("\nPOSITION: x: " + mx +  " - y: " + my + " (float number: " + n + ")\nCOLOR: " + cf + "\nDEPTH: " + f,LogLevel.info);
-		        	        	setRememberedFloat(f);
+	        	        		if ((lastChoice=="model") || (lastChoice=="poster")) {
+			        	        	float max = model.getMaxFloat();
+			        	        	int mx = w - e.getX() / pointSize - 1;
+		    						int my = e.getY() / pointSize;
+		    						int n = positionFromCoords(mx, my);
+		    						float f = model.getFloats().get(n);
+		    						float cf = floatGreyScale(f, max);
+			        	        	log("\nPOSITION: x: " + mx +  " - y: " + my + " (float number: " + n + ")\nCOLOR: " + cf + "\nDEPTH: " + f,LogLevel.info);
+			        	        	setRememberedFloat(f);
+	        	        		}
 	        	        	}
 	        	        }
 	        	    }
@@ -2048,8 +2068,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		        	        if (lastChoice=="model") repaintModelOnly();
 		        	        if (lastChoice=="poster") repaintPosterOnly();
 		        	    }
-		        		if (e.getButton() == MouseEvent.BUTTON1) saveUndoStep(mask, "mask paint", model.getFloats(), true);
-		        		if (e.getButton() == MouseEvent.BUTTON3) saveUndoStep(mask, "mask rubber", model.getFloats(), true);
+		        		if ((lastChoice=="model") || (lastChoice=="poster")) {
+		        			if (e.getButton() == MouseEvent.BUTTON1) saveUndoStep(mask, "mask paint", model.getFloats(), true);
+		        			if (e.getButton() == MouseEvent.BUTTON3) saveUndoStep(mask, "mask rubber", model.getFloats(), true);
+		        		}
 	        		}
 	        	}
 
@@ -2059,6 +2081,33 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	    if (isRunning) return false;
 	        	    isRunning = true;
 	        	    return true;
+	        	}
+	        	
+	        	private void init3DCloudRotationThread() {
+	        	    if (checkAndMark()) {
+	        	        new Thread() {
+	        	            public void run() {
+	        	                do {
+	        	                	int mx = Math.abs((MouseInfo.getPointerInfo().getLocation().x - downX) - mOffX);
+	        						int my = (MouseInfo.getPointerInfo().getLocation().y - downY) - mOffY;
+	        						if (my<0) my = 0;
+	        						if (my>90) my = 90;
+	        						if (mx>90) mx = 90;
+	        						
+	        						if ((last_mx!=mx) || (last_my!=my)) {
+	        							//System.out.println("mx " + mx + " - my " + my);
+	        							getGraphics().setColor(Color.BLACK);
+		        	        	    	getGraphics().fillRect(0, 0, canvasSize*getPointSize(), canvasSize*getPointSize());
+	        							drawPointCloud3D(getGraphics(),textureTransformed,model,1,my,mx/2);
+	        							last_mx=mx;
+	        							last_my=my;
+	        						}
+	        						
+	        	                } while (mouseDown);
+	        	                isRunning = false;
+	        	            }
+	        	        }.start();
+	        	    }
 	        	}
 	        	
 	        	private void initMaskPaintThread() {
@@ -2081,7 +2130,6 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        							if ((n >= 0) && ( n < ndx) && (my < h) && (my >= 0)) mask.set(n, maskPaintMode);
 	        						}
 	        						if (n!=last_n) {
-	        							
 	        							if (maskPaintMode) paintMaskPartially(getGraphics(), mx, my, maskBrushRadius);
 	        							else repaintLastChoice();
 	        							
@@ -2208,34 +2256,45 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    	BufferedImage textureTransformed = Helper.rotateAndResizeImage(texture, new_width/2, new_height/2, 90);
 	
 	    	if (model!=null) {
-		        
-		        int c=0;
-		        float f;
-		        float max = model.getMaxFloat();
-		        int w = model.getDepthWidth();
-		        int h = model.getDepthHeight();
-		        int p = getPointSize();
-		        float cf;
-		        
-		        
-		        for (int x=0;x<w;x++) {
-		        	float ox=0.0f;	
-		        	for (int y=0;y<h;y++) {
-		        		f = model.getFloats().get(c);
-		        		cf = floatGreyScale(f, max);
-		        		//Color newColor = new Color(cf,cf,cf);
-		        		Color newColor = colorFromTexture(textureTransformed, w-x-1, y);
-		        		g.setColor(newColor);
-		        		ox+=0.4f;
-		        		//g.fillRect(Math.round((w-x-1) * 1.5f + ox), Math.round(y * 1.5f + (cf * 0)), 1, Math.round(cf * 50));
-		        		g.fillRect(Math.round((w-x-1) * 1.5f + ox), Math.round(y * 1.5f + (cf * 50)), 1, 1);
-		        		c++;
-		        		
-		        	} // for y
-		        } //  for x
+		        int step=1;
+		        drawPointCloud3D(g,textureTransformed,model,step,0,0);
 	    	} // if (model!=null)
 			
 		}
+	    
+	    private void drawPointCloud3D(Graphics g, BufferedImage texture, SeeneModel model, int step, int degH, int degV) {
+	    	float f;
+	        float max = model.getMaxFloat();
+	        int w = model.getDepthWidth();
+	        int h = model.getDepthHeight();
+	        float cf;
+	    	
+	    	float stretch=1.6f;
+	    	float parallel_offset=0.4f;
+	    	
+	    	for (int x=0;x<w;x+=step) {
+	        	float ox=0.0f;	
+	        	for (int y=0;y<h;y+=step) {
+	        		f = model.getFloats().get(positionFromCoords(x, y));
+	        		cf = floatGreyScale(f, max);
+	        		Color newColor = colorFromTexture(texture, w-x-1, y);
+	        		g.setColor(newColor);
+	        		ox+=parallel_offset * step;
+	        		double degH_rad = Math.toRadians(degH);
+	        		double degV_rad = Math.toRadians(degV);
+	        		int dx = Math.round((w-x-1) * stretch);
+	        		int dy = Math.round(y * stretch);
+	        		int rx = 240 - dx;
+	        		int ry = 240 - dy;
+	        		int wx = (int) (rx * Math.tan(degV_rad));
+	        		int wy = (int) (ry * Math.sin(degH_rad));
+	        		int raise = Math.round((cf*10)*(cf*10));
+	        		//TODO: Mousewheel changes dot-size!!!
+	        		g.fillRect(Math.round(ox) + dx + wx , dy + wy + raise , 2, 2);
+	        	} // for y
+	        } //  for x
+	    	
+	    }
 	    
 	    private Color colorFromTexture(BufferedImage texture, int x, int y) {
 	    	  int  clr   =  texture.getRGB(x,y); 
@@ -2303,6 +2362,11 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			Toolkit toolkit = java.awt.Toolkit.getDefaultToolkit();
 			Image image = toolkit.getImage(SeeneToolkit.class.getResource("/images/cursor" + radius + ".png"));
 			Cursor cu = toolkit.createCustomCursor(image , new Point((radius + radius / 2) + 1, (radius + radius / 2) + 1), "");
+			setCursor(cu);
+		}
+		
+		private void setMousePointerHand() {
+			Cursor cu = new Cursor(Cursor.HAND_CURSOR);
 			setCursor(cu);
 		}
 	    
@@ -2695,21 +2759,21 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    				y = n / w;
 	    				x = n - (w * y);
 	    				
-	    				if (d ==   0) newDepth = sDep + ((max_x - x) * stx); 	// upwards			= 0°
-	    				if (d ==  90) newDepth = sDep + ((max_y - y) * sty); 	// left to right    = 90°
-	    				if (d == 180) newDepth = sDep + ((x - min_x) * stx); 	// downwards		= 180°
-	    				if (d == 270) newDepth = sDep + ((y - min_y) * sty); 	// right to left	= 270°
-	    				if (d ==  45) newDepth = sDep + ((((max_y - y) * sty) + ((max_x - x) * stx)) / 2); // upwards to right		= 45°
-	    				if (d == 135) newDepth = sDep + ((((max_y - y) * sty) + ((x - min_x) * stx)) / 2); // downwards to right	= 135°
-	    				if (d == 225) newDepth = sDep + ((((y - min_y) * sty) + ((x - min_x) * stx)) / 2); // downwards to left		= 225°
-	    				if (d == 315) newDepth = sDep + ((((y - min_y) * sty) + ((max_x - x) * stx)) / 2); // upwards to left		= 315° 
+	    				if (d ==   0) newDepth = sDep + ((max_x - x) * stx); 	// upwards			= 0ï¿½
+	    				if (d ==  90) newDepth = sDep + ((max_y - y) * sty); 	// left to right    = 90ï¿½
+	    				if (d == 180) newDepth = sDep + ((x - min_x) * stx); 	// downwards		= 180ï¿½
+	    				if (d == 270) newDepth = sDep + ((y - min_y) * sty); 	// right to left	= 270ï¿½
+	    				if (d ==  45) newDepth = sDep + ((((max_y - y) * sty) + ((max_x - x) * stx)) / 2); // upwards to right		= 45ï¿½
+	    				if (d == 135) newDepth = sDep + ((((max_y - y) * sty) + ((x - min_x) * stx)) / 2); // downwards to right	= 135ï¿½
+	    				if (d == 225) newDepth = sDep + ((((y - min_y) * sty) + ((x - min_x) * stx)) / 2); // downwards to left		= 225ï¿½
+	    				if (d == 315) newDepth = sDep + ((((y - min_y) * sty) + ((max_x - x) * stx)) / 2); // upwards to left		= 315ï¿½ 
 	    				
 	    				model.getFloats().set(n, newDepth);
 	    			}
 	    		}
 	    		
 	    		model=findModelExtema(model);
-	    		saveUndoStep(mask, "gradient " + d + "°", model.getFloats(), true);
+	    		saveUndoStep(mask, "gradient " + d + "ï¿½", model.getFloats(), true);
 	    		
 	    	} //if (model!=null)
 		}
