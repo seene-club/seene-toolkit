@@ -55,6 +55,7 @@ import org.apache.http.protocol.HTTP;
 import org.json.simple.JSONValue;
 import org.seeneclub.domainvalues.LogLevel;
 
+import com.adobe.xmp.XMPException;
 import com.vdurmont.emoji.EmojiParser;
 
 @SuppressWarnings({ "rawtypes", "deprecation" })
@@ -197,7 +198,7 @@ public class SeeneAPI {
 		HttpURLConnection conn = openOAuthRequestConnection(r_url, "GET", bearer);
 		Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 		
-	    return createSeeneListFromResponse(response);   
+	    return createSeeneListFromResponse(response,"seenes");   
 	}
 	
 	public Map requestNewSeene(SeeneObject sO, String bearer) throws Exception {
@@ -534,27 +535,93 @@ public class SeeneAPI {
 	    return count;
 	}
 	
+	
+	public List<SeeneObject> getSetByURLoldAPI(String surl) throws Exception {
+		 
+		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
+		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
+		
+		Map map = requestNonOAuth("GET", new URL(surl), null);
+		
+		//List<SeeneObject> result = new ArrayList<SeeneObject>();
+		//result.add(createSeeneObjectFromMap(map));
+		
+		//return result;
+		return null;
+	}
+	
 	public List<SeeneObject> getPublicSeeneByURLoldAPI(String surl) throws Exception {
 		 
 		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
 		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
 		
-		Map map = requestNonOAuth("GET", new URL(String.format("http://seene.co/api/seene/-/scenes/%s", shortkey)), null);
+		Map map = requestNonOAuth("GET", new URL(String.format("https://seene.co/api/seene/-/scenes/%s", shortkey)), null);
 		
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
 		result.add(createSeeneObjectFromMap(map));
 		
 		return result;
 	}
+	
+	public List<SeeneSet> getUsersSetList(String username) throws Exception {
+			Map response = requestNonOAuth("GET", new URL(String.format("https://seene.co/api/seene/-/users/@%s/albums?count=200", username)), null);
+			return createSetListFromResponse(response);
+	}
+	
+	
+	public SeeneSet getPublicSetInfoByURLoldAPI(String surl) throws Exception {
+		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
+		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
+		
+		Map response = requestNonOAuth("GET", new URL(String.format("https://seene.co/api/seene/-/albums/_%s", shortkey)), null);
+		
+		return createSetObjectFromMap(response);
+	}
+	
+	
+	public List<SeeneObject> getPublicSetByURLoldAPI(String surl) throws Exception {
+		if (surl.endsWith("/")) surl = surl.substring(0, surl.length()-1);
+		String shortkey = surl.substring(surl.lastIndexOf('/') + 1);
+		
+		Map response = requestNonOAuth("GET", new URL(String.format("https://seene.co/api/seene/-/albums/_%s/scenes?count=500", shortkey)), null);
 
-	private static List<SeeneObject> createSeeneListFromResponse(Map map) throws Exception {
+		return createSeeneListFromResponse(response,"scenes");
+	}
+
+	// /!\ Seene inconsitency: nodeIdentifier could be "seenes" (new API) or "scenes" (old API) 
+	private static List<SeeneObject> createSeeneListFromResponse(Map map, String nodeIdentifier) throws Exception {
 		List<SeeneObject> result = new ArrayList<SeeneObject>();
 
-		List seenes = (List)map.get("seenes");
+		List seenes = (List)map.get(nodeIdentifier);
 		for (Object o : seenes)
 			result.add(createSeeneObjectFromMap((Map)o));
 		
 		return result;
+	}
+	
+	private static List<SeeneSet> createSetListFromResponse(Map map) throws Exception {
+		List<SeeneSet> result = new ArrayList<SeeneSet>();
+
+		List sets = (List)map.get("albums");
+		for (Object o : sets)
+			result.add(createSetObjectFromMap((Map)o));
+		
+		return result;
+	}
+	
+	private static SeeneSet createSetObjectFromMap(Map j) throws Exception {
+		SeeneSet st = new SeeneSet();
+		st.setTitle(EmojiParser.parseToAliases((String)j.get("title")));
+		String descr = (String)j.get("description");
+		if(descr == null) descr = ""; 
+		st.setDescription(EmojiParser.parseToAliases(descr));
+		st.setIdentifier((Long)j.get("id"));
+		st.setShortCode((String)j.get("short_code"));
+		st.setCount((Long)j.get("scenes_count"));
+		Map u = (Map)j.get("user");
+		st.setUserid((String)u.get("username"));
+		
+		return st;
 	}
 	
 	private static SeeneObject createSeeneObjectFromMap(Map j) throws Exception {
@@ -569,7 +636,13 @@ public class SeeneAPI {
 		s.setModelURL(new URL((String)j.get("model_url")));
 		Map u = (Map)j.get("user");
 		s.setUserinfo((String)u.get("username"));
-		s.setAvatarURL(new URL((String)u.get("avatar_url")));
+		String avatar = (String)u.get("avatar_url");
+		if (avatar == null) {
+			s.setAvatarURL(new URL(STK.DEFAULT_AVATAR));
+		} else {
+			s.setAvatarURL(new URL(avatar));
+		}
+			
 		return s;
 	}
 

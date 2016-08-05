@@ -1,11 +1,13 @@
 package org.seeneclub.toolkit;
 
+
 // Seene-ToolKit Constants
 public interface STK {
 	public static final int WORK_WIDTH = 240;
 	public static final int WORK_HEIGHT = 240;
 	public static final float INIT_DEPTH = 0.4f;
 	public static final String DEFAULT_CAPTION = "#synthetic (created with https://github.com/seene-club/seene-toolkit)";
+	public static final String DEFAULT_AVATAR = "https://seene.co/images/b503611e.AvatarDefault@2x.png";
 	
 	public static final int NUMBER_OF_DOWNLOAD_THREADS = 4;
 	public static final int UNDO_RINGBUFFER_SIZE = 15;

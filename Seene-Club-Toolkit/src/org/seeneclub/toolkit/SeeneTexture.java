@@ -19,7 +19,8 @@ public class SeeneTexture {
 	
 	// Constructors
 	public SeeneTexture() {
-		textureImage = new BufferedImage(1936, 1936, BufferedImage.TYPE_INT_ARGB);
+		//TODO: Needs to much Memory if in batch-mode!
+		//textureImage = new BufferedImage(1936, 1936, BufferedImage.TYPE_INT_ARGB);
 		textureFile = null;
 		textureURL = null;
 	}

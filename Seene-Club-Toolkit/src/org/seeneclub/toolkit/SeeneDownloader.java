@@ -65,6 +65,14 @@ public class SeeneDownloader extends Thread {
 				try {
 					Files.move(seeneTempFolder.toPath(), seeneFolder.toPath(), StandardCopyOption.ATOMIC_MOVE);
 					org.seeneclub.toolkit.SeeneToolkit.log("DOWNLOAD COMPLETE: " + seeneFolder.getAbsolutePath(), LogLevel.info);
+					String seenesname = seeneFolder.getName();
+					
+					SeeneToolkit.generateXMP(seeneFolder.getAbsolutePath());
+					File fsource = new File(seeneFolder.getAbsolutePath() + File.separator + STK.XMP_COMBINED_JPG);
+					File fdest = new File(seeneFolder.toPath().getParent().getParent().toString() + File.separator + seenesname + ".jpg");
+					
+					Files.move(fsource.toPath(), fdest.toPath(), StandardCopyOption.ATOMIC_MOVE);
+					
 					if (seeneObject.getUserinfo().equalsIgnoreCase(username)) {
 						Helper.createFolderIcon(seeneFolder, null);
 					} else {

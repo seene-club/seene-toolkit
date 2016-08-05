@@ -39,6 +39,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -74,12 +75,27 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.seeneclub.domainvalues.LogLevel;
 import org.vanitasvitae.depthmapneedle.JPEG;
+
+
+
+
+
+
+
+
+
 
 import com.adobe.xmp.XMPException;
 import com.adobe.xmp.XMPMeta;
 import com.android.camera.util.XmpUtil;
+import com.gargoylesoftware.htmlunit.BrowserVersion;
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlElement;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
@@ -89,7 +105,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static String programVersion = "0.9"; 
+	static String programVersion = "0.91"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -154,6 +170,10 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem taskBackupPrivate = new JMenuItem("retrieve my private seenes");
     JMenuItem taskBackupOther = new JMenuItem("retrieve someone else's seenes");
     JMenuItem taskBackupByURL = new JMenuItem("retrieve public seene by URL");
+    JMenuItem taskBackupAllMySets = new JMenuItem("backup all of my sets");
+    JMenuItem taskBackupAllSets = new JMenuItem("backup someone else's sets");
+    JMenuItem taskBackupAnySet = new JMenuItem("backup any set by URL");
+    
     
     // Mask Menu Items
     JMenuItem maskUndo = new JMenuItem("undo");
@@ -179,6 +199,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JMenuItem maskDivideByTwo = new JMenuItem("devide depth in masked area by 2");
     JMenuItem maskDivideByThree = new JMenuItem("devide depth in masked area by 3");
     
+       
     // Tests Menu Items
     JMenuItem testSomething = new JMenuItem("Test Something");
     
@@ -188,7 +209,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     JLabel currentSelection = null;
     String currentMaskName = new String("");
     SeeneNormalizer normalizer = new SeeneNormalizer();
-    
+
+   
     // method main - all begins with a thread!
 	public static void main(String[] args) throws Exception {
 		
@@ -269,6 +291,41 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			e.printStackTrace();
 		}
     }
+    
+	protected void doTaskBackupAllSets(File targetDir, String uid) {
+		try {
+			SeeneAPI myAPI = new SeeneAPI(pd);
+		
+			List<SeeneSet> sets = myAPI.getUsersSetList(uid);
+			
+			for(SeeneSet st : sets) {
+				File seeneOriginalsDir = new File(targetDir.getAbsolutePath() + File.separator + st.getTitle() + " - 3D set by " + st.getUserid() + File.separator + ".seeneOriginals");
+				List<SeeneObject> index = myAPI.getPublicSetByURLoldAPI("https://seene.co/a/" + st.getShortCode());
+	    		downloadInThreads(index, seeneOriginalsDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
+			}
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+    
+    protected void doTaskBackupAnySet(File targetDir, String surl) {
+    	try {
+    		log("Set will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    		
+    		SeeneAPI myAPI = new SeeneAPI(pd);
+    		SeeneSet st = myAPI.getPublicSetInfoByURLoldAPI(surl);
+    		File seeneOriginalsDir = new File(targetDir.getAbsolutePath() + File.separator + st.getTitle() + " - 3D set by " + st.getUserid() + File.separator + ".seeneOriginals");
+    		
+    		List<SeeneObject> index = myAPI.getPublicSetByURLoldAPI(surl);
+    		downloadInThreads(index, seeneOriginalsDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
     
     
     // example: java -jar seene-club-toolkit.jar -b private -c 500 -uid paf -o /home/paf/myPrivateSeenes
@@ -485,16 +542,28 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         taskBackupPrivate.setIcon(Helper.iconFromImageResource("downloadp.png", 16));
         taskBackupOther.setIcon(Helper.iconFromImageResource("downloado.png", 16));
         taskBackupByURL.setIcon(Helper.iconFromImageResource("downloadu.png", 16));
+        taskBackupAllMySets.setIcon(Helper.iconFromImageResource("download.png", 16));
+        taskBackupAllSets.setIcon(Helper.iconFromImageResource("downloado.png", 16));
+        taskBackupAnySet.setIcon(Helper.iconFromImageResource("downloadu.png", 16));
         
         taskBackupPublic.addActionListener(this);
         taskBackupPrivate.addActionListener(this);
         taskBackupOther.addActionListener(this);
         taskBackupByURL.addActionListener(this);
+        taskBackupAllMySets.addActionListener(this);
+        taskBackupAllSets.addActionListener(this);
+        taskBackupAnySet.addActionListener(this);
+        
         
         taskMenu.add(taskBackupPublic);
         taskMenu.add(taskBackupPrivate);
         taskMenu.add(taskBackupOther);
         taskMenu.add(taskBackupByURL);
+        taskMenu.addSeparator();
+        taskMenu.add(taskBackupAllMySets);
+        taskMenu.add(taskBackupAllSets);
+        taskMenu.add(taskBackupAnySet);
+        
         
         JMenu maskMenu = new JMenu(" Mask ");
         
@@ -1451,6 +1520,38 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 			} catch (Exception ex) {
 				JOptionPane.showMessageDialog(null,  "Invalid number entered. Aborting!", "Backup Error", JOptionPane.ERROR_MESSAGE);
 			}
+		} else if(arg0.getSource() == this.taskBackupAnySet) {
+			String surl = (String)JOptionPane.showInputDialog(mainFrame, "Enter the URL of the set to download:\n(example: https://seene.co/a/6UUQTG)",
+                    "Retrieving a set by URL", JOptionPane.PLAIN_MESSAGE, null, null, "http://seene.co/a/");
+			if ((surl != null) && (surl.length() > 0)) {
+				Thread dlThread = new Thread() {
+					public void run() {
+						doTaskBackupAnySet(storage.getSetsDir(),surl);	
+					}
+				};
+				dlThread.start();
+			}
+		} else if(arg0.getSource() == this.taskBackupAllSets) {
+			String uid = (String)JOptionPane.showInputDialog(mainFrame, "Whose sets do you want to backup?",
+                    "Retrieving someone else's sets", JOptionPane.PLAIN_MESSAGE, null, null, null);
+			if ((uid != null) && (uid.length() > 0)) {
+					Thread dlThread = new Thread() {
+						public void run() {
+							doTaskBackupAllSets(storage.getSetsDir(),uid);
+						}
+					};
+					dlThread.start();
+			}
+		} else if(arg0.getSource() == this.taskBackupAllMySets) {
+			String uid = new String(seeneUser);
+			if ((uid != null) && (uid.length() > 0)) {
+					Thread dlThread = new Thread() {
+						public void run() {
+							doTaskBackupAllSets(storage.getSetsDir(),uid);
+						}
+					};
+					dlThread.start();
+			}
 		} else if(arg0.getSource() == this.taskBackupOther) {
 			String uid = (String)JOptionPane.showInputDialog(mainFrame, "Whose public seenes do you want to retrieve?",
                     "Retrieving someone else's seenes", JOptionPane.PLAIN_MESSAGE, null, null, null);
@@ -1615,6 +1716,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	    }
 	}
 	
+
 	private void doMaskGradient(JMenuItem maskGradientDegreeItem) {
 		float sDep = Float.parseFloat((String)JOptionPane.showInputDialog(mainFrame, "Start depth:",
 				"At which depth should the gradient start?", JOptionPane.QUESTION_MESSAGE, null, null, modelDisplay.getRememberedFloat()));
@@ -2158,7 +2260,8 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	        	}
 			});
 	    }
-
+		
+		
 
 		public void paint(Graphics g){
 	    	paintModel(g,model);
