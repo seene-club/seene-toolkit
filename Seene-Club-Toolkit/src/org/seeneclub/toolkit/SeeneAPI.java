@@ -175,7 +175,7 @@ public class SeeneAPI {
 	}
 	
 	public String requestUserIDfromOldAPI(String username) throws Exception {
-		Map map = requestNonOAuth("GET", new URL("http://seene.co/api/seene/-/users/@" + username), null);
+		Map map = requestNonOAuth("GET", new URL("https://seene.co/api/seene/-/users/@" + username), null);
 		return map.get("id").toString();
 	}
 	
@@ -190,15 +190,16 @@ public class SeeneAPI {
 		return response;
 	}
 	
-	public List<SeeneObject> requestUserSeenes(String userID, int count, String privat, String bearer) throws Exception {
+	public List<SeeneObject> requestUserSeenes(String userID, int page, int count, String privat, String bearer) throws Exception {
 		
-		String r_url =  new String("https://api.seene.co/users/" + userID + "/seenes?count=" + count + "&private=" + privat);
+		// page size is always 100! If there's a rest (count < 100) only the rest is returned (see return statement of this method)
+		String r_url =  new String("https://api.seene.co/users/" + userID + "/seenes?page=" + page + "&count=100&private=" + privat);
 		SeeneToolkit.log("Requesting Seenes from " + r_url, LogLevel.info);
 		
 		HttpURLConnection conn = openOAuthRequestConnection(r_url, "GET", bearer);
 		Map response = (Map)JSONValue.parseWithException(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
 		
-	    return createSeeneListFromResponse(response,"seenes");   
+	    return createSeeneListFromResponse(response,"seenes").subList(0, count);    
 	}
 	
 	public Map requestNewSeene(SeeneObject sO, String bearer) throws Exception {

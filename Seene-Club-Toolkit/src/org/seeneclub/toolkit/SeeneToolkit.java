@@ -39,7 +39,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -75,27 +74,12 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.seeneclub.domainvalues.LogLevel;
 import org.vanitasvitae.depthmapneedle.JPEG;
-
-
-
-
-
-
-
-
-
 
 import com.adobe.xmp.XMPException;
 import com.adobe.xmp.XMPMeta;
 import com.android.camera.util.XmpUtil;
-import com.gargoylesoftware.htmlunit.BrowserVersion;
-import com.gargoylesoftware.htmlunit.WebClient;
-import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
-import com.gargoylesoftware.htmlunit.html.HtmlElement;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
@@ -105,7 +89,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static String programVersion = "0.91"; 
+	static String programVersion = "0.92"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -230,52 +214,56 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
         return null;
     }
 
-    private static void doTaskBackupPublicSeenes(File targetDir, int count) {
-    	try {
-    		log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
-
-    		SeeneAPI myAPI = new SeeneAPI(pd);
-    	
-    		log("Resolving name to id", LogLevel.info);
-			String userID = myAPI.requestUserID(seeneUser, getValidBearerToken());
-			
-			log("Seene user: " + userID, LogLevel.debug);
-
-			log("Getting index of last " + count + " public seenes", LogLevel.info);
-			List<SeeneObject> index = myAPI.requestUserSeenes(userID, count, "false", getValidBearerToken());
-			log("You have at least " + index.size() + " public seenes", LogLevel.info);
-			
-			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    }
     
-    private static void doTaskBackupOtherSeenes(File targetDir, String username, int count) {
+    private static void doTaskBackupSeenes(File targetDir, String username, int count, Boolean privat_flag) {
     	try {
-    		log("Others Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    		String privat = new String();
+    		if (privat_flag) {
+    			privat = "true";
+    			log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    		} else {
+    			privat = "false";
+    			if (username.equals(seeneUser)) {
+    				log("Public Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    			} else {
+    				log("Others Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
+    			}
+    		}
     		
-    		SeeneAPI myAPI = new SeeneAPI(pd);
-    	
-    		log("Resolving " + username + " to ID", LogLevel.info);
-			//String userID = myAPI.requestUserIDfromOldAPI(username);
-    		String userID = myAPI.requestUserID(username, getValidBearerToken());
+        	SeeneAPI myAPI = new SeeneAPI(pd);
+        	log("Resolving " + username + " to ID", LogLevel.info);
+			String userID = myAPI.requestUserID(username, getValidBearerToken());
 			log("Seene user: " + userID, LogLevel.debug);
-
-			log("Getting index of " + username + "'s last " + count + " public seenes", LogLevel.info);
-
-			List<SeeneObject> index = myAPI.requestUserSeenes(userID, count, "false", getValidBearerToken());
-			log(username + " has at least " + index.size() + " public seenes", LogLevel.info);
 			
-			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
+			int pages = ((count-1) / 100) + 1;
+    		int rest = count;
+    		
+    		log(count + " Seenes = " + pages + " pages",LogLevel.info);
+
+    		List<SeeneObject> index = new ArrayList<SeeneObject>();
+    		
+    		for (int page=1;page<=pages;page++) {
+    			if (rest>=100) {
+    			    log("Requesting 100 Seenes from Page: " + page,LogLevel.info);
+    			    index = myAPI.requestUserSeenes(userID, page, 100, privat, getValidBearerToken());
+    			} else {
+    				log("Requesting " + rest + " Seenes from Page: " + page,LogLevel.info);
+    				index = myAPI.requestUserSeenes(userID, page, rest, privat, getValidBearerToken());
+    			}
+    			
+    			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);	
+    			rest-=100;
+    		}
 			
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			StringBuffer inform = new StringBuffer("The following error occured:\n");
+			inform.append(e.getMessage());
+			inform.append("\n\nPlease check your Seene credentials configuration and your internet connection!");
+            log(e.getMessage(),LogLevel.error);
+            JOptionPane.showMessageDialog(null,  inform.toString(), "Backup Error", JOptionPane.ERROR_MESSAGE);
 		}
     }
+
     
     private static void doTaskBackupByURL(File targetDir, String surl) {
     	try {
@@ -328,33 +316,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	}
     
     
-    // example: java -jar seene-club-toolkit.jar -b private -c 500 -uid paf -o /home/paf/myPrivateSeenes
-    private static void doTaskBackupPrivateSeenes(File targetDir, int last) {
-    	try {
-        	log("Private Seenes will go to " + targetDir.getAbsolutePath() ,LogLevel.info);
-        	
-        	SeeneAPI myAPI = new SeeneAPI(pd);
-    	
-        	log("Resolving name to id", LogLevel.info);
-			//String userId = myAPI.requestUserIDfromOldAPI(seeneUser);
-			String userID = myAPI.requestUserID(seeneUser, getValidBearerToken());
-			log("Seene user: " + userID, LogLevel.debug);
-
-			log("Getting index of last " + last + " private seenes",LogLevel.info);
-			//List<SeeneObject> index = myAPI.getPrivateSeenesOldMethod(token, userId, last);
-			List<SeeneObject> index = myAPI.requestUserSeenes(userID, last, "true", getValidBearerToken());
-			log("You have at least " + index.size() + " private seenes", LogLevel.info);
-			
-			downloadInThreads(index, targetDir, STK.NUMBER_OF_DOWNLOAD_THREADS);
-			
-		} catch (Exception e) {
-			StringBuffer inform = new StringBuffer("The following error occured:\n");
-			inform.append(e.getMessage());
-			inform.append("\n\nPlease check your Seene credentials configuration and your internet connection!");
-            log(e.getMessage(),LogLevel.error);
-            JOptionPane.showMessageDialog(null,  inform.toString(), "Backup Error", JOptionPane.ERROR_MESSAGE);
-		}
-    }
+    
     
     private void doUploadSeene(SeeneObject sO) {
     	SeeneAPI myAPI = new SeeneAPI(pd);
@@ -1493,7 +1455,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				if (cnt > 0) {
 					Thread dlThread = new Thread() {
 						public void run() {
-							doTaskBackupPublicSeenes(storage.getPublicDir(),cnt);	
+							doTaskBackupSeenes(storage.getPublicDir(),seeneUser, cnt, false);	
 							parsePool(storage.getPublicDir());
 		            		btPoolPublicSeenes.getModel().setSelected(true);
 						}
@@ -1510,7 +1472,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 				if (cnt > 0) {
 					Thread dlThread = new Thread() {
 						public void run() {
-							doTaskBackupPrivateSeenes(storage.getPrivateDir(),cnt);
+							doTaskBackupSeenes(storage.getPrivateDir(), seeneUser, cnt, true);
 							parsePool(storage.getPrivateDir());
 		            		btPoolPrivateSeenes.getModel().setSelected(true);
 						}
@@ -1562,7 +1524,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 					if (cnt > 0) {
 						Thread dlThread = new Thread() {
 							public void run() {
-								doTaskBackupOtherSeenes(storage.getOthersDir(),uid,cnt);
+								doTaskBackupSeenes(storage.getOthersDir(),uid,cnt,false);
 								parsePool(storage.getOthersDir());
 			            		btPoolOtherSeenes.getModel().setSelected(true);
 							}
@@ -1793,20 +1755,18 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 	
 	@SuppressWarnings("rawtypes")
 	private static Boolean testBearerToken(String token) {
-		//return true;
-		//TODO: new test!
-		
+
 		SeeneAPI api = new SeeneAPI(pd);
 		
 		try {
 			String userID = api.requestUserIDfromOldAPI(seeneUser);
-			log("TEST: userID " + userID,LogLevel.debug);
+			log("Bearer-Test: userID " + userID,LogLevel.debug);
 			Map response = api.requestUserInfo(userID, token);
 			String username = (String)response.get("username");
-			log("TEST: username for ID " + username,LogLevel.debug);
+			log("Bearer-Test: username for ID " + username,LogLevel.debug);
 			if (username.equalsIgnoreCase(seeneUser)) return true;
 		} catch (Exception e) {
-			log("Test failed: " + e.getMessage(),LogLevel.warn);
+			log("Bearer-Test failed: " + e.getMessage(),LogLevel.warn);
 		}
 		
 		return false; 
