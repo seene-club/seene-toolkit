@@ -89,7 +89,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 													  LogLevel.error +
 													  LogLevel.fatal;
 	
-	static String programVersion = "0.92"; 
+	static String programVersion = "0.93"; 
 	static JFrame mainFrame = new JFrame("...::: Seene-Club-Toolkit-GUI v." + programVersion + " :::...");
 	
 	// We need a local storage for the Seenes
@@ -3306,18 +3306,25 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     				}
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.host="))) {
     					log("configured proxy.host: " + line.substring(11),LogLevel.debug);
+    					System.setProperty("http.proxyHost", line.substring(11));
+    					System.setProperty("https.proxyHost", line.substring(11));
+    					System.setProperty("http.nonProxyHosts", "localhost|127.0.0.1");
     					pd.setHost(line.substring(11));
     				}
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.port="))) {
     					log("configured proxy.port: " + line.substring(11),LogLevel.debug);
+    					System.setProperty("http.proxyPort", line.substring(11));
+    					System.setProperty("https.proxyPort", line.substring(11));
     					pd.setPort(line.substring(11));
     				}
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.user="))) {
     					log("configured proxy.user: " + line.substring(11),LogLevel.debug);
+    					System.setProperty("http.proxyUser", line.substring(11));
     					pd.setUser(line.substring(11));
     				}
     				if ((line.length() >= 11) && (line.substring(0, 11).equalsIgnoreCase("proxy.pass="))) {
     					log("configured proxy.pass: " + line.substring(11),LogLevel.debug);
+    					System.setProperty("http.proxyPassword",line.substring(11));
     					pd.setPass(line.substring(11));
     				}
     				

@@ -489,9 +489,10 @@ public class SeeneAPI {
 		if ((proxyData!=null) && (proxyData.getHost().length()>0)) {
 			Proxy proxy = new Proxy(Proxy.Type.HTTP, 
 					new InetSocketAddress(proxyData.getHost(), proxyData.getPort()));
-			
+									
 			// Proxy with Authentication?
 			if (proxyData.getUser().length()>0) {
+						
 				Authenticator authenticator = new Authenticator() {
 		
 			        public PasswordAuthentication getPasswordAuthentication() {
