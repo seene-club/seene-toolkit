@@ -304,7 +304,7 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
     		
     		SeeneAPI myAPI = new SeeneAPI(pd);
     		SeeneSet st = myAPI.getPublicSetInfoByURLoldAPI(surl);
-    		File seeneOriginalsDir = new File(targetDir.getAbsolutePath() + File.separator + st.getTitle() + " - 3D set by " + st.getUserid() + File.separator + ".seeneOriginals");
+    		File seeneOriginalsDir = new File(targetDir.getAbsolutePath() + File.separator + SeeneStorage.winCompatibleFileName(st.getTitle()) + " - 3D set by " + st.getUserid() + File.separator + ".seeneOriginals");
     		
     		List<SeeneObject> index = myAPI.getPublicSetByURLoldAPI(surl);
     		downloadInThreads(index, seeneOriginalsDir, STK.NUMBER_OF_DOWNLOAD_THREADS);

@@ -90,7 +90,11 @@ public class SeeneStorage {
 			folderName = new String(sdf.format(sO.getCaptured_at()) + " " + sCaption).trim();
 		}
 		
-		// Windows is different
+		return winCompatibleFileName(folderName);
+	}
+	
+	// Windows is different
+	public static String winCompatibleFileName(String folderName) {
 		if ((System.getProperty("os.name").length()>=7) && (System.getProperty("os.name").substring(0, 7).equals("Windows"))) {
 			return folderName.replaceAll(":", ";")
 					         .replaceAll(">", ")")
