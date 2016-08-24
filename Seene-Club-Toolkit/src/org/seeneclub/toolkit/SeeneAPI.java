@@ -621,7 +621,11 @@ public class SeeneAPI {
 		st.setShortCode((String)j.get("short_code"));
 		st.setCount((Long)j.get("scenes_count"));
 		Map u = (Map)j.get("user");
-		st.setUserid((String)u.get("username"));
+		if (u!=null) {
+			st.setUserid((String)u.get("username"));
+		} else {
+			st.setUserid("Seene");
+		}
 		
 		return st;
 	}
