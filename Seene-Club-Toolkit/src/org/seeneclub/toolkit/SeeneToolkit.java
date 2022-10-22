@@ -35,6 +35,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1229,8 +1232,15 @@ public class SeeneToolkit implements Runnable, ActionListener, MouseListener {
 		tO.saveTextureRotatedToFile(xFile, 90);
 		mO.saveModelDataToPNGwithFar(pFile, far, calculationMethod);
 
-		injectDepthmapXMP(mO, pFile, xFile, far);
-	}
+        injectDepthmapXMP(mO, pFile, xFile, far);
+
+        try {
+            BasicFileAttributes attributes = Files.readAttributes(mO.getModelFile().toPath(), BasicFileAttributes.class);
+            Files.setLastModifiedTime(xFile.toPath(), attributes.lastModifiedTime());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 
 	private static void injectDepthmapXMP(SeeneModel mO, File pFile, File xFile, float far) {
